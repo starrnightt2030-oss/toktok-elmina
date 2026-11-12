@@ -1023,14 +1023,17 @@ setInterval(()=>{if(state==='play'&&A.ctx&&A.ctx.state!=='running'&&radio.on){to
 function releaseAll(){for(const k in input)input[k]=0;steerKeys.left=steerKeys.right=0;document.querySelectorAll('.pad.on').forEach(b=>b.classList.remove('on'));wheelAng=0;$('knob').style.transform='';}
 document.querySelectorAll('[data-in]').forEach(b=>{const k=b.dataset.in;const on=e=>{e.preventDefault();input[k]=1;b.classList.add('on');try{b.setPointerCapture(e.pointerId);}catch(_){}};const off=()=>{input[k]=0;b.classList.remove('on');};
   b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('lostpointercapture',off);b.addEventListener('contextmenu',e=>e.preventDefault());});
-const joy=$('joy'),knob=$('knob');let joyId=null,wheelAng=0,grabA=0,grabW=0;const WMAX=135;
-function ptrAng(e){const r=joy.getBoundingClientRect();return Math.atan2(e.clientX-(r.left+r.width/2),-(e.clientY-(r.top+r.height/2)))*180/Math.PI;}
-function setWheel(a){wheelAng=clamp(a,-WMAX,WMAX);input.joy=-wheelAng/WMAX;knob.style.transform='rotate('+wheelAng+'deg)';}
-function joyMove(e){let d=ptrAng(e)-grabA;if(d>180)d-=360;if(d<-180)d+=360;setWheel(grabW+d);}
-joy.addEventListener('pointerdown',e=>{e.preventDefault();joyId=e.pointerId;joy.classList.add('held');try{joy.setPointerCapture(e.pointerId);}catch(_){}grabA=ptrAng(e);grabW=wheelAng;});
-joy.addEventListener('pointermove',e=>{if(e.pointerId===joyId)joyMove(e);});
+const joy=$('joy'),knob=$('knob');let joyId=null,wheelAng=0,lastA=0;const WMAX=120;
+/* Steering wheel: the finger's angle around the wheel centre is tracked frame to frame,
+   so the wheel turns exactly as much as the finger does (no jumps past 180°). Near the hub the angle is
+   unreliable, so movement there is ignored. */
+function ptrInfo(e){const r=joy.getBoundingClientRect();const dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);return {a:Math.atan2(dx,-dy)*180/Math.PI,d:Math.hypot(dx,dy)/(r.width/2)};}
+function setWheel(a){wheelAng=clamp(a,-WMAX,WMAX);input.joy=-wheelAng/WMAX;input.wheel=1;knob.style.transform='rotate('+wheelAng.toFixed(1)+'deg)';}
+function joyMove(e){const p=ptrInfo(e);if(p.d<.22){lastA=p.a;return;}let d=p.a-lastA;if(d>180)d-=360;if(d<-180)d+=360;lastA=p.a;setWheel(wheelAng+d);}
+joy.addEventListener('pointerdown',e=>{e.preventDefault();if(joyId!==null)return;joyId=e.pointerId;joy.classList.add('held');try{joy.setPointerCapture(e.pointerId);}catch(_){}lastA=ptrInfo(e).a;});
+joy.addEventListener('pointermove',e=>{if(e.pointerId!==joyId)return;e.preventDefault();const ev=e.getCoalescedEvents?e.getCoalescedEvents():[];if(ev.length)ev.forEach(joyMove);else joyMove(e);});
 ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>joy.addEventListener(ev,e=>{if(e.pointerId!==joyId)return;joyId=null;joy.classList.remove('held');}));
-function wheelReturn(dt){if(joyId===null&&wheelAng!==0){const k=Math.min(1,dt*9);const a=Math.abs(wheelAng)<1?0:wheelAng*(1-k);setWheel(a);}}
+function wheelReturn(dt){if(joyId===null&&wheelAng!==0){const k=Math.min(1,dt*7);const a=Math.abs(wheelAng)<1.5?0:wheelAng*(1-k);setWheel(a);if(!a)input.wheel=0;}}
 const hb=$('bHorn');hb.addEventListener('pointerdown',e=>{e.preventDefault();input.horn=1;try{hb.setPointerCapture(e.pointerId);}catch(_){}});['pointerup','pointercancel','lostpointercapture'].forEach(ev=>hb.addEventListener(ev,()=>{input.horn=0;}));
 $('bCam').addEventListener('click',cycleCam);$('bRadio').addEventListener('click',toggleRadio);$('bPause').addEventListener('click',pauseGame);$('bMute').addEventListener('click',()=>{initAudio();setMute(!A.muted);});
 function toggleRadio(){const r=$('radio');r.hidden=!r.hidden;$('bRadio').classList.toggle('on',!r.hidden);if(!r.hidden&&!radio.on)radioPower(true);}
@@ -1085,6 +1088,19 @@ function vehUI(){const v=VEHS.find(x=>x.id===save.vehicle)||VEHS[0];$('btnVeh').
 function setVehicle(id){if(id===save.vehicle)return;save.vehicle=id;persist();toast('بنجهّز '+(VEHS.find(x=>x.id===id).n)+'…');setTimeout(()=>location.reload(),400);}
 $('btnVeh').addEventListener('click',()=>setVehicle(save.vehicle==='van'?'tuk':'van'));vehUI();
 
+/* ============ settings panel ============ */
+function seg(id,opts,get,set){const el=$(id);const draw=()=>{el.innerHTML='';opts.forEach(([v,lab])=>{const b=document.createElement('button');b.textContent=lab;b.setAttribute('aria-pressed',String(get()===v));b.addEventListener('click',async()=>{if(get()!==v){await set(v);}draw();});el.appendChild(b);});};draw();return draw;}
+const segDraw=[];
+segDraw.push(seg('segCtl',[['touch','الدركسيون'],['tilt','إمالة الموبايل']],()=>ctl.mode==='tilt'?'tilt':'touch',v=>new Promise(r=>{$('btnCtl').click();setTimeout(r,350);})));
+segDraw.push(seg('segSens',[[0.7,'تقيل'],[1,'عادي'],[1.35,'خفيف']],()=>ctl.sens,v=>{ctl.sens=v;saveCtl();ctlUI();}));
+segDraw.push(seg('segVoice',[['game','أصوات اللعبة'],['browser','المتصفح'],['off','مقفول']],()=>Speech.mode,v=>{while(Speech.mode!==v)$('btnVoice').click();}));
+segDraw.push(seg('segQ',[['high','عالية'],['med','خفيفة']],()=>quality,v=>{$('btnQuality').click();}));
+$('btnSettings').addEventListener('click',()=>{segDraw.forEach(f=>f());$('verNote').textContent='النسخة '+APP_VERSION;$('settings').hidden=false;});
+$('setClose').addEventListener('click',()=>{$('settings').hidden=true;});
+$('settings').addEventListener('click',e=>{if(e.target.id==='settings')$('settings').hidden=true;});
+function vehPick(){const box=$('vehPick');box.innerHTML='';VEHS.forEach(x=>{const b=document.createElement('button');b.setAttribute('role','radio');b.setAttribute('aria-checked',String(x.id===save.vehicle));b.innerHTML=(x.id==='van'?'🚐 ':'🛺 ')+x.n+'<small>'+x.d+'</small>';b.addEventListener('click',()=>setVehicle(x.id));box.appendChild(b);});}
+vehPick();
+
 /* ============ voice lines registry + studio ============ */
 VO.register('ركوب الزبون',[INTRO_P,PRICE_P,HAIL_L],'p');VO.register('ردود الاسطى',[INTRO_D,INTRO_D2,PRICE_D],'d');
 VO.register('الدفع والباقي',[PAY_GIVE,PAY_OK,PAY_SHORT,PAY_OVER_HONEST,PAY_KEEP],'p');VO.register('نهاية المشوار',[END_SEQ,END_LATE]);
@@ -1130,9 +1146,19 @@ checkUpdate();setInterval(checkUpdate,3*60*1000);document.addEventListener('visi
 
 /* ============ intro ============ */
 let introT0=performance.now();
-function introReady(){const wait=Math.max(0,2900-(performance.now()-introT0));setTimeout(()=>{const L=$('loading');L.classList.add('ready');loadingText.textContent='اضغط في أي حتة عشان تبدأ';
-  const go=()=>{L.removeEventListener('pointerdown',go);removeEventListener('keydown',go);initAudio();if(A.ctx){A.ctx.resume().catch(()=>{});setTimeout(playSiren,60);}L.classList.add('out');$('menu').hidden=false;setTimeout(()=>{L.hidden=true;},500);};
-  L.addEventListener('pointerdown',go);addEventListener('keydown',go);},wait);}
+function introReady(){const L=$('loading');L.classList.add('ready');loadingText.textContent='👆 اضغط عشان تبدأ';
+  let played=false,done=false;
+  const finish=()=>{if(done)return;done=true;removeEventListener('keydown',go);L.classList.add('out');$('menu').hidden=false;setTimeout(()=>{L.hidden=true;},500);};
+  const go=()=>{if(played){finish();return;}played=true;initAudio();if(A.ctx)A.ctx.resume().catch(()=>{});L.classList.add('play');introEngine();setTimeout(()=>{if(!done)playSiren();},1150);setTimeout(finish,4200);};
+  L.addEventListener('pointerdown',go);addEventListener('keydown',go);}
+/* tuk-tuk two-stroke putter revving up as it drives into the intro */
+function introEngine(){if(!A.ctx)return;const ctx=A.ctx,t=ctx.currentTime;const o=ctx.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(48,t);o.frequency.exponentialRampToValueAtTime(150,t+.8);o.frequency.exponentialRampToValueAtTime(55,t+1.25);
+  const am=ctx.createOscillator();am.type='square';am.frequency.setValueAtTime(18,t);am.frequency.linearRampToValueAtTime(42,t+.8);am.frequency.linearRampToValueAtTime(16,t+1.3);const amg=ctx.createGain();amg.gain.value=.5;am.connect(amg);
+  const g=ctx.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.35,t+.15);g.gain.setValueAtTime(.35,t+1.0);g.gain.exponentialRampToValueAtTime(.0001,t+1.6);amg.connect(g.gain);
+  const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=900;o.connect(lp);lp.connect(g);g.connect(A.sfx);o.start(t);am.start(t);o.stop(t+1.7);am.stop(t+1.7);
+  // tyre skid when it stops
+  const n=ctx.createBufferSource();const b=ctx.createBuffer(1,ctx.sampleRate*.5,ctx.sampleRate);const d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);n.buffer=b;
+  const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=2600;bp.Q.value=3;const ng=ctx.createGain();ng.gain.value=.18;n.connect(bp);bp.connect(ng);ng.connect(A.sfx);n.start(t+.85);}
 /* ============ boot ============ */
 async function boot(){try{buildWorld();
   loadingText.textContent='بنجهّز التوكتوك…';

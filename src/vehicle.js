@@ -58,7 +58,8 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
 
   function common(dt, input, st, fuelOk, speedAbs) {
     // smooth steering, tighter at speed
-    car.steer += (st - car.steer) * Math.min(1, dt * (st ? 4.5 : 6.5));
+    // the touch wheel is already analogue and hand-smoothed: follow it closely; keys/joystick get eased in
+    car.steer += (st - car.steer) * Math.min(1, dt * (input.wheel ? 14 : (st ? 4.5 : 6.5)));
     const t = clamp(speedAbs / TN.vmaxTurbo, 0, 1);
     // cap the lateral grip demand so a three-wheeler doesn't tip in fast corners
     const grip = Math.atan(S.base * TN.latMax / Math.max(1, speedAbs * speedAbs));

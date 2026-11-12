@@ -40,19 +40,42 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 #loading .gtext{opacity:0;animation:fade .4s 1.35s forwards}
 #loading .sun{transform-origin:200px 232px;animation:sunUp 1.4s .1s ease-out both}
 #loading .waves{animation:wave 3s linear infinite}#loading .w2{animation-duration:2.2s;animation-direction:reverse}
-#loading .hero{position:absolute;width:58%;top:36%;left:21%;filter:drop-shadow(0 14px 12px rgba(0,0,0,.55));animation:drive 1.1s .9s cubic-bezier(.15,.9,.3,1.15) both}
-#loading .word{position:absolute;top:69%;display:flex;flex-direction:column;align-items:center;animation:pop .6s 1.7s cubic-bezier(.2,1.6,.4,1) both}
+#loading .hero{position:absolute;width:58%;top:36%;left:21%;filter:drop-shadow(0 14px 12px rgba(0,0,0,.55));transform:translateX(160vw);opacity:0}
+#loading .word,#loading .sub{opacity:0}
+#loading .word{position:absolute;top:69%;display:flex;flex-direction:column;align-items:center}
+#loading.play .hero{animation:drive 1.25s cubic-bezier(.12,.8,.3,1) forwards,idle .18s 1.6s linear infinite alternate}
+#loading.play .intro{animation:shake .45s 1.2s}
+#loading.play .word{animation:pop .6s 1.75s cubic-bezier(.2,1.6,.4,1) both}
+#loading.play .rib{animation:rib .5s 2.05s cubic-bezier(.2,1.6,.4,1) both}
+#loading.play .sub{animation:fade .6s 2.3s both}
+#loading .lines{position:absolute;top:44%;left:0;right:0;height:26%;pointer-events:none;opacity:0}
+#loading .lines i{position:absolute;height:4px;border-radius:3px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.85));right:-40%;width:45%}
+#loading .lines i:nth-child(1){top:10%}#loading .lines i:nth-child(2){top:38%;width:30%}#loading .lines i:nth-child(3){top:62%}#loading .lines i:nth-child(4){top:86%;width:25%}
+#loading.play .lines{animation:lines 1.1s ease-out}
+#loading.play .lines i{animation:streak .5s linear 2}
+#loading .dust{position:absolute;top:80%;left:30%;width:40%;height:10%;pointer-events:none}
+#loading .dust i{position:absolute;bottom:0;width:22%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(230,215,190,.9),rgba(230,215,190,0) 70%);opacity:0}
+#loading .dust i:nth-child(1){left:0}#loading .dust i:nth-child(2){left:20%}#loading .dust i:nth-child(3){left:42%}#loading .dust i:nth-child(4){left:62%}#loading .dust i:nth-child(5){left:80%}
+#loading.play .dust i{animation:puff .9s 1.05s ease-out both}#loading.play .dust i:nth-child(even){animation-delay:1.15s}
+#loading .bang{position:absolute;top:24%;left:4%;padding:6px 14px;border-radius:14px;background:#fff;color:#d32f2f;font-size:7cqw;transform:rotate(-12deg) scale(0);box-shadow:0 6px 0 rgba(0,0,0,.3);border:3px solid #d32f2f}
+#loading.play .bang{animation:bang 1.4s 1.2s cubic-bezier(.2,1.6,.4,1) both}
 #loading .word b{font-weight:400;font-size:19cqw;line-height:.95;color:#f2b705;-webkit-text-stroke:3px #141a33;paint-order:stroke fill;text-shadow:0 6px 0 #141a33,0 10px 24px rgba(0,0,0,.5)}
-#loading .rib{margin-top:-4px;padding:2px 26px 6px;background:#d32f2f;border:3px solid #fff;border-radius:10px;font-size:7.5cqw;transform:rotate(-3deg);box-shadow:0 5px 0 #7a1414;animation:rib .5s 2.1s cubic-bezier(.2,1.6,.4,1) both}
-#loading .sub{position:absolute;bottom:-4%;font:700 3.6cqw var(--f-body);white-space:nowrap;color:#cfd3ef;letter-spacing:.3px;animation:fade .6s 2.4s both}
-#loading .tap{position:absolute;bottom:-13%;font-size:4.6cqw;white-space:nowrap;color:var(--edge);animation:fade .5s 2.6s both}
+#loading .rib{margin-top:-4px;padding:2px 26px 6px;background:#d32f2f;border:3px solid #fff;border-radius:10px;font-size:7.5cqw;transform:rotate(-3deg);box-shadow:0 5px 0 #7a1414}
+#loading .sub{position:absolute;bottom:-4%;font:700 3.6cqw var(--f-body);white-space:nowrap;color:#cfd3ef;letter-spacing:.3px}
+#loading .tap{position:absolute;top:74%;font-size:6cqw;white-space:nowrap;color:var(--edge);transition:opacity .3s}
 #loading.ready .tap span{animation:pulse 1.1s infinite}
+#loading.play .tap{opacity:0}
+#loading .skip{position:absolute;bottom:-13%;font:600 3.4cqw var(--f-body);color:var(--muted);opacity:0}#loading.play .skip{animation:fade .4s 1s both}
 @keyframes embIn{from{transform:scale(.6) rotate(-12deg);opacity:0}}
 @keyframes draw{to{stroke-dashoffset:0}}@keyframes fillIn{to{fill-opacity:1}}@keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes sunUp{from{transform:translateY(90px) scale(.7);opacity:.2}}
 @keyframes wave{to{transform:translateX(-100px)}}
-@keyframes drive{0%{transform:translateX(130%) rotate(4deg);opacity:0}70%{transform:translateX(-6%) rotate(-3deg);opacity:1}85%{transform:translateX(2%) rotate(1deg)}100%{transform:none}}
-@keyframes pop{from{transform:scale(0);opacity:0}}@keyframes rib{from{transform:scale(0) rotate(-20deg)}}
+@keyframes drive{0%{transform:translateX(150%) rotate(5deg);opacity:1}62%{transform:translateX(-7%) rotate(-5deg)}78%{transform:translateX(2%) rotate(2deg) translateY(-2%)}100%{transform:none;opacity:1}}
+@keyframes idle{to{transform:translateY(-0.6%)}}@keyframes shake{20%{transform:translate(-6px,3px)}40%{transform:translate(5px,-3px)}60%{transform:translate(-4px,2px)}80%{transform:translate(3px,-1px)}}
+@keyframes lines{0%,70%{opacity:1}100%{opacity:0}}@keyframes streak{from{transform:translateX(0)}to{transform:translateX(-260%)}}
+@keyframes puff{0%{opacity:0;transform:scale(.3)}30%{opacity:.9}100%{opacity:0;transform:scale(1.8) translate(40%,-40%)}}
+@keyframes bang{0%{transform:rotate(-12deg) scale(0)}20%{transform:rotate(-12deg) scale(1.15)}30%,80%{transform:rotate(-12deg) scale(1)}100%{transform:rotate(-12deg) scale(0);opacity:0}}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:none;opacity:1}}@keyframes rib{from{transform:scale(0) rotate(-20deg)}}
 @keyframes pulse{50%{opacity:.35;transform:scale(.96)}}
 @media (prefers-reduced-motion:reduce){#loading *{animation-duration:.01s!important;animation-delay:0s!important}}
 
@@ -169,6 +192,32 @@ kbd{font:700 11px ui-monospace,monospace;border:1px solid rgba(255,255,255,.3);b
 @media (max-height:500px){#lineBar{top:calc(env(safe-area-inset-top,0px) + 80px);width:40vw}#lineBar .lrow{font-size:15px}}
 @media (min-width:700px) and (min-height:501px){#lineBar{top:calc(env(safe-area-inset-top,0px) + 100px);width:min(520px,44vw)}}
 #lineNext{display:none}#lineBar .lrow{justify-content:center}
+.mlogo{width:min(210px,44vw);margin-bottom:-14px;filter:drop-shadow(0 10px 16px rgba(0,0,0,.5));animation:mfloat 3s ease-in-out infinite}
+@keyframes mfloat{50%{transform:translateY(-6px) rotate(-1deg)}}
+.vpick{display:flex;gap:8px;background:rgba(0,0,0,.3);padding:5px;border-radius:16px;border:2px solid rgba(255,255,255,.12)}
+.vpick button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 16px;border-radius:12px;border:0;background:transparent;color:#cfd3ef;font:18px var(--f-game);min-width:132px}
+.vpick button small{font:600 11px var(--f-body);color:var(--muted)}
+.vpick button[aria-checked="true"]{background:linear-gradient(#ffd54a,#f2b705);color:#2a1d00;box-shadow:0 3px 0 #a37800}
+.vpick button[aria-checked="true"] small{color:#5a4300}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%}
+.tile{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-radius:16px;background:var(--panel);border:2px solid rgba(242,183,5,.55);font:17px var(--f-game);color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.35)}
+.tile i{font-style:normal;font-size:26px}.tile:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.35)}
+#settings{position:fixed;inset:0;z-index:45;display:grid;place-items:center;background:rgba(10,12,28,.78);backdrop-filter:blur(4px);padding:14px}
+#settings .scard{width:min(560px,100%);max-height:calc(100vh - 28px);display:flex;flex-direction:column;background:linear-gradient(#232858,#171b3d);border:3px solid var(--edge);border-radius:22px;box-shadow:0 20px 60px rgba(0,0,0,.6);overflow:hidden}
+#settings .shead{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:2px solid rgba(255,255,255,.08)}
+#settings h2{margin:0;font:26px var(--f-game);color:var(--edge);font-weight:400}
+#settings .x{width:40px;height:40px;border-radius:12px;border:2px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:#fff;font-size:18px}
+#settings .sbody{overflow-y:auto;padding:6px 18px 18px}
+#settings section{padding:12px 0;border-bottom:1px solid rgba(255,255,255,.07)}#settings section:last-child{border:0}
+#settings h3{margin:0 0 8px;font:18px var(--f-game);font-weight:400;color:#fff}
+.srow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 0;font:600 14px var(--f-body);color:#d9dcf2;flex-wrap:wrap}
+.seg{display:inline-flex;background:rgba(0,0,0,.35);border-radius:12px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;color:#cfd3ef;font:15px var(--f-game);padding:8px 12px;border-radius:9px;min-width:64px}
+.seg button[aria-pressed="true"]{background:var(--edge);color:#241a00;box-shadow:0 2px 0 #a37800}
+.snote{margin:6px 0 0;font:500 12.5px/1.8 var(--f-body);color:#a9a2c2}
+#settings .keys{font:500 13px/2 var(--f-body);color:var(--muted)}
+.sbtn{border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#fff;font:15px var(--f-game);padding:8px 14px;border-radius:10px}
+@media (max-height:500px){.mlogo{display:none}.logo{font-size:48px}#menu .tag{display:none}}
 #toast.good{color:var(--edge)}
 #toast.bad{border-color:var(--stop)}
 
@@ -276,10 +325,14 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
       <circle cx="200" cy="200" r="182" fill="none" stroke="#f2b705" stroke-width="10"/>
       <circle cx="200" cy="200" r="190" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2"/>
     </svg>
+    <div class="lines"><i></i><i></i><i></i><i></i></div>
     <img class="hero" src="./img/tuk-hero.png" alt="">
+    <div class="dust"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="bang">بيييب!</div>
     <div class="word"><b>توكتوك</b><span class="rib">الميناء</span></div>
     <div class="sub">ميناء الإسكندرية • ترسانة الإسكندرية</div>
     <div class="tap" id="introTap"><span id="loadingText">بنجهّز الميناء…</span></div>
+    <div class="skip">اضغط تاني للتخطي</div>
   </div>
 </div>
 <canvas id="game" tabindex="0" aria-label="مشهد اللعبة"></canvas>
@@ -296,26 +349,44 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
 <div id="upd" hidden><div class="uc"><h2>في تحديث جديد 🚀</h2><p>نزّلنا نسخة أحدث من اللعبة. لازم تحدّث عشان تكمّل على آخر إصدار.</p><button id="updBtn">حدّث دلوقتي</button><small id="updVer"></small></div></div>
 <div id="menu" dir="rtl" hidden>
   <div class="mi">
+    <img class="mlogo" src="./img/tuk-hero.png" alt="">
     <p class="en">ALEXANDRIA PORT SIMULATOR</p>
     <h1 class="logo">توكتوك <span>الميناء</span></h1>
-    <p class="tag">لِف بالتوكتوك في شوارع الميناء والترسانة ومركز التدريب، لِم الزباين، فوّل بنزين، وزوّق توكتوكك من فلوس الوردية. والراديو شغال على إذاعات زمان.</p>
     <div class="walletline" id="menuWallet"></div>
+    <div class="vpick" id="vehPick" role="radiogroup" aria-label="العربية"></div>
     <button class="bigbtn" id="btnStart">ابدأ الوردية</button>
-    <div class="row">
-      <button class="chip" id="btnGarage">الجراج</button>
-      <button class="chip" id="btnQuality">الرسوم: عالية</button>
-      <button class="chip" id="btnVoice">صوت الحوار: شغال</button>
-      <button class="chip" id="btnVoiceTest">جرّب صوت الحوار</button>
-      <button class="chip" id="btnStudio">🎙️ استوديو الأصوات</button>
-      <button class="chip" id="btnCtl">التحكم: جويستيك</button>
-      <button class="chip" id="btnVeh">العربية: توكتوك</button>
-      <button class="chip" id="btnSens">الدركسيون: عادي</button>
-      <button class="chip" id="install">📲 ثبّت اللعبة على الموبايل</button>
+    <div class="tiles">
+      <button class="tile" id="btnGarage"><i>🔧</i>الجراج</button>
+      <button class="tile" id="btnSettings"><i>⚙️</i>الإعدادات</button>
+      <button class="tile" id="btnStudio"><i>🎙️</i>الاستوديو</button>
     </div>
-    <p class="note" id="voiceNote" hidden></p>
-    <div class="keys"><kbd>W</kbd> بنزين · <kbd>S</kbd> فرامل/رجوع · <kbd>A</kbd><kbd>D</kbd> دركسيون · <kbd>Shift</kbd> تيربو · <kbd>Space</kbd> دريفت · <kbd>H</kbd> كلاكس · <kbd>R</kbd> راديو · <kbd>C</kbd> كاميرا</div>
-    <p class="note">لو بتلعب من آيفون: اقفل زرار الصامت عشان الراديو والأصوات تشتغل.</p>
-    <p class="note">نموذج مستوحى من أجواء ميناء الإسكندرية وترسانتها. الشوارع والمباني تقريبية ومش مطابقة للخرايط. الإذاعات محاكاة لروح زمان، وتقدر تشغّل تسجيلاتك عليها.</p>
+    <button class="chip" id="install">📲 ثبّت اللعبة على الموبايل</button>
+  </div>
+</div>
+
+<div id="settings" dir="rtl" hidden>
+  <div class="scard">
+    <div class="shead"><h2>⚙️ الإعدادات</h2><button class="x" id="setClose" aria-label="قفل">✕</button></div>
+    <div class="sbody">
+      <section><h3>🎮 التحكم</h3>
+        <div class="srow"><span>طريقة السواقة</span><div class="seg" id="segCtl"></div></div>
+        <div class="srow"><span>حساسية الدركسيون</span><div class="seg" id="segSens"></div></div>
+      </section>
+      <section><h3>🔊 الصوت</h3>
+        <div class="srow"><span>صوت الحوار</span><div class="seg" id="segVoice"></div></div>
+        <div class="srow"><span>جرّب الصوت</span><button class="sbtn" id="btnVoiceTest">▶️ اسمع جملة</button></div>
+        <p class="snote" id="voiceNote" hidden></p>
+      </section>
+      <section><h3>🖥️ الرسومات</h3>
+        <div class="srow"><span>الجودة</span><div class="seg" id="segQ"></div></div>
+      </section>
+      <section><h3>❓ المساعدة</h3>
+        <div class="keys"><kbd>W</kbd> بنزين · <kbd>S</kbd> فرامل/رجوع · <kbd>A</kbd><kbd>D</kbd> دركسيون · <kbd>Shift</kbd> تيربو · <kbd>Space</kbd> فرامل يد · <kbd>H</kbd> سرينة · <kbd>R</kbd> راديو · <kbd>C</kbd> كاميرا</div>
+        <p class="snote">على الموبايل: لف الدركسيون بصباعك زي الطارة الحقيقية، ودوس الدواسات. لو بتلعب من آيفون اقفل زرار الصامت عشان الصوت يشتغل.</p>
+        <p class="snote">الأماكن مستوحاة من ميناء الإسكندرية وترسانتها وتقريبية. <span id="verNote"></span></p>
+      </section>
+    </div>
+    <div hidden><button id="btnQuality"></button><button id="btnVoice"></button><button id="btnCtl"></button><button id="btnSens"></button><button id="btnVeh"></button></div>
   </div>
 </div>
 

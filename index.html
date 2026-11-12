@@ -2,6 +2,13 @@
 <html lang="ar">
 <head>
 <meta charset="utf-8">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="./icons/icon-192.png">
+<meta name="theme-color" content="#141a33">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Alexandria Port Simulator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -113,6 +120,23 @@ kbd{font:700 11px ui-monospace,monospace;border:1px solid rgba(255,255,255,.3);b
 #pay .acts{display:flex;gap:8px;margin-top:10px}
 #pay .acts button{flex:1;height:46px;border-radius:12px;border:0;font:20px var(--f-game);cursor:pointer}
 #pay .acts .ok{background:#3fb950;color:#fff}#pay .acts .clr{background:#4a4f6a;color:#fff}
+#upd{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(10,12,28,.92);font-family:var(--f-game);color:#fff;direction:rtl}
+#upd .uc{width:min(420px,90vw);background:var(--panel);border:3px solid var(--edge);border-radius:20px;padding:22px 20px;text-align:center}
+#upd h2{margin:0 0 8px;color:var(--edge);font-size:28px;font-weight:400}#upd p{margin:0 0 16px;font:600 15px/1.7 var(--f-body);color:var(--muted)}
+#upd button{width:100%;height:54px;border:0;border-radius:14px;background:#3fb950;color:#fff;font:22px var(--f-game);cursor:pointer}
+#upd small{display:block;margin-top:10px;color:var(--muted);font:12px var(--f-body)}
+#install{display:none}#install.show{display:inline-flex}
+#studio{position:fixed;inset:0;z-index:90;display:grid;place-items:center;background:rgba(10,12,28,.88);font-family:var(--f-game);color:#fff}
+#studio .sc{width:min(560px,94vw);max-height:94vh;overflow:auto;background:var(--panel);border:3px solid var(--edge);border-radius:20px;padding:14px 16px}
+#studio .sh{display:flex;justify-content:space-between;align-items:center}#studio h3{margin:0;font-weight:400;color:var(--edge);font-size:24px}
+#studio .sn{font:600 13px/1.7 var(--f-body);color:var(--muted);margin:6px 0 10px}
+#studio select{width:100%;height:42px;border-radius:10px;background:#1d2246;color:#fff;border:2px solid rgba(255,255,255,.2);font:17px var(--f-game);padding:0 10px}
+#studio .card{margin:10px 0;padding:16px;border-radius:14px;background:rgba(0,0,0,.3);display:flex;flex-direction:column;gap:8px;min-height:120px;justify-content:center;text-align:center}
+#studio .card span{color:var(--edge);font-size:15px}#studio .card b{font-weight:400;font-size:24px;line-height:1.5}#studio .card small{color:var(--muted);font:12px var(--f-body)}
+#studio .row{display:flex;gap:8px;margin-top:8px;align-items:center}#studio .row button{flex:1;height:48px;border-radius:12px;border:0;background:#353b66;color:#fff;font:17px var(--f-game);cursor:pointer}
+#studio .row button:disabled{opacity:.4}#studio .rec{background:#c62828!important;font-size:20px!important}#studio .rec.on{animation:recp 1s infinite}#studio .rec.has{background:#2e7d32!important}
+@keyframes recp{50%{background:#ff5252}}
+#studio .foot span{flex:1.3;font:13px var(--f-body);color:var(--muted)}
 #toast.good{color:var(--edge)}
 #toast.bad{border-color:var(--stop)}
 
@@ -153,19 +177,26 @@ kbd{font:700 11px ui-monospace,monospace;border:1px solid rgba(255,255,255,.3);b
 /* touch controls */
 .touch{display:none}
 body.is-touch .touch{display:block}
-#joy{position:fixed;left:calc(env(safe-area-inset-left,0px) + 16px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:156px;height:156px;border-radius:50%;border:3px solid rgba(242,183,5,.7);background:rgba(20,22,48,.35);touch-action:none}
-#joy::before,#joy::after{position:absolute;top:50%;transform:translateY(-50%);font:22px var(--f-game);color:rgba(255,255,255,.75)}
-#joy::before{content:"◀";left:14px}#joy::after{content:"▶";right:14px}
-#knob{position:absolute;left:50%;top:50%;width:66px;height:66px;margin:-33px 0 0 -33px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe27a,#f2b705 55%,#c98d00);box-shadow:0 4px 10px rgba(0,0,0,.4)}
-.pads{position:fixed;right:calc(env(safe-area-inset-right,0px) + 12px);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:grid;grid-template-columns:86px 86px;grid-template-rows:64px 82px;gap:10px;direction:ltr}
-.pad{border-radius:16px;font:21px var(--f-game);color:#fff;border:3px solid rgba(255,255,255,.55);touch-action:none;text-shadow:0 2px 0 rgba(0,0,0,.35);box-shadow:0 5px 0 rgba(0,0,0,.35)}
-.pad.on{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.35);filter:brightness(1.2)}
-.pad.drift{background:linear-gradient(#45a6e6,#2a7cb8);grid-column:1;grid-row:1}
-.pad.turbo{background:linear-gradient(#f39a4c,#d9611c);grid-column:2;grid-row:1}
-.pad.brake{background:linear-gradient(#e2574d,#b83229);grid-column:1;grid-row:2}
-.pad.brake.revmode{background:linear-gradient(#9aa0a8,#6d737b)}
-.pad.gas{background:linear-gradient(#4fd06a,#2f9a47);grid-column:2;grid-row:2}
-body.is-touch #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 186px)}
+#joy{position:fixed;left:calc(env(safe-area-inset-left,0px) + 12px);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);width:clamp(150px,42vw,190px);aspect-ratio:1;touch-action:none;border-radius:50%;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))}
+#knob{width:100%;height:100%;display:block;transition:transform .05s linear}
+#joy.held #knob{transition:none}
+.pads{position:fixed;right:calc(env(safe-area-inset-right,0px) + 10px);bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:grid;grid-template-columns:repeat(3,auto);grid-template-rows:auto auto;gap:10px 10px;direction:ltr;align-items:end;justify-items:center}
+.cbtn{width:62px;height:62px;border-radius:50%;border:3px solid rgba(255,255,255,.7);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;color:#fff;font:12px var(--f-game);touch-action:none;box-shadow:0 5px 0 rgba(0,0,0,.4),inset 0 2px 6px rgba(255,255,255,.35);padding:0}
+.cbtn svg{width:28px;height:28px}
+.cbtn.horn{background:radial-gradient(circle at 40% 30%,#ff8a7a,#d32f2f 60%,#8e1414);grid-column:1;grid-row:1}
+.cbtn.turbo{background:radial-gradient(circle at 40% 30%,#ffd27a,#f57c00 60%,#a34a00);grid-column:2;grid-row:1}
+.cbtn.drift{background:radial-gradient(circle at 40% 30%,#8fd0ff,#1f74c4 60%,#0d3f73);grid-column:3;grid-row:1}
+.cbtn.on{transform:translateY(3px) scale(.96);box-shadow:0 2px 0 rgba(0,0,0,.4);filter:brightness(1.25)}
+.pedal{position:relative;border:0;padding:0;touch-action:none;color:#fff;font:16px var(--f-game);transform-origin:50% 100%;transition:transform .07s;background:linear-gradient(#c9ced6,#7d838c 40%,#4a4f57);box-shadow:0 7px 0 #22252b,0 10px 14px rgba(0,0,0,.45);border-radius:12px 12px 8px 8px}
+.pedal i{position:absolute;inset:7px 7px 26px;border-radius:7px;background:repeating-linear-gradient(0deg,#1b1d21 0 6px,#3a3d44 6px 9px);box-shadow:inset 0 2px 4px rgba(0,0,0,.6)}
+.pedal b{position:absolute;left:0;right:0;bottom:4px;font-weight:400;text-shadow:0 1px 2px rgba(0,0,0,.7)}
+.pedal.brake{width:92px;height:84px;grid-column:1/3;grid-row:2;justify-self:end}
+.pedal.brake b{color:#ffd0cc}.pedal.brake.revmode b{color:#e8eaee}
+.pedal.gas{width:62px;height:118px;grid-column:3;grid-row:2}
+.pedal.gas b{color:#c9ffd2}
+.pedal.on{transform:perspective(300px) rotateX(24deg);box-shadow:0 3px 0 #22252b,0 4px 8px rgba(0,0,0,.45)}
+body.is-touch #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 222px)}
+body.is-touch #pay{bottom:calc(env(safe-area-inset-bottom,0px) + 214px)}
 .hint{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);left:50%;transform:translateX(-50%);font:600 12px var(--f-body);color:rgba(255,255,255,.65);white-space:nowrap;direction:rtl}
 body.is-touch .hint{display:none}
 body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
@@ -181,8 +212,10 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
   #gps{width:104px;height:104px}
   #nav{top:calc(env(safe-area-inset-top,0px) + 10px);left:50%;right:auto;transform:translateX(-50%);max-width:46vw}
   #onair{display:none}
-  #joy{width:128px;height:128px}
-  body.is-touch #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 10px);width:calc(100vw - 420px);min-width:200px}
+  #joy{width:116px}.cbtn{width:50px;height:50px}.cbtn svg{width:22px;height:22px}.pedal.gas{height:96px;width:56px}.pedal.brake{height:70px;width:84px}
+  body.is-touch #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 10px);width:calc(100vw - 440px);min-width:200px}
+  body.is-touch #pay{bottom:auto;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 420px));padding:8px 10px;max-height:94vh;overflow:auto}
+  #pay .eq b{font-size:22px}#pay .given{margin:2px 0}.note{height:38px}
 }
 @media (prefers-reduced-motion:reduce){.needle{transition:none}}
 </style>
@@ -192,6 +225,16 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
 <div id="loading"><span id="loadingText">بنجهّز الميناء…</span></div>
 <canvas id="game" tabindex="0" aria-label="مشهد اللعبة"></canvas>
 
+<div id="studio" dir="rtl" hidden><div class="sc">
+  <div class="sh"><h3>🎙️ استوديو الأصوات</h3><button class="sm" id="stClose">قفل</button></div>
+  <p class="sn">سجّل الجمل بصوتك أو بصوت صحابك، بالمصري وبطريقتكم. الصوت بيتحفظ على الجهاز ويشتغل في اللعبة على طول. ولو عايزه يتضاف للعبة عند كل الناس: «صدّر الأصوات» وابعتلي الملف.</p>
+  <select id="stGroup"></select>
+  <div class="card"><span id="stWho"></span><b id="stText"></b><small id="stPos"></small></div>
+  <div class="row"><button id="stPrev">→ اللي قبلها</button><button id="stRec" class="rec">🎙️ سجّل</button><button id="stNext">اللي بعدها ←</button></div>
+  <div class="row"><button id="stPlay">▶️ اسمع</button><button id="stDel">🗑️ امسح</button></div>
+  <div class="row foot"><span id="stDone"></span><button id="stExport">📤 صدّر الأصوات</button><button id="stImport">📥 استورد</button><input type="file" id="stFile" accept=".json,application/json" hidden></div>
+</div></div>
+<div id="upd" hidden><div class="uc"><h2>في تحديث جديد 🚀</h2><p>نزّلنا نسخة أحدث من اللعبة. لازم تحدّث عشان تكمّل على آخر إصدار.</p><button id="updBtn">حدّث دلوقتي</button><small id="updVer"></small></div></div>
 <div id="menu" dir="rtl" hidden>
   <div class="mi">
     <p class="en">ALEXANDRIA PORT SIMULATOR</p>
@@ -204,8 +247,10 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
       <button class="chip" id="btnQuality">الرسوم: عالية</button>
       <button class="chip" id="btnVoice">صوت الحوار: شغال</button>
       <button class="chip" id="btnVoiceTest">جرّب صوت الحوار</button>
+      <button class="chip" id="btnStudio">🎙️ استوديو الأصوات</button>
       <button class="chip" id="btnCtl">التحكم: جويستيك</button>
       <button class="chip" id="btnSens">الدركسيون: عادي</button>
+      <button class="chip" id="install">📲 ثبّت اللعبة على الموبايل</button>
     </div>
     <p class="note" id="voiceNote" hidden></p>
     <div class="keys"><kbd>W</kbd> بنزين · <kbd>S</kbd> فرامل/رجوع · <kbd>A</kbd><kbd>D</kbd> دركسيون · <kbd>Shift</kbd> تيربو · <kbd>Space</kbd> دريفت · <kbd>H</kbd> كلاكس · <kbd>R</kbd> راديو · <kbd>C</kbd> كاميرا</div>
@@ -276,12 +321,29 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
   </div>
 
   <div class="touch">
-    <div id="joy" class="pe"><div id="knob"></div></div>
+    <div id="joy" class="pe" aria-label="الدركسيون">
+      <svg id="knob" viewBox="0 0 200 200" aria-hidden="true">
+        <defs>
+          <radialGradient id="rimG" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#4a4d57"/><stop offset=".7" stop-color="#1d1f25"/><stop offset="1" stop-color="#0c0d10"/></radialGradient>
+          <linearGradient id="spG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9dde3"/><stop offset=".5" stop-color="#8d939b"/><stop offset="1" stop-color="#5b6068"/></linearGradient>
+          <radialGradient id="hubG" cx="45%" cy="35%" r="70%"><stop offset="0" stop-color="#ffe27a"/><stop offset=".6" stop-color="#f2b705"/><stop offset="1" stop-color="#b37e00"/></radialGradient>
+        </defs>
+        <circle cx="100" cy="100" r="88" fill="none" stroke="url(#rimG)" stroke-width="22"/>
+        <circle cx="100" cy="100" r="88" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="22" stroke-dasharray="3 7"/>
+        <circle cx="100" cy="100" r="99" fill="none" stroke="#fff" stroke-opacity=".12" stroke-width="2"/>
+        <path d="M100 12 a88 88 0 0 1 24 3.4" stroke="#e33b2f" stroke-width="22" fill="none"/>
+        <path d="M28 112 Q60 118 82 104 L118 104 Q140 118 172 112 L170 92 Q140 96 118 86 L82 86 Q60 96 30 92Z" fill="url(#spG)" stroke="#2a2c31" stroke-width="2"/>
+        <path d="M88 112 L84 176 Q100 182 116 176 L112 112Z" fill="url(#spG)" stroke="#2a2c31" stroke-width="2"/>
+        <circle cx="100" cy="100" r="30" fill="url(#hubG)" stroke="#6b4d00" stroke-width="3"/>
+        <text x="100" y="108" text-anchor="middle" font-family="Lalezar,Tahoma" font-size="22" fill="#3a2a00">توكتوك</text>
+      </svg>
+    </div>
     <div class="pads">
-      <button class="pad drift pe" data-in="drift">دريفت</button>
-      <button class="pad turbo pe" data-in="turbo">تيربو</button>
-      <button class="pad brake pe" data-in="down" id="brakePad">فرامل</button>
-      <button class="pad gas pe" data-in="up">بنزين</button>
+      <button class="cbtn horn pe" id="tHorn" data-in="horn" aria-label="سرينة"><svg viewBox="0 0 48 48"><path d="M6 20h7l15-9v26l-15-9H6z" fill="#fff"/><path d="M33 15q6 9 0 18M38 11q9 13 0 26" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round"/></svg><span>سرينة</span></button>
+      <button class="cbtn turbo pe" data-in="turbo" aria-label="تيربو"><svg viewBox="0 0 48 48"><path d="M26 4 10 27h12l-3 17 18-25H25z" fill="#fff"/></svg><span>تيربو</span></button>
+      <button class="cbtn drift pe" data-in="drift" aria-label="فرامل يد"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="15" fill="none" stroke="#fff" stroke-width="4"/><text x="24" y="31" text-anchor="middle" font-size="19" font-weight="700" fill="#fff" font-family="Arial">P</text></svg><span>يد</span></button>
+      <button class="pedal brake pe" data-in="down" id="brakePad"><i></i><b>فرامل</b></button>
+      <button class="pedal gas pe" data-in="up"><i></i><b>بنزين</b></button>
     </div>
   </div>
 </div>

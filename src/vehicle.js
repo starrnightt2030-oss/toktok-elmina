@@ -72,7 +72,9 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
     }
     const rot = { x: 0, y: Math.sin(spawn.h / 2), z: 0, w: Math.cos(spawn.h / 2) };
     const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(spawn.x, 0.15, spawn.z)
-      .setRotation(rot).setLinearDamping(0.04).setAngularDamping(0.9).setCcdEnabled(true).setCanSleep(false));
+      .setRotation(rot).setLinearDamping(0.04).setAngularDamping(0.9).setCcdEnabled(true).setCanSleep(false)
+      // a three-wheeler that never tips over: only yaw is free; body lean is drawn in syncModel
+      .enabledRotations(false, true, false));
     world.createCollider(RAPIER.ColliderDesc.cuboid(0.62, 0.45, 1.33).setTranslation(0, 0.95, 0)
       .setMassProperties(TUNING.mass, { x: 0, y: 0.28, z: -0.05 }, { x: 300, y: 280, z: 160 }, { w: 1, x: 0, y: 0, z: 0 })
       .setFriction(0.25).setRestitution(0.2), body);
@@ -98,7 +100,8 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
     }
 
     const STEP = 1 / 60;
-    let acc = 0, prevV = new THREE.Vector3(), flipT = 0;
+    let acc = 0, prevV = new THREE.Vector3(), flipT = 0, safeT = 0;
+    const safe = { x: spawn.x, z: spawn.z, h: spawn.h };
 
     api.update = (dt, input, fuelOk) => {
       const st = clamp(input.joy + input.steerKey, -1, 1);
@@ -147,6 +150,16 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
         const roll = Math.asin(clamp(right.y, -1, 1));
         if (Math.abs(roll) > 0.33) body.applyTorqueImpulse({ x: fwd.x * roll * 30, y: 0, z: fwd.z * roll * 30 }, true);
         world.step();
+        // never let a shove from traffic launch the tuk-tuk
+        {
+          const v = body.linvel(); const hs = Math.hypot(v.x, v.z), cap = TUNING.vmaxTurbo * 1.12;
+          const k = hs > cap ? cap / hs : 1;
+          if (k < 1 || v.y > 2.5 || v.y < -15) body.setLinvel({ x: v.x * k, y: clamp(v.y, -15, 2.5), z: v.z * k }, true);
+          const w = body.angvel(); if (Math.abs(w.y) > 3.5) body.setAngvel({ x: 0, y: clamp(w.y, -3.5, 3.5), z: 0 }, true);
+          const p = body.translation();
+          if (!(Math.abs(p.y) < 2.2) || !isFinite(p.x) || !isFinite(p.z)) { api.teleport(safe.x, safe.z, safe.h); }
+          else if (p.y < 0.4) { safeT += STEP; if (safeT > 1) { safe.x = p.x; safe.z = p.z; safe.h = car.h; safeT = 0; } }
+        }
         // collisions felt as a sudden loss of speed
         const nv = body.linvel();
         const dv = Math.hypot(nv.x - lv.x, nv.z - lv.z);
@@ -230,9 +243,14 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
 }
 
 // Place the GLB nodes from the vehicle state.
+const _e = new THREE.Euler(), _lq = new THREE.Quaternion();
 export function syncModel(tuk, nodes, car) {
   tuk.position.set(car.x, car.mode === 'physics' ? car.y : 0, car.z);
   tuk.quaternion.copy(car.quat);
+  // body lean in corners and squat under throttle/brake (the physics keeps the chassis upright)
+  const lean = clamp(car.steerAng * Math.abs(car.v) * 0.011, -0.07, 0.07);
+  car._pitch = (car._pitch || 0) + (((car.braking ? -0.025 : 0) + (car.thr ? 0.015 : 0)) - (car._pitch || 0)) * 0.08;
+  _e.set(car._pitch, 0, lean); _lq.setFromEuler(_e); tuk.quaternion.multiply(_lq);
   if (nodes.steer) nodes.steer.rotation.y = car.steerAng;
   if (nodes.steer) nodes.steer.position.y = (CONN_Y - car.susp[0]) - RADIUS;
   if (nodes.wf) nodes.wf.rotation.x = car.wheelRot[0];

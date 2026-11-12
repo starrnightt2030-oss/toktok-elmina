@@ -387,6 +387,11 @@ button.mb:active{background:rgba(var(--tuk-rgb),.15)}
 #settings .shead,#studio .sh{border-bottom:2px solid rgba(200,121,56,.45)}
 #toast{background:rgba(var(--navy-rgb),.92);border:1.5px solid var(--line-strong);box-shadow:var(--shadow)}
 #toast.good{border-color:var(--go)}#toast.bad{border-color:var(--stop);color:#FFD2CC}
+#loading::before{content:'';position:absolute;inset:-20px;background:url(./img/keyart-s.webp) center/cover no-repeat;filter:blur(10px) saturate(1.1) brightness(.42);opacity:.75}
+#loading.play::before{opacity:0;transition:opacity .6s}
+#loading .ldc{display:block;margin-top:6px;font:500 12px var(--f-body);color:var(--text-muted);letter-spacing:.3px}
+#loading.ready .ldc{display:none}
+#loading .bar i{background:linear-gradient(90deg,var(--copper),var(--tuk));transition:width .35s ease}
 </style>
 </head>
 <body>
@@ -406,7 +411,7 @@ button.mb:active{background:rgba(var(--tuk-rgb),.15)}
     <div class="dust2"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <div class="gulls"><i>〰</i><i>〰</i></div>
   </div>
-  <div class="tap" id="introTap"><span id="loadingText">بنجهّز الميناء…</span><div class="bar"><i id="loadBar"></i></div></div>
+  <div class="tap" id="introTap"><span id="loadingText">بنجهّز الميناء…</span><div class="bar"><i id="loadBar"></i></div><small id="ldCount" class="ldc" aria-live="polite"></small></div>
   <div class="skip">اضغط للتخطي</div>
 </div>
 <canvas id="game" tabindex="0" aria-label="مشهد اللعبة"></canvas>

@@ -1270,7 +1270,11 @@ function introReady(){const L=$('loading');$('loadBar').style.width='100%';L.cla
     at(0,()=>sfxWhoosh(.9,.35));at(560,sfxBoom);at(1100,()=>sfxChime(0));at(1350,()=>sfxChime(1));at(1650,()=>sfxChime(2));at(1900,playSiren);
     at(2950,()=>sfxWhoosh(.7,.5));at(3150,introEngine);at(3300,sfxWaves);at(3500,sfxGull);at(4300,sfxGull);at(5600,sfxHorn);at(8600,finish);};
   L.addEventListener('pointerdown',go);addEventListener('keydown',go);}
-function introProgress(p){const b=$('loadBar');if(b)b.style.width=Math.round(p*100)+'%';}
+/* loading: real steps only — the bar moves when a step actually finishes, no invented percentage */
+const LD={done:0,total:8};
+function ldStep(msg){LD.done=Math.min(LD.total,LD.done+1);const b=$('loadBar');if(b)b.style.width=(LD.done/LD.total*100)+'%';
+  if(msg)loadingText.textContent=msg;const c=$('ldCount');if(c)c.textContent=LD.done.toLocaleString('ar-EG')+' من '+LD.total.toLocaleString('ar-EG');}
+const nextPaint=()=>new Promise(r=>{let d=false;const f=()=>{if(!d){d=true;r();}};requestAnimationFrame(()=>setTimeout(f,0));setTimeout(f,120);});
 /* --- intro sound design (all synthesized, no files) --- */
 let introAmb=null;
 function noiseBuf(sec){const ctx=A.ctx;const b=ctx.createBuffer(1,ctx.sampleRate*sec,ctx.sampleRate);const d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;return b;}
@@ -1316,23 +1320,23 @@ const perf=new URLSearchParams(location.search).get('debug')==='1'?(()=>{
     snap:snap,report:report};})():null;
 
 /* ============ boot ============ */
-async function boot(){try{introProgress(.15);buildWorld();introProgress(.45);
-  loadingText.textContent='بنجهّز العربيات…';introProgress(.55);
+async function boot(){try{ldStep('بنفتح بوابة الميناء…');await nextPaint();buildWorld();ldStep('الرصيف جاهز، بنركّب الأوناش…');await nextPaint();
+  const step=(pr,msg)=>pr.then(v=>{ldStep(msg);return v;});
   const [gltf,vanG,carsG,R]=await Promise.all([
-    new GLTFLoader().loadAsync(window.TUK_MODEL||'./models/tuk.glb'),
+    step(new GLTFLoader().loadAsync(window.TUK_MODEL||'./models/tuk.glb'),'التوكتوك وصل الجراج 🛺'),
     save.vehicle==='van'?new GLTFLoader().loadAsync('./models/van.glb').catch(e=>{console.warn('van',e);return null;}):Promise.resolve(null),
-    new GLTFLoader().loadAsync(window.CARS_MODEL||'./models/cars.glb').catch(e=>{console.warn('cars model',e);return null;}),
-    RAPIER.init().then(()=>RAPIER).catch(e=>{console.warn('physics unavailable, arcade mode',e);return null;})]);
-  TUK_TRAFFIC=vanG?gltf.scene:null;introProgress(.85);loadTuk(vanG||gltf);if(!TUK_TRAFFIC)TUK_TRAFFIC=tuk;CARS=carsG&&carsG.scene;initTraffic();initWalkers();
+    step(new GLTFLoader().loadAsync(window.CARS_MODEL||'./models/cars.glb').catch(e=>{console.warn('cars model',e);return null;}),'العربيات نزلت الشارع…'),
+    step(RAPIER.init().then(()=>RAPIER).catch(e=>{console.warn('physics unavailable, arcade mode',e);return null;}),'ظبطنا الفرامل والعجل…')]);
+  TUK_TRAFFIC=vanG?gltf.scene:null;loadTuk(vanG||gltf);if(!TUK_TRAFFIC)TUK_TRAFFIC=tuk;CARS=carsG&&carsG.scene;initTraffic();initWalkers();ldStep('الزباين واقفين على الرصيف…');await nextPaint();
   veh=await createVehicle({RAPIER:R,colliders,traffic,spawn:{x:-160,z:7,h:-Math.PI/2},kind:isVan?'van':'tuk'});car=veh.car;
   veh.onImpact(s=>{shake=Math.min(1,s/9);onImpact(s);});
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);
   destRing=new T.Mesh(new T.TorusGeometry(3,.15,8,40),new T.MeshBasicMaterial({color:'#4cff5e'}));destRing.rotation.x=Math.PI/2;destRing.visible=false;scene.add(destRing);
   buildRadioUI();radioUI();syncTuk();menuWallet();updateMoney();
   window.portSim={audio:A,mus:Mus,radio:radio,sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,get fare(){return fare;},get line(){return line;},get perf(){return perf;},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
-  state='menu';requestAnimationFrame(frame);introReady();}
+  state='menu';ldStep('كله تمام، الوردية مستنياك!');requestAnimationFrame(frame);introReady();}
   catch(err){console.error(err);loadingText.textContent='حصلت مشكلة: '+err.message;}}
-const fr=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();
-Promise.race([fr,new Promise(r=>setTimeout(r,2500))]).then(boot);
+const fr0=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();
+Promise.race([fr0,new Promise(r=>setTimeout(r,2500))]).then(()=>{ldStep('الخطوط جاهزة، يلا بينا…');boot();});
 
 })();

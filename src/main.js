@@ -1055,8 +1055,14 @@ function drawGPS(){const W=gps.width,H=gps.height;if(!W)return;const sc=W/2/95;g
   for(const s of STATIONS_F){gg.fillStyle='#f2b705';gg.fillRect(s.sx-6,s.sz-6,12,12);}
   if(fare){const p=POI[fare.to];gg.fillStyle='#4cff5e';gg.beginPath();gg.arc(p.x,p.z,8,0,7);gg.fill();}
   gg.restore();gg.save();gg.translate(W/2,H/2+W*.12);gg.fillStyle='#ffffff';gg.strokeStyle='#0f2433';gg.lineWidth=2*gpsDpr;gg.beginPath();gg.moveTo(0,-9*gpsDpr);gg.lineTo(7*gpsDpr,7*gpsDpr);gg.lineTo(0,3*gpsDpr);gg.lineTo(-7*gpsDpr,7*gpsDpr);gg.closePath();gg.fill();gg.stroke();gg.restore();}
+const HC={tb:-1,sf:-1,fu:-1,g:-9,_el:null,get el(){return this._el||(this._el={turbo:$('turboBar'),fx:$('speedfx'),fuel:$('fuelBar'),gear:$('revTag')});}};
 function updateHUD(dt){const sp=Math.round(Math.abs(car.v)*3.6);if(sp!==lastSpd){$('speed').textContent=sp;lastSpd=sp;}
-  $('turboBar').style.width=(turbo*100).toFixed(0)+'%';$('speedfx').style.opacity=car.boost?Math.min(1,Math.abs(car.v)/14):0;flame.visible=!!car.boost;if(car.boost){const f=.5+Math.random()*.5;flame.scale.set(f,f,1);}$('fuelBar').style.width=fuel.toFixed(0)+'%';{const gt=$('revTag');gt.hidden=false;gt.textContent=car.gear===0?'رجوع':'غيار '+'٠١٢٣٤٥'[car.gear];}
+  /* write to the DOM only when the shown value changes (no per-frame style churn) */
+  {const tb=Math.round(turbo*100);if(tb!==HC.tb){HC.tb=tb;HC.el.turbo.style.width=tb+'%';}
+   const sf=car.boost?Math.round(Math.min(1,Math.abs(car.v)/14)*20)/20:0;if(sf!==HC.sf){HC.sf=sf;HC.el.fx.style.opacity=sf;}
+   const fu=Math.round(fuel);if(fu!==HC.fu){HC.fu=fu;HC.el.fuel.style.width=fu+'%';}
+   const g=car.gear;if(g!==HC.g){HC.g=g;HC.el.gear.hidden=false;HC.el.gear.textContent=g===0?'رجوع':'غيار '+'٠١٢٣٤٥'[g];}}
+  flame.visible=!!car.boost;if(car.boost){const f=.5+Math.random()*.5;flame.scale.set(f,f,1);}
   const bp=$('brakePad');const rev=Math.abs(car.v)<.6;if(bp.classList.contains('revmode')!==rev){bp.classList.toggle('revmode',rev);bp.textContent=rev?'رجوع':'فرامل';}
   if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').hidden=true;}
   /* navigation target */

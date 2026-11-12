@@ -336,6 +336,30 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
 }
 @media (prefers-reduced-motion:reduce){.needle{transition:none}}
 
+/* ===== driving HUD layout (Phase 2 D): map top-left · mission top-center · money top-right · gauges bottom-center · controls bottom corners ===== */
+.tR{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:calc(env(safe-area-inset-right,0px) + 10px);display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.tR .wallet,.tR .total{border-right:0;border-left:5px solid var(--tuk);border:1.5px solid var(--line);border-left:5px solid var(--tuk);background:rgba(var(--navy-rgb),.84);text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.tR .total{text-align:left}.tR .total div{font-size:12px;color:var(--text-muted)}
+.tr{top:auto;right:auto;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);width:auto;min-width:200px;display:grid;grid-template-columns:auto 118px;grid-template-rows:auto auto auto;column-gap:12px;row-gap:3px;align-items:center;padding:6px 14px 7px;border:1.5px solid var(--line-strong);border-radius:16px;background:rgba(var(--navy-rgb),.84);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.tr .spd{grid-row:1/4;grid-column:1;flex-direction:column;align-items:center;gap:0}
+.tr .spd b{font-size:40px;text-shadow:0 2px 0 rgba(0,0,0,.5)}.tr .spd span{font-size:11px;color:var(--text-muted);margin-top:-2px}
+.tr>.bar{grid-column:2;grid-row:1;margin-top:0;height:7px}
+.tr .fuelrow{grid-column:2;grid-row:2;margin-top:0!important}
+.tr .rev{grid-column:2;grid-row:3;margin:0;text-align:right;font-size:13px;color:var(--cream)}
+body:not(.is-touch) .tr{bottom:calc(env(safe-area-inset-bottom,0px) + 30px)}
+body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 104px)}
+body.is-touch .tr{bottom:calc(env(safe-area-inset-bottom,0px) + 216px)}
+body.is-touch #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 286px)}
+.ib{width:var(--touch);height:var(--touch)}
+@media (max-width:420px){.ib{width:38px;height:38px}.tR .wallet b{font-size:24px}.tR .total b{font-size:18px}.tr{min-width:176px;grid-template-columns:auto 100px;padding:5px 11px}.tr .spd b{font-size:34px}}
+@media (max-height:500px){
+  body.is-touch .tr{bottom:calc(env(safe-area-inset-bottom,0px) + 10px);min-width:180px;grid-template-columns:auto 96px;padding:4px 10px}.tr .spd b{font-size:32px}
+  body.is-touch #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 82px);width:min(calc(100vw - 420px),520px)}
+  .ib{width:40px;height:40px}.tR .wallet b{font-size:22px}.tR .total{padding:2px 10px}.tR .total b{font-size:17px}
+}
+@media (max-height:380px){.tR .total{display:none}}
+
+
 
 /* ===== main menu (Phase 2 B) ===== */
 #menu{display:grid;grid-template-rows:1fr auto;align-items:end;justify-items:center;padding:calc(env(safe-area-inset-top,0px) + 10px) max(14px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 14px) max(14px,env(safe-area-inset-left,0px));
@@ -517,9 +541,11 @@ button.mb:active{background:rgba(var(--tuk-rgb),.15)}
       <button class="ib pe" id="bRadio" aria-label="الراديو"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M7 8 17 3"/><circle cx="15.5" cy="14" r="2.6"/><path d="M6.5 12.5h3.5M6.5 15.5h3.5"/></svg></button>
       <button class="ib pe" id="bHorn" aria-label="كلاكس"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M3 10v4l13 5V5z"/><path d="M19 9v6" stroke-linecap="round"/></svg></button>
     </div>
+    <canvas id="gps" width="150" height="150"></canvas>
+  </div>
+  <div class="tR">
     <div class="wallet"><b id="wallet">0</b><span>ج.م</span></div>
     <div class="total"><div>إجمالي الأرباح</div><b id="total">0</b> <span style="font:14px var(--f-game)">ج.م</span></div>
-    <canvas id="gps" width="150" height="150"></canvas>
   </div>
 
   <div class="tr">

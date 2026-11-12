@@ -1,10 +1,14 @@
 // Offline cache for the installed game. Hashed assets and models are cache-first;
 // the page itself is network-first so a new release is picked up right away.
 // version.json is never cached: the game uses it to force updates.
-const CACHE = 'toktok-' + (new URL(self.location).searchParams.get('v') || 'dev');
+// Each channel (main / beta) owns the caches that start with its own prefix and never touches the other's.
+const Q = new URL(self.location).searchParams;
+const PREFIX = 'toktok-' + (Q.get('ch') === 'beta' ? 'beta-' : '');
+const CACHE = PREFIX + (Q.get('v') || 'dev');
+const mine = k => k.startsWith(PREFIX) && (PREFIX !== 'toktok-' || !k.startsWith('toktok-beta-'));
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil((async () => {
-  for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);
+  for (const k of await caches.keys()) if (mine(k) && k !== CACHE) await caches.delete(k);
   await self.clients.claim();
 })()));
 self.addEventListener('message', e => { if (e.data === 'skip') self.skipWaiting(); });

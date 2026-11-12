@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:beta": "VITE_CHANNEL=beta vite build --outDir dist-beta",
+    "test": "node tools/save_test.mjs && node tools/sim_test.mjs && node tools/turbo_test.mjs && node tools/ram_test.mjs",
     "preview": "vite preview",
     "model": "python3 tools/build_tuk.py public/models/tuk.glb"
   },

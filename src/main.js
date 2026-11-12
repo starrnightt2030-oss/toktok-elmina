@@ -1139,7 +1139,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last
   if(state==='play'){animWorld(dt);updateTraffic(dt);updateCar(dt);updateWalkers(dt);syncTuk();updateFares(dt);dlgUpdate(dt);radioUpdate(dt);updateHUD(dt);updateCam(dt);audioTick();}
   else if(state==='menu'||state==='loading'){animWorld(dt);updateTraffic(dt);updateWalkers(dt);syncTuk();mA+=dt*.04;
     camera.position.set(-140+Math.cos(mA)*70,22+Math.sin(mA*.7)*5,10+Math.sin(mA)*45);camera.lookAt(-120,4,-20);}
-  placeSun();renderer.render(scene,camera);}
+  placeSun();renderer.render(scene,camera);if(perf)perf.tick(now);}
 
 
 const VEHS=[{id:'tuk',n:'توكتوك',d:'راكب واحد، توصيل لحد الباب'},{id:'van',n:'سوزوكي ٧ راكب',d:'مشروع بمحطات، لحد ٦ ركاب'}];
@@ -1245,6 +1245,29 @@ function introEngine(){if(!A.ctx)return;const ctx=A.ctx,t=ctx.currentTime;const 
   // tyre skid when it stops
   const n=ctx.createBufferSource();const b=ctx.createBuffer(1,ctx.sampleRate*.5,ctx.sampleRate);const d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);n.buffer=b;
   const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=2600;bp.Q.value=3;const ng=ctx.createGain();ng.gain.value=.18;n.connect(bp);bp.connect(ng);ng.connect(A.sfx);n.start(t+.85);}
+/* ============ performance counter (?debug=1) ============ */
+const perf=new URLSearchParams(location.search).get('debug')==='1'?(()=>{
+  const el=document.createElement('div');el.id='perf';el.innerHTML='<pre id="perfTxt"></pre><div class="pb2"><button id="perfCopy">نسخ التقرير</button><button id="perfReset">تصفير</button><button id="perfMark">علامة هنا</button></div>';document.body.appendChild(el);
+  const P={t0:0,last:0,win:[],all:0,frames:0,sumDt:0,maxDt:0,calls:0,tris:0,marks:[],shown:0};
+  /* count at the WebGL level so shadow passes are included (renderer.info misses them) */
+  const G={calls:0,tris:0};const gl=renderer.getContext();const TRI=4,STRIP=5,FAN=6;const tri=(mode,n)=>mode===TRI?n/3:(mode===STRIP||mode===FAN?Math.max(0,n-2):0);
+  for(const [name,ci,ii] of [['drawElements',1,-1],['drawArrays',2,-1],['drawElementsInstanced',1,4],['drawArraysInstanced',2,3]]){const f=gl[name];if(!f)continue;gl[name]=function(){G.calls++;G.tris+=tri(arguments[0],arguments[ci])*(ii>=0?arguments[ii]:1);return f.apply(gl,arguments);};}
+  const reset=()=>{P.t0=performance.now();P.frames=0;P.sumDt=0;P.maxDt=0;P.win.length=0;};reset();
+  const area=()=>car?areaOf(car.x,car.z):'-';
+  const snap=()=>{const fpsNow=P.win.length>1?Math.round((P.win.length-1)/((P.win.at(-1)-P.win[0])/1000)):0;const avg=P.frames?(P.frames/((performance.now()-P.t0)/1000)):0;
+    const mem=performance.memory?Math.round(performance.memory.usedJSHeapSize/1048576):null;
+    return {fpsNow:fpsNow,fpsAvg:+avg.toFixed(1),frameMs:+(P.frames?P.sumDt/P.frames:0).toFixed(1),frameMaxMs:+P.maxDt.toFixed(1),calls:P.calls,tris:P.tris,memMB:mem,vehicles:traffic.length+1,walkers:walkers.length,area:area(),x:car?Math.round(car.x):0,z:car?Math.round(car.z):0};};
+  const report=()=>{const s=snap();return ['توكتوك في المينا — تقرير أداء','النسخة: '+APP_VERSION+' ('+CHANNEL+')','الوقت: '+new Date().toLocaleString('ar-EG'),'الجهاز: '+navigator.userAgent,'الشاشة: '+innerWidth+'×'+innerHeight+' · DPR '+(devicePixelRatio||1)+' · الرسوم: '+quality,'العربية: '+(isVan?'سوزوكي':'توكتوك')+' · الفيزياء: '+(car?car.mode:'-'),
+    'الآن: FPS '+s.fpsNow+' · المتوسط '+s.fpsAvg+' · زمن الفريم '+s.frameMs+'ms (أقصى '+s.frameMaxMs+') · Draw Calls '+s.calls+' · Triangles '+s.tris+' · ذاكرة JS '+(s.memMB==null?'غير متاحة':s.memMB+'MB')+' · مركبات '+s.vehicles+' · مشاة '+s.walkers+' · المكان '+s.area+' ('+s.x+','+s.z+')']
+    .concat(P.marks.length?['علامات:'].concat(P.marks.map((m,i)=>(i+1)+') '+m.area+' ('+m.x+','+m.z+') FPS '+m.fpsNow+' متوسط '+m.fpsAvg+' · '+m.frameMs+'ms · calls '+m.calls+' · tris '+m.tris+' · mem '+m.memMB)):[]).join('\n');};
+  el.querySelector('#perfCopy').addEventListener('click',async()=>{const t=report();try{await navigator.clipboard.writeText(t);toast('اتنسخ التقرير','good');}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('اتنسخ التقرير','good');}catch(_){toast('انسخ النص يدوي','bad');}ta.remove();}});
+  el.querySelector('#perfReset').addEventListener('click',reset);
+  el.querySelector('#perfMark').addEventListener('click',()=>{P.marks.push(snap());toast('اتسجلت علامة '+P.marks.length,'good');});
+  return {tick(now){const dt=P.last?now-P.last:16.7;P.last=now;if(document.hidden)return;P.frames++;P.sumDt+=dt;if(dt>P.maxDt&&P.frames>5)P.maxDt=dt;P.win.push(now);while(P.win.length&&now-P.win[0]>1000)P.win.shift();
+      P.calls=G.calls;P.tris=Math.round(G.tris);G.calls=0;G.tris=0;
+      if(now-P.shown>500){P.shown=now;const s=snap();$('perfTxt').textContent='FPS '+s.fpsNow+'   avg '+s.fpsAvg+'\nframe '+s.frameMs+' ms   max '+s.frameMaxMs+'\ndraw '+s.calls+'   tris '+(s.tris/1000).toFixed(0)+'k\nJS mem '+(s.memMB==null?'n/a':s.memMB+' MB')+'   veh '+s.vehicles+'\n'+s.area+'  '+APP_VERSION;}},
+    snap:snap,report:report};})():null;
+
 /* ============ boot ============ */
 async function boot(){try{introProgress(.15);buildWorld();introProgress(.45);
   loadingText.textContent='بنجهّز العربيات…';introProgress(.55);
@@ -1259,7 +1282,7 @@ async function boot(){try{introProgress(.15);buildWorld();introProgress(.45);
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);
   destRing=new T.Mesh(new T.TorusGeometry(3,.15,8,40),new T.MeshBasicMaterial({color:'#4cff5e'}));destRing.rotation.x=Math.PI/2;destRing.visible=false;scene.add(destRing);
   buildRadioUI();radioUI();syncTuk();menuWallet();updateMoney();
-  window.portSim={audio:A,mus:Mus,radio:radio,sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,get fare(){return fare;},get line(){return line;},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
+  window.portSim={audio:A,mus:Mus,radio:radio,sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,get fare(){return fare;},get line(){return line;},get perf(){return perf;},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
   state='menu';requestAnimationFrame(frame);introReady();}
   catch(err){console.error(err);loadingText.textContent='حصلت مشكلة: '+err.message;}}
 const fr=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();

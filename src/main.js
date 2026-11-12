@@ -671,10 +671,34 @@ const traffic=[];let CARS=null;const paintCache={};
 function tintMat(m,hex){const k=m.uuid+hex;if(!paintCache[k]){const c=m.clone();c.color.set(hex).convertSRGBToLinear();paintCache[k]=c;}return paintCache[k];}
 function makeTraffic(k){const NM={taxi:'Taxi',sedan:'Sedan',classic:'Classic',micro:'Micro',truck:'Truck'};
   let src=k[0]==='tuk'?TUK_TRAFFIC:(CARS&&CARS.getObjectByName(NM[k[0]]));if(!src){const m=new T.Mesh(vehicleGeo(k[0],k[1],k[2]),VC);m.castShadow=true;return m;}
-  const m=src.clone(true);m.position.set(0,0,0);m.quaternion.identity();const col=k[0]==='truck'?k[2]:k[1];
+  const col=k[0]==='truck'?k[2]:k[1];
+  if(!OLD_TRAFFIC){const m=new T.Mesh(bakeVehicle(src,col,k[0]+'|'+col),TRAFFIC_MAT);m.castShadow=true;m.receiveShadow=true;const g=new T.Group();g.add(m);return g;}
+  const m=src.clone(true);m.position.set(0,0,0);m.quaternion.identity();
   m.traverse(o=>{if(!o.isMesh)return;o.castShadow=true;if(o.material&&o.material.name==='Paint')o.material=tintMat(o.material,col);});
   if(k[0]==='tuk'){const ps=m.getObjectByName('PaxSeatPt');if(ps)ps.clear();}
   const g=new T.Group();g.add(m);return g;}
+/* Traffic cars are baked once per model + colour into ONE mesh with vertex colours:
+   one draw call (+ one for its shadow) instead of one per material. ?traffic=old shows the previous version for comparison. */
+const OLD_TRAFFIC=new URLSearchParams(location.search).get('traffic')==='old';
+const TRAFFIC_MAT=new T.MeshStandardMaterial({vertexColors:true,roughness:.42,metalness:.22});
+const bakeCache={};
+function bakeVehicle(src,paint,key){if(bakeCache[key])return bakeCache[key];
+  src.updateMatrixWorld(true);const inv=new T.Matrix4().copy(src.matrixWorld).invert();
+  const m4=new T.Matrix4(),nm=new T.Matrix3(),v=new T.Vector3(),c=new T.Color(),paintC=new T.Color(paint).convertSRGBToLinear(),glassC=new T.Color('#24323c').convertSRGBToLinear(),darkC=new T.Color('#1d1d1f').convertSRGBToLinear();
+  const parts=[];src.traverse(o=>{if(!o.isMesh)return;for(let p=o;p&&p!==src;p=p.parent)if(!p.visible)return;if(o.name==='PaxSeatPt')return;
+    const mat=Array.isArray(o.material)?o.material[0]:o.material;if(!mat||mat.blending===T.AdditiveBlending||mat.isMeshBasicMaterial)return;parts.push(o);});
+  let nv=0,ni=0;for(const o of parts){nv+=o.geometry.attributes.position.count;ni+=o.geometry.index?o.geometry.index.count:o.geometry.attributes.position.count;}
+  /* typed arrays sized up front, indices kept: no big temporary JS arrays, no vertex duplication */
+  const P=new Float32Array(nv*3),N=new Float32Array(nv*3),C=new Float32Array(nv*3),I=nv>65535?new Uint32Array(ni):new Uint16Array(ni);let vo=0,io=0;
+  for(const o of parts){const mat=Array.isArray(o.material)?o.material[0]:o.material;
+    if(mat.name==='Paint')c.copy(paintC);else if(mat.name==='Glass'||mat.name==='Tint'||(mat.transparent&&mat.opacity<.7))c.copy(glassC);else if(mat.map)c.copy(darkC);
+    else{c.copy(mat.color);if(mat.emissive&&(mat.emissiveIntensity||1)>0){c.r=Math.min(1,c.r+mat.emissive.r*.6);c.g=Math.min(1,c.g+mat.emissive.g*.6);c.b=Math.min(1,c.b+mat.emissive.b*.6);}}
+    m4.multiplyMatrices(inv,o.matrixWorld);nm.getNormalMatrix(m4);const g=o.geometry,pos=g.attributes.position,nor=g.attributes.normal,idx=g.index;
+    for(let j=0;j<pos.count;j++){v.fromBufferAttribute(pos,j).applyMatrix4(m4);P[(vo+j)*3]=v.x;P[(vo+j)*3+1]=v.y;P[(vo+j)*3+2]=v.z;
+      if(nor)v.fromBufferAttribute(nor,j).applyMatrix3(nm).normalize();else v.set(0,1,0);N[(vo+j)*3]=v.x;N[(vo+j)*3+1]=v.y;N[(vo+j)*3+2]=v.z;C[(vo+j)*3]=c.r;C[(vo+j)*3+1]=c.g;C[(vo+j)*3+2]=c.b;}
+    if(idx)for(let i=0;i<idx.count;i++)I[io++]=idx.getX(i)+vo;else for(let i=0;i<pos.count;i++)I[io++]=i+vo;vo+=pos.count;}
+  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));geo.setAttribute('normal',new T.BufferAttribute(N,3));geo.setAttribute('color',new T.BufferAttribute(C,3));geo.setIndex(new T.BufferAttribute(I,1));geo.computeBoundingSphere();
+  return bakeCache[key]=geo;}
 function laneLoop(pts,off){const out=[];const n=pts.length;for(let i=0;i<n;i++){const p=pts[i],a=pts[(i-1+n)%n],b=pts[(i+1)%n];const d1x=Math.sign(p[0]-a[0]),d1z=Math.sign(p[1]-a[1]),d2x=Math.sign(b[0]-p[0]),d2z=Math.sign(b[1]-p[1]);out.push([p[0]+(-d1z-d2z)*off,p[1]+(d1x+d2x)*off]);}return out;}
 function mkPath(pts){const L=[];let tot=0;for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length];const l=Math.hypot(b[0]-a[0],b[1]-a[1]);L.push(l);tot+=l;}return {pts:pts,L:L,tot:tot};}
 function pathAt(P,s,o){s=((s%P.tot)+P.tot)%P.tot;for(let i=0;i<P.pts.length;i++){if(s<=P.L[i]){const a=P.pts[i],b=P.pts[(i+1)%P.pts.length],t=s/P.L[i];o.x=a[0]+(b[0]-a[0])*t;o.z=a[1]+(b[1]-a[1])*t;o.dx=(b[0]-a[0])/P.L[i];o.dz=(b[1]-a[1])/P.L[i];return o;}s-=P.L[i];}return o;}

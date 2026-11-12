@@ -631,7 +631,23 @@ function loadTuk(gltf){tuk=gltf.scene;
   coneGlow=new T.Mesh(cg,new T.MeshBasicMaterial({map:ct,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));tuk.add(coneGlow);
   headGlow=new T.Group();[-.27,.27].forEach(x=>{const s=new T.Sprite(new T.SpriteMaterial({map:texGlow,color:'#fff0c8',transparent:true,depthWrite:false,blending:T.AdditiveBlending}));s.scale.set(.6,.6,1);s.position.set(x,.86,-1.47);headGlow.add(s);});tukBody.add(headGlow);
   flame=new T.Sprite(new T.SpriteMaterial({map:texGlow,color:'#ff7a1a',transparent:true,depthWrite:false,blending:T.AdditiveBlending}));flame.position.set(.46,.33,1.52);flame.visible=false;tukBody.add(flame);
+  if(!isVan)buildDial();tukNodes.driver=tuk.getObjectByName('Driver');tukNodes.charm=null;tuk.traverse(o=>{if(o.isMesh&&o.material&&o.material.name==='EvilEye')tukNodes.charm=o;});
   scene.add(tuk);arrow3D=new T.Object3D();buildChev();}
+/* --- cockpit speedometer (Phase 2 F): static dial texture + rotating needle mesh, shown only in the inside camera --- */
+let dial=null,dialNeedle=null;const DIAL_MAX=80;
+function buildDial(){const tex=ctex(256,256,g=>{g.fillStyle='#0d1420';g.beginPath();g.arc(128,128,126,0,7);g.fill();g.strokeStyle='#C87938';g.lineWidth=8;g.beginPath();g.arc(128,128,118,0,7);g.stroke();
+    g.lineWidth=10;g.strokeStyle='#F5B928';g.beginPath();g.arc(128,128,100,Math.PI*.75,Math.PI*.75+Math.PI*1.5*(60/DIAL_MAX));g.stroke();g.strokeStyle='#D9483B';g.beginPath();g.arc(128,128,100,Math.PI*.75+Math.PI*1.5*(60/DIAL_MAX),Math.PI*2.25);g.stroke();
+    g.fillStyle='#F5F1E8';g.font='700 26px '+AR;g.textAlign='center';g.textBaseline='middle';
+    for(let v=0;v<=DIAL_MAX;v+=10){const a=Math.PI*.75+Math.PI*1.5*v/DIAL_MAX;g.strokeStyle='#F5F1E8';g.lineWidth=v%20?3:5;g.beginPath();g.moveTo(128+Math.cos(a)*86,128+Math.sin(a)*86);g.lineTo(128+Math.cos(a)*(v%20?76:70),128+Math.sin(a)*(v%20?76:70));g.stroke();
+      if(v%20===0)g.fillText(String(v),128+Math.cos(a)*54,128+Math.sin(a)*54);}
+    g.fillStyle='#AAB5C3';g.font='600 18px '+AR;g.fillText('كم/س',128,184);});
+  dial=new T.Mesh(new T.CircleGeometry(.052,32),new T.MeshBasicMaterial({map:tex,toneMapped:false}));
+  dialNeedle=new T.Mesh(new T.PlaneGeometry(.0045,.043).translate(0,.018,0),new T.MeshBasicMaterial({color:'#ff3b2a',toneMapped:false}));dialNeedle.position.z=.002;dial.add(dialNeedle);
+  const hub=new T.Mesh(new T.CircleGeometry(.0065,12),new T.MeshBasicMaterial({color:'#F5B928',toneMapped:false}));hub.position.z=.003;dial.add(hub);
+  dial.position.set(0,1.345,-.96);const eye=new T.Vector3(0,1.6,-.42);dial.quaternion.setFromUnitVectors(new T.Vector3(0,0,1),eye.sub(dial.position).normalize());dial.visible=false;tukBody.add(dial);}
+function updateCockpit(){const inside=camMode===2&&state==='play';if(HC.camIn!==inside){HC.camIn=inside;document.body.classList.toggle('cam-in',inside);}if(dial){if(dial.visible!==inside)dial.visible=inside;if(inside){const v=Math.min(DIAL_MAX,Math.abs(car.v)*3.6);dialNeedle.rotation.z=Math.PI*.75-Math.PI*1.5*v/DIAL_MAX;}}
+  if(tukNodes.driver&&tukNodes.driver.visible===inside)tukNodes.driver.visible=!inside;
+  if(tukNodes.charm&&tukNodes.charm.visible===inside)tukNodes.charm.visible=!inside;   /* the hanging evil-eye charm sits right in front of the driver's eye */}
 function setSlogan(t){if(!sloganMat)return;const old=sloganMat.map;sloganMat.map=sloganStrip(t);sloganMat.needsUpdate=true;if(old)old.dispose();}
 let chev;const CH_N=18;const _cp=[];
 function buildChev(){const s=new T.Shape();s.moveTo(0,-.75);s.lineTo(.85,.2);s.lineTo(.5,.2);s.lineTo(0,-.25);s.lineTo(-.5,.2);s.lineTo(-.85,.2);s.closePath();const g=new T.ShapeGeometry(s);g.rotateX(-Math.PI/2);g.rotateY(Math.PI);
@@ -757,8 +773,8 @@ function gpsUpdate(dt,tx,tz){gpsT-=dt;if(!gpsRoute||gpsT<=0){gpsRoute=route(car.
 let camMode=0;const CAMS=['قريبة','بعيدة','من جوه'];const camPos=V(-170,4,7),camLook=V(-150,1,7),tv=V(0,0,0),tl=V(0,0,0);let snapCam=true,camYaw=0,dragging=false,dragX=0;
 function insideTall(x,y,z){for(const b of colliders){if(b.h>y&&x>b.x0-.3&&x<b.x1+.3&&z>b.z0-.3&&z<b.z1+.3)return true;}return false;}
 let debugCam=null;
-function updateCam(dt){if(debugCam){camera.position.set(debugCam[0],debugCam[1],debugCam[2]);camera.lookAt(debugCam[3],debugCam[4],debugCam[5]);return;}const vh=Math.atan2(-car.vx,-car.vz);const spd=Math.hypot(car.vx,car.vz);const hh=(spd>3&&car.v>0?lerpAng(car.h,vh,.35):car.h)+camYaw;const fx=-Math.sin(hh),fz=-Math.cos(hh);
-  if(camMode===2){const cf=-Math.sin(car.h),cz=-Math.cos(car.h);tv.set(car.x+cf*.42,car.y+1.74,car.z+cz*.42);tl.set(car.x+fx*12,car.y+1.3,car.z+fz*12);camPos.copy(tv);camLook.lerp(tl,snapCam?1:1-Math.exp(-dt*14));}
+function updateCam(dt){updateCockpit();if(debugCam){camera.position.set(debugCam[0],debugCam[1],debugCam[2]);camera.lookAt(debugCam[3],debugCam[4],debugCam[5]);return;}const vh=Math.atan2(-car.vx,-car.vz);const spd=Math.hypot(car.vx,car.vz);const hh=(spd>3&&car.v>0?lerpAng(car.h,vh,.35):car.h)+camYaw;const fx=-Math.sin(hh),fz=-Math.cos(hh);
+  if(camMode===2){const cf=-Math.sin(car.h),cz=-Math.cos(car.h);tv.set(car.x+cf*.45,car.y+(isVan?1.74:1.6),car.z+cz*.45);tl.set(car.x+fx*12,car.y+(isVan?1.3:.55),car.z+fz*12);camPos.copy(tv);camLook.lerp(tl,snapCam?1:1-Math.exp(-dt*14));}
   else{const dist=(camMode===1?10.5:6.3)+(car.boost?1.2:0),hgt=camMode===1?4.8:2.75;let t=1;for(let i=0;i<8;i++){tv.set(car.x-fx*dist*t,hgt*(.75+.25*t),car.z-fz*dist*t);if(!insideTall(tv.x,tv.y,tv.z))break;t-=.12;}
     tl.set(car.x+fx*4,1.2,car.z+fz*4);if(snapCam){camPos.copy(tv);camLook.copy(tl);}else{camPos.lerp(tv,1-Math.exp(-dt*5));camLook.lerp(tl,1-Math.exp(-dt*10));}}
   snapCam=false;if(!dragging)camYaw*=Math.exp(-dt*1.8);camera.position.copy(camPos);
@@ -1369,7 +1385,7 @@ async function boot(){try{ldStep('بنفتح بوابة الميناء…');awai
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);
   destRing=new T.Mesh(new T.TorusGeometry(3,.15,8,40),new T.MeshBasicMaterial({color:'#4cff5e'}));destRing.rotation.x=Math.PI/2;destRing.visible=false;scene.add(destRing);
   buildRadioUI();radioUI();syncTuk();menuWallet();updateMoney();
-  window.portSim={audio:A,mus:Mus,radio:radio,sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,get fare(){return fare;},get line(){return line;},get perf(){return perf;},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
+  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,get fare(){return fare;},get line(){return line;},get perf(){return perf;},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
   state='menu';ldStep('كله تمام، الوردية مستنياك!');requestAnimationFrame(frame);introReady();}
   catch(err){console.error(err);loadingText.textContent='حصلت مشكلة: '+err.message;}}
 const fr0=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();

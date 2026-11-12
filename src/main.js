@@ -4,6 +4,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { createVehicle, syncModel, TUNING } from './vehicle.js';
 import { createVoices } from './voices.js';
 import { ls, loadSave, importMainSave, SAVE_KEY, IS_BETA, NS, CHANNEL } from './storage.js';
+import { WD, WARDIAN_POI, WARDIAN_GAPS, WARDIAN_AREA_TALK, wardianGraph, wardianBounds, buildWardian, buildWardianLate } from './districts/wardian.js';
 
 (async function(){
 'use strict';
@@ -138,6 +139,7 @@ function edge(a,b,kind){const A=node(a[0],a[1]),B=node(b[0],b[1]);const d=Math.h
   edge([-230,0],[-230,-30],'gate');edge([40,0],[40,-30],'gate');
   [-280,-120,-20,100].forEach(x=>edge([x,-30],[x,-112],'port'));
   edge([170,0],[170,-38],'gate');edge([170,-38],[170,-45],'port');edge([125,-45],[170,-45],'port');edge([170,-45],[170,-108],'port');edge([170,-38],[185,-38],'campus');edge([185,-38],[280,-38],'campus');})();
+wardianGraph(edge);   /* Wardian district streets join the graph (GPS, minimap, safe points) */
 
 /* points of interest (stop spots on the kerb side of a lane) */
 const POI={
@@ -164,13 +166,14 @@ const POI={
   micro:{n:'موقف الميكروباص',x:247.5,z:180,sx:-4.5,sz:0,area:'city'},
   market:{n:'سوق الخضار',x:-52.5,z:60,sx:4.5,sz:0,area:'city'},
   clinic:{n:'المستوصف',x:-147.5,z:190,sx:-4.5,sz:0,area:'city'}};
+Object.assign(POI,WARDIAN_POI);
 const STATIONS_F=[{n:'بنزينة الميناء',x:-121,z:26,sx:-122,sz:26},{n:'بنزينة الحي',x:79,z:138,sx:79,sz:138}];
 
 let sky,sun,water,flags=[],trolleys=[],glowPts,gulls=[],headGlow,coneGlow;
 const contData=[];const CONT=['#2e5e8c','#b23a2a','#d6802b','#3b7a4a','#8a8f94','#7a3b5a','#c9a227','#1f4e5f','#e0ddd5'];
 const S=new Merger();   /* static vertex-coloured props */
 const SM=new Merger();  /* metallic props */
-const lampsList=[],palmsList=[];
+const lampsList=[],palmsList=[];let WARDIAN=null;
 
 function buildWorld(){
   sky=new T.Mesh(new T.SphereGeometry(1200,32,16),new T.MeshBasicMaterial({map:texSky,side:T.BackSide,fog:false,depthWrite:false}));scene.add(sky);
@@ -198,7 +201,7 @@ function buildWorld(){
   const carrM=len=>new T.MeshStandardMaterial({map:rep(texCarr,len/16,1),roughness:.9});
   plane(900,8,carrM(900),0,.03,5);plane(900,8,carrM(900),0,.03,-5);
   /* median: grass strip with gaps */
-  const gaps=[-250,-230,-150,-50,45,150,170,250];
+  const gaps=[-250,-230,-150,-50,45,150,170,250].concat(WARDIAN_GAPS.map(g=>(g[0]+g[1])/2));
   let mx=-450;const medSeg=(a,b)=>{if(b-a<2)return;S.box(a,b,0,.28,-1,1,'#3f6a3a');curb(a,b,-1.15,-1);curb(a,b,1,1.15);};
   gaps.slice().sort((a,b)=>a-b).forEach(g=>{const half=g===45?12:7;medSeg(mx,g-half);mx=g+half;});medSeg(mx,450);
   for(let x=-280;x<=280;x+=22){if(gaps.some(g=>Math.abs(x-g)<12))continue;palmsList.push([x,0,rand(7,9)]);col(x-.4,x+.4,-.4,.4,9);}
@@ -206,7 +209,7 @@ function buildWorld(){
   plane(900,6,new T.MeshStandardMaterial({map:rep(texPave,225,1.5),roughness:.9}),0,.12,12);
   plane(900,7,new T.MeshStandardMaterial({map:rep(texPave,225,1.75),roughness:.9}),0,.12,-12.5);
   /* kerbs (yellow & black) */
-  const southGaps=ST_X.map(x=>[x-5,x+5]).concat([[-139,-103]]);segs(-450,450,southGaps).forEach(s=>curb(s[0],s[1],9,9.3));
+  const southGaps=ST_X.map(x=>[x-5,x+5]).concat([[-139,-103]]).concat(WARDIAN_GAPS);segs(-450,450,southGaps).forEach(s=>curb(s[0],s[1],9,9.3));
   segs(-450,450,GATES.map(g=>[g.x-7,g.x+7])).forEach(s=>curb(s[0],s[1],-9.3,-9));
 
   /* ===== city streets ===== */
@@ -227,7 +230,7 @@ function buildWorld(){
   S.box(114.5,115.5,0,3.4,-125,-16.5,'#e7ddc8');col(114.5,115.5,-125,-16.5,3.4);
   GATES.forEach(g=>g.x===-230?mainGate(g):gate(g));
   /* boundaries */
-  col(-900,-298,-900,900,0);col(298,900,-900,900,0);col(-900,900,244,900,0);
+  wardianBounds(col);col(298,900,-900,900,0);col(-900,900,244,900,0);
 
   /* ===== city blocks ===== */
   RESERVE.push([-139,-102,13,50],[58,100,126,162],[-242,-200,13,40],[-244,-221,127,150],[4,44,127,172],[156,196,13,32],[226,243,166,196],[140,146,62,78]);
@@ -275,10 +278,13 @@ function buildWorld(){
   /* lamps along avenue + streets */
   for(let x=-290;x<=290;x+=26){if(GATES.some(g=>Math.abs(x-g.x)<10)||ST_X.some(s=>Math.abs(x-s)<8))continue;lampsList.push([x,10.2,Math.PI]);lampsList.push([x+13,-10.2,0]);}
   ST_X.forEach(x=>{for(let z=30;z<230;z+=34){if(Math.abs(z-120)<10)continue;lampsList.push([x+5.8,z,-Math.PI/2]);}});
+  WARDIAN=buildWardian({T,scene,S,Merger,NI,VC,col,ctex,rep,texStreet,texAsph,texPave,AR,GAMEF,lampsList,plainSign});
   buildLamps();buildPalms();buildTrees();
   /* gulls */
   for(let i=0;i<10;i++){const g=new T.Group();const m=new T.MeshStandardMaterial({color:'#f2eef0'});const body=new T.Mesh(new T.BoxGeometry(.24,.16,.75),m);g.add(body);const l=new T.Group(),r=new T.Group();const wg=new T.BoxGeometry(.9,.04,.3);wg.translate(-.45,0,0);const wl=new T.Mesh(wg,m);l.add(wl);const wg2=wg.clone();wg2.translate(.9,0,0);r.add(new T.Mesh(wg2,m));g.add(l,r);scene.add(g);gulls.push({g:g,l:l,r:r,cx:rand(-250,150),cz:rand(-200,-130),rad:rand(18,45),y:rand(14,30),sp:rand(.15,.3)*(Math.random()<.5?-1:1),ph:rand(0,6.28)});}
   S.mesh(VC);SM.mesh(VCm);
+  /* the merged meshes now own their typed arrays: drop the big JS build arrays so they can be garbage-collected */
+  for(const M of [S,SM]){M.p=[];M.n=[];M.c=[];M.u=[];}
 }
 
 function clouds(){const ct=ctex(256,128,g=>{for(let i=0;i<18;i++){const x=rand(40,216),y=rand(50,90),r=rand(18,40);const gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,'rgba(255,255,255,.9)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.beginPath();g.arc(x,y,r,0,7);g.fill();}});
@@ -720,8 +726,8 @@ function mkPath(pts){const L=[];let tot=0;for(let i=0;i<pts.length;i++){const a=
 function pathAt(P,s,o){s=((s%P.tot)+P.tot)%P.tot;for(let i=0;i<P.pts.length;i++){if(s<=P.L[i]){const a=P.pts[i],b=P.pts[(i+1)%P.pts.length],t=s/P.L[i];o.x=a[0]+(b[0]-a[0])*t;o.z=a[1]+(b[1]-a[1])*t;o.dx=(b[0]-a[0])/P.L[i];o.dz=(b[1]-a[1])/P.L[i];return o;}s-=P.L[i];}return o;}
 function initTraffic(){
   const loops=[
-    {p:mkPath([[-292,7],[292,7],[292,-7],[-292,-7]]),n:7,sp:11},
-    {p:mkPath([[-282,3],[282,3],[282,-3],[-282,-3]]),n:6,sp:12.5},
+    {p:mkPath([[-444,7],[292,7],[292,-7],[-444,-7]]),n:8,sp:11},
+    {p:mkPath([[-434,3],[282,3],[282,-3],[-434,-3]]),n:7,sp:12.5},
     {p:mkPath(laneLoop([[-50,0],[50,0],[50,120],[-50,120]],3)),n:2,sp:8.5},
     {p:mkPath(laneLoop([[150,0],[250,0],[250,120],[150,120]],3)),n:2,sp:8.5},
     {p:mkPath(laneLoop([[-250,0],[-150,0],[-150,120],[-250,120]],3)),n:2,sp:8.5},
@@ -977,8 +983,8 @@ const GUARD_OUT=[[['p','مع السلامة يا اسطى']],[['p','في رعا�
 const CAMPUS_IN=[[['p','أهلاً يا اسطى، المتدربين كتير جوه، هدّي السرعة'],['d','حاضر يا باشمهندس']],[['p','اتفضل، بس متقرّبش من الورش وهي شغالة'],['d','تحت أمرك']]];
 const WALK_L=['حاسب يا اسطى!','براحة يا عم، كنت هتخبطني!','يا جدع بص قدامك!'];
 const HAIL_L=['يا توكتوك! يا اسطى!','اسطى! استنى عندك!','يا اسطى، فاضي؟'];
-const AREA_C={campus:['مركز التدريب ده خرّج أجيال من أشطر الفنيين','الورش هنا فيها مكن حديث، والمدربين على أعلى مستوى'],yard:['الترسانة دي تاريخ، ياما بنت وصلّحت مراكب','شايف الونش الأحمر ده؟ بيرفع بلوكات المراكب كلها'],port:['الميناء النهارده زحمة حاويات','المراكب دي جاية من آخر الدنيا'],city:['الحمد لله طلعنا من الزحمة','الشارع ده كان كله جناين زمان']};
-function areaOf(x,z){if(z<-16){if(x>180&&z>-61)return 'campus';if(x>115)return 'yard';return 'port';}return 'city';}
+const AREA_C={wardian:WARDIAN_AREA_TALK,campus:['مركز التدريب ده خرّج أجيال من أشطر الفنيين','الورش هنا فيها مكن حديث، والمدربين على أعلى مستوى'],yard:['الترسانة دي تاريخ، ياما بنت وصلّحت مراكب','شايف الونش الأحمر ده؟ بيرفع بلوكات المراكب كلها'],port:['الميناء النهارده زحمة حاويات','المراكب دي جاية من آخر الدنيا'],city:['الحمد لله طلعنا من الزحمة','الشارع ده كان كله جناين زمان']};
+function areaOf(x,z){if(z<-16){if(x>180&&z>-61)return 'campus';if(x>115)return 'yard';return 'port';}return WD.contains(x,z)?'wardian':'city';}
 const guardCd={};let walkCd=0,hailCd=0;
 function interactions(dt){walkCd-=dt;hailCd-=dt;const quiet=!Dlg.cur&&!Dlg.q.length;
   for(const g of GATES){if(Math.abs(car.x-g.x)<6&&car.z>-21&&car.z<-11&&(guardCd[g.x]||0)<clock&&quiet){if(car.vz<-1.2){dlgPush(pick(GUARD_IN),GUARD);guardCd[g.x]=clock+45;}else if(car.vz>1.2){dlgPush(pick(GUARD_OUT),GUARD);guardCd[g.x]=clock+45;}}}
@@ -990,14 +996,23 @@ const PICK_R=12;const waiting=[];let fare=null;const MAXW=6;
 const beamMat=new T.MeshBasicMaterial({color:'#fff1c8',transparent:true,opacity:.22,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide});
 const beamGeo=new T.CylinderGeometry(1.6,1.6,60,20,1,true);beamGeo.translate(0,30,0);
 let destBeam,destRing;
+/* ============ mission «مشوار الورديان»: one scripted rider on the normal fare + change system ============ */
+const MISSION={id:'wardian',from:'fish',to:'wplaza',bonus:20,pax:{names:['الحاجة أم سمير'],female:true,title:'يا حاجة',pitch:1.15,rate:.95,look:{shirt:'#3b2a4a',pants:'#3b2a4a',skin:'#c69472',hijab:'#1f1f2a',galabeya:true},likes:[],ride:['بنتي ساكنة في الورديان، رايحة أزورها','الورديان حتة جميلة يا اسطى، بس خلي بالك من المطبات']}};
+const missionBeamMat=new T.MeshBasicMaterial({color:'#ffb12a',transparent:true,opacity:.32,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide});
+let missionCd=5;
+function missionDone(){return !!(save.missions&&save.missions[MISSION.id]);}
+function spawnMission(dt){missionCd-=dt;if(missionCd>0||isVan||fare||missionDone()||waiting.some(w=>w.mission))return;
+  const k=MISSION.from,p=POI[k];const old=waiting.find(w=>w.poi===k);if(old){scene.remove(old.m);scene.remove(old.b);waiting.splice(waiting.indexOf(old),1);}
+  const m=person(MISSION.pax.look,p.x+p.sx,p.z+p.sz,Math.atan2(p.sx,p.sz));const b=new T.Mesh(beamGeo,missionBeamMat);b.position.set(p.x,0,p.z);scene.add(b);
+  waiting.push({poi:k,type:MISSION.pax,name:MISSION.pax.names[0],m:m,b:b,mission:MISSION.id});toast('مهمة جديدة: «مشوار الورديان» — زبونة مستنياك عند '+p.n,'good');}
 function spawnWaiting(){const keys=Object.keys(POI).filter(k=>!waiting.some(w=>w.poi===k)&&(!fare||fare.to!==k)&&Math.hypot(POI[k].x-car.x,POI[k].z-car.z)>40);if(!keys.length)return;
   const k=pick(keys),p=POI[k];const ty=pick(PT);const lk=ty.look;const m=person(lk,p.x+p.sx,p.z+p.sz,Math.atan2(-(p.x-(p.x+p.sx)),-(p.z-(p.z+p.sz))));const b=new T.Mesh(beamGeo,beamMat);b.position.set(p.x,0,p.z);scene.add(b);
   waiting.push({poi:k,type:ty,name:pick(ty.names),m:m,b:b});}
-function startFare(w){const opts=Object.keys(POI).filter(k=>k!==w.poi&&Math.hypot(POI[k].x-POI[w.poi].x,POI[k].z-POI[w.poi].z)>110);let to=opts.filter(k=>w.type.likes.includes(k));to=to.length&&Math.random()<.75?pick(to):pick(opts);
-  const r=route(POI[w.poi].x,POI[w.poi].z,POI[to].x,POI[to].z);fare={pax:Object.assign({name:w.name},w.type),from:w.poi,to:to,len:r.len,t:0,budget:Math.round(r.len/7.5+22),hits:0,fast:0,chat:rand(9,13),fastCd:0,phase:'board',wait:1.2};
+function startFare(w){const opts=Object.keys(POI).filter(k=>k!==w.poi&&Math.hypot(POI[k].x-POI[w.poi].x,POI[k].z-POI[w.poi].z)>110);let to=opts.filter(k=>w.type.likes.includes(k));to=to.length&&Math.random()<.75?pick(to):pick(opts);if(w.mission)to=MISSION.to;
+  const r=route(POI[w.poi].x,POI[w.poi].z,POI[to].x,POI[to].z);fare={pax:Object.assign({name:w.name},w.type),from:w.poi,to:to,len:r.len,t:0,budget:Math.round(r.len/7.5+22),hits:0,fast:0,chat:rand(9,13),fastCd:0,phase:'board',wait:1.2,mission:w.mission||null};
   scene.remove(w.m);scene.remove(w.b);waiting.splice(waiting.indexOf(w),1);
   paxSeat.clear();const s=new T.Mesh(personGeo(w.type.look,true),VC);s.castShadow=true;paxSeat.add(s);
-  fare.price=clamp(Math.round((10+r.len/1000*12)/5)*5,10,60);const d=POI[to].n;const intro=[['p',pick(INTRO_P).replace('{d}',d)],['d',pick(INTRO_D).replace('{t}',w.type.title)],['p',pick(PRICE_P)],['d',pick(PRICE_D).replace('{n}',arNum(fare.price))]];if(Math.random()<.4)intro.push(['d',pick(INTRO_D2)]);dlgPush(intro,fare.pax);fare.area=areaOf(car.x,car.z);
+  fare.price=clamp(Math.round((10+r.len/1000*12)/5)*5,10,60);const d=POI[to].n;const intro=[['p',w.mission?'يا اسطى، وديني '+d+' الله يخليك، بنتي ساكنة هناك':pick(INTRO_P).replace('{d}',d)],['d',pick(INTRO_D).replace('{t}',w.type.title)],['p',pick(PRICE_P)],['d',pick(PRICE_D).replace('{n}',arNum(fare.price))]];if(Math.random()<.4)intro.push(['d',pick(INTRO_D2)]);dlgPush(intro,fare.pax);fare.area=areaOf(car.x,car.z);
   destBeam.position.set(POI[to].x,0,POI[to].z);destRing.position.set(POI[to].x,.15,POI[to].z);destBeam.visible=destRing.visible=true;gpsRoute=null;blip('ok');}
 const PRICE_P=['هتاخد كام يا اسطى؟','الأجرة كام يا معلم؟','بكام المشوار ده يا اسطى؟'];
 const PRICE_D=['{n} جنيه بس، عشان خاطرك','هات {n} جنيه وخلاص','{n} جنيه يا باشا، ده سعره'];
@@ -1032,12 +1047,12 @@ function payConfirm(){const f=payS.f;if(!f||f.phase!=='pay')return;const sum=pay
   else dlgPush([['p',pick(PAY_OK)]],f.pax);
   $('pay').hidden=true;f.phase='paid';payS.done(lost);}
 function finishFare(lost){lost=lost||0;const f=fare;let r=5-f.hits*.6-Math.min(2,f.fast)*.3-(f.short||0)*.4;const late=f.t>f.budget;if(late)r-=1.2;r=clamp(r,1,5);
-  const base=f.price;const bonus=late?0:Math.round((f.budget-f.t)*.2/5)*5;const tip=Math.min(15,(r>=4.5?5:0)+Math.max(0,bonus));const pay=base+tip-lost;
-  save.wallet+=pay;save.total+=pay;save.trips++;persist();dlgPush((late?pick(END_LATE):pick(END_SEQ)).map(l=>[l[0],l[1].replace('{t}',f.pax.title)]),f.pax);blip('cash');
-  toast('+'+pay+' ج.م'+(tip?'  • بقشيش '+tip:'')+(lost?'  • ضاع منك '+lost:'')+(late?'  • متأخر':''),lost?'bad':'good');paxSeat.clear();destBeam.visible=destRing.visible=false;fare=null;gpsRoute=null;updateMoney();}
+  const base=f.price;const bonus=late?0:Math.round((f.budget-f.t)*.2/5)*5;const tip=Math.min(15,(r>=4.5?5:0)+Math.max(0,bonus));const mb=f.mission?MISSION.bonus:0;const pay=base+tip+mb-lost;
+  save.wallet+=pay;save.total+=pay;save.trips++;if(f.mission)save.missions=Object.assign({},save.missions,{[f.mission]:1});persist();dlgPush((late?pick(END_LATE):pick(END_SEQ)).map(l=>[l[0],l[1].replace('{t}',f.pax.title)]),f.pax);blip('cash');
+  toast('+'+pay+' ج.م'+(mb?'  • مكافأة مهمة الورديان '+mb:'')+(tip?'  • بقشيش '+tip:'')+(lost?'  • ضاع منك '+lost:'')+(late?'  • متأخر':''),lost?'bad':'good');paxSeat.clear();destBeam.visible=destRing.visible=false;fare=null;gpsRoute=null;updateMoney();}
 function onImpact(s){blip('thud',s);if(fare&&fare.phase==='ride'){fare.hits++;if(Dlg.q.length<2)dlgPush([['p',pick(HIT_L)]],fare.pax);}}
 let nearMsgT=0,stopHint=0;
-function updateFares(dt){interactions(dt);if(isVan){updateLine(dt);return;}for(let i=0;i<3&&waiting.length<MAXW;i++)spawnWaiting();
+function updateFares(dt){interactions(dt);if(isVan){updateLine(dt);return;}spawnMission(dt);for(let i=0;i<3&&waiting.length<MAXW;i++)spawnWaiting();
   for(const w of waiting){w.m.rotation.y=Math.atan2(-(car.x-w.m.position.x),-(car.z-w.m.position.z))+Math.PI;}
   if(fare){if(fare.phase!=='pay')fare.t+=dt;if(fare.phase==='board'){fare.wait-=dt;if(fare.wait<=0&&!Dlg.q.length)fare.phase='ride';}
     else if(fare.phase==='ride'){const p=POI[fare.to],d=Math.min(Math.hypot(p.x-car.x,p.z-car.z),Math.hypot(p.x+p.sx-car.x,p.z+p.sz-car.z));if(d<PICK_R){if(Math.abs(car.v)<2.2){if(fare.phase!=='pay')startPay();return;}else if(stopHint<=0){toast('هدّي ووقّف عند العمود');stopHint=3;}}
@@ -1087,7 +1102,7 @@ function updateHUD(dt){const sp=Math.round(Math.abs(car.v)*3.6);if(sp!==lastSpd)
   if(isVan&&line&&fuel>=15){const p=POI[line.stops[line.idx]];tx=p.x;tz=p.z;name='المحطة الجاية: '+p.n;}
   else if(fare&&fare.phase!=='board'){const p=POI[fare.to];tx=p.x;tz=p.z;name=p.n;showTime=true;}
   else if(!fare&&fuel<25){const s=nearestStation();tx=s.sx;tz=s.sz;name='أقرب بنزينة';}
-  else if(!fare&&waiting.length){let b=null,bd=1e9;for(const w of waiting){const p=POI[w.poi],d=Math.hypot(p.x-car.x,p.z-car.z);if(d<bd){bd=d;b=w;}}if(b){const p=POI[b.poi];tx=p.x;tz=p.z;name='زبون عند '+p.n;}}
+  else if(!fare&&waiting.length){let b=waiting.find(w=>w.mission)||null,bd=b?-1:1e9;for(const w of waiting){if(bd<0)break;const p=POI[w.poi],d=Math.hypot(p.x-car.x,p.z-car.z);if(d<bd){bd=d;b=w;}}if(b){const p=POI[b.poi];tx=p.x;tz=p.z;name=(b.mission?'مهمة الورديان: زبونة عند ':'زبون عند ')+p.n;}}
   const nav=$('nav');
   if(tx!==null){if(navTarget!==name){navTarget=name;gpsRoute=null;}const g=gpsUpdate(dt,tx,tz);const dx=g.nx-car.x,dz=g.nz-car.z;
     updateChev(tx);
@@ -1380,13 +1395,13 @@ async function boot(){try{ldStep('بنفتح بوابة الميناء…');awai
     save.vehicle==='van'?new GLTFLoader().loadAsync('./models/van.glb').catch(e=>{console.warn('van',e);return null;}):Promise.resolve(null),
     step(new GLTFLoader().loadAsync(window.CARS_MODEL||'./models/cars.glb').catch(e=>{console.warn('cars model',e);return null;}),'العربيات نزلت الشارع…'),
     step(RAPIER.init().then(()=>RAPIER).catch(e=>{console.warn('physics unavailable, arcade mode',e);return null;}),'ظبطنا الفرامل والعجل…')]);
-  TUK_TRAFFIC=vanG?gltf.scene:null;loadTuk(vanG||gltf);if(!TUK_TRAFFIC)TUK_TRAFFIC=tuk;CARS=carsG&&carsG.scene;initTraffic();initWalkers();ldStep('الزباين واقفين على الرصيف…');await nextPaint();
+  TUK_TRAFFIC=vanG?gltf.scene:null;loadTuk(vanG||gltf);if(!TUK_TRAFFIC)TUK_TRAFFIC=tuk;CARS=carsG&&carsG.scene;initTraffic();initWalkers();buildWardianLate({T,scene,col,makeTraffic,walkers,personGeo,VC},WARDIAN);ldStep('الزباين واقفين على الرصيف…');await nextPaint();
   veh=await createVehicle({RAPIER:R,colliders,traffic,spawn:{x:-160,z:7,h:-Math.PI/2},kind:isVan?'van':'tuk'});car=veh.car;
   veh.onImpact(s=>{shake=Math.min(1,s/9);onImpact(s);});
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);
   destRing=new T.Mesh(new T.TorusGeometry(3,.15,8,40),new T.MeshBasicMaterial({color:'#4cff5e'}));destRing.rotation.x=Math.PI/2;destRing.visible=false;scene.add(destRing);
   buildRadioUI();radioUI();syncTuk();menuWallet();updateMoney();
-  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,get fare(){return fare;},get line(){return line;},get perf(){return perf;},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
+  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,get fare(){return fare;},get line(){return line;},get perf(){return perf;},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
   state='menu';ldStep('كله تمام، الوردية مستنياك!');requestAnimationFrame(frame);introReady();}
   catch(err){console.error(err);loadingText.textContent='حصلت مشكلة: '+err.message;}}
 const fr0=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();

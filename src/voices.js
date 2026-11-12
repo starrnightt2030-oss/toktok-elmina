@@ -3,7 +3,8 @@
 // 2) Otherwise the character "mumbles" in a playful game voice whose pitch and rhythm follow the text.
 // Lines are keyed by their template, so "{d}" destinations etc. share one recording.
 
-const DB = 'aps_voices', STORE = 'lines';
+import { NS } from './storage.js';
+const DB = NS + 'aps_voices', STORE = 'lines';   // Beta keeps its recordings apart from the main game
 const fills = { '{d}': 'هناك', '{t}': '', '{n}': '', '{b}': '' };
 
 export function createVoices(getCtx, getOut) {

@@ -233,6 +233,7 @@ kbd{font:700 11px ui-monospace,monospace;border:1px solid rgba(255,255,255,.3);b
 @keyframes puff2{0%{opacity:0;transform:scale(.3)}25%{opacity:.85}100%{opacity:0;transform:scale(1.7) translate(-30%,-35%)}}
 @keyframes gull{0%{opacity:0;transform:translateX(105vw) translateY(0)}10%{opacity:.9}50%{transform:translateX(50vw) translateY(-14px)}90%{opacity:.9}100%{opacity:0;transform:translateX(-10vw) translateY(6px)}}
 @media (prefers-reduced-motion:reduce){#loading *{animation-duration:.01s!important;animation-delay:0s!important}}
+.betaTag{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:10px;z-index:31;padding:4px 10px;border-radius:8px;background:#d32f2f;color:#fff;font:14px var(--f-game)}
 #toast.good{color:var(--edge)}
 #toast.bad{border-color:var(--stop)}
 
@@ -354,6 +355,7 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
 </div></div>
 <div id="upd" hidden><div class="uc"><h2>في تحديث جديد 🚀</h2><p>نزّلنا نسخة أحدث من اللعبة. لازم تحدّث عشان تكمّل على آخر إصدار.</p><button id="updBtn">حدّث دلوقتي</button><small id="updVer"></small></div></div>
 <div id="menu" dir="rtl" hidden>
+  <div class="betaTag" id="betaTag" hidden>نسخة تجريبية BETA</div>
   <div class="mi">
     <img class="mlogo" src="./img/logo.webp" alt="توكتوك في المينا">
     <h1 class="sr">توكتوك في المينا</h1>
@@ -373,6 +375,11 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
   <div class="scard">
     <div class="shead"><h2>⚙️ الإعدادات</h2><button class="x" id="setClose" aria-label="قفل">✕</button></div>
     <div class="sbody">
+      <section id="betaSec" hidden><h3>🧪 النسخة التجريبية</h3>
+        <p class="snote">دي نسخة تجريبية بحفظ منفصل، ومش بتلمس حفظ النسخة الأساسية. تقدر تجيب نسخة من حفظك الأساسي (المحفظة والمشاوير والألوان والكتابة والعربية) هنا، والأصل بيفضل زي ما هو.</p>
+        <div class="srow"><span>حفظ النسخة الأساسية</span><button class="sbtn" id="btnImportMain">📥 استورد نسخة منه</button></div>
+        <p class="snote" id="saveNote"></p>
+      </section>
       <section><h3>🎮 التحكم</h3>
         <div class="srow"><span>طريقة السواقة</span><div class="seg" id="segCtl"></div></div>
         <div class="srow"><span>حساسية الدركسيون</span><div class="seg" id="segSens"></div></div>

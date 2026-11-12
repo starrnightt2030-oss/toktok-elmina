@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { createVehicle, syncModel, TUNING } from './vehicle.js';
 import { createVoices } from './voices.js';
+import { ls, loadSave, importMainSave, SAVE_KEY, IS_BETA, NS, CHANNEL } from './storage.js';
 
 (async function(){
 'use strict';
@@ -17,11 +18,10 @@ const isTouch=(window.matchMedia&&matchMedia('(pointer: coarse)').matches)||('on
 if(isTouch)document.body.classList.add('is-touch');
 
 /* ============ save ============ */
-const SAVE_KEY='aps_tuk_v2';
-const save={wallet:60,total:0,trips:0,owned:['yellow','orange','red'],paint:'yellow',slogan:'ماشي بدعا الوالدين',vehicle:'tuk'};
-try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(s)Object.assign(save,s);}catch(e){}
+const SAVE_LOAD=loadSave();const save=SAVE_LOAD.save;let saveWritable=SAVE_LOAD.writable;
+if(SAVE_LOAD.notes.length)console.warn('[save]',SAVE_LOAD.status,SAVE_LOAD.notes.join(' | '));
 if(!save.owned.includes('orange'))save.owned.unshift('orange');if(!save.owned.includes('yellow')){save.owned.unshift('yellow');save.paint='yellow';}
-function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){}}
+function persist(){if(!saveWritable)return;ls.set(SAVE_KEY,JSON.stringify(save));}
 
 /* ============ renderer ============ */
 const canvas=$('game');let renderer;
@@ -650,8 +650,8 @@ function setPaint(id){const p=PAINTS.find(q=>q.id===id);if(p&&paintMat)paintMat.
 const input={up:0,down:0,steerKey:0,joy:0,drift:0,turbo:0,horn:0};
 let fuel=100,turbo=1,shake=0,dead=0,skidT=0;
 let veh=null,car=null;
-const ctl={mode:'touch',sens:1,tilt:0};try{const c=JSON.parse(localStorage.getItem('aps_ctl')||'null');if(c)Object.assign(ctl,c);}catch(e){}
-function saveCtl(){try{localStorage.setItem('aps_ctl',JSON.stringify({mode:ctl.mode,sens:ctl.sens}));}catch(e){}}
+const ctl={mode:'touch',sens:1,tilt:0};try{const c=JSON.parse(ls.get('aps_ctl')||'null');if(c)Object.assign(ctl,c);}catch(e){}
+function saveCtl(){try{ls.set('aps_ctl',JSON.stringify({mode:ctl.mode,sens:ctl.sens}));}catch(e){}}
 addEventListener('deviceorientation',e=>{if(e.gamma==null)return;const land=Math.abs((screen.orientation&&screen.orientation.angle)||window.orientation||0)===90;const a=land?(e.beta||0)*((screen.orientation&&screen.orientation.angle)===270||window.orientation===-90?-1:1):(e.gamma||0);ctl.tilt=clamp(-a/22,-1,1);});
 let padUsed=false;
 function readPad(){const gp=navigator.getGamepads?navigator.getGamepads():[];for(const g of gp){if(!g)continue;const ax=g.axes[0]||0,rt=g.buttons[7]?g.buttons[7].value:0,lt=g.buttons[6]?g.buttons[6].value:0;
@@ -801,7 +801,7 @@ function pickVoices(){if(!Speech.ok)return;let vs=[];try{vs=speechSynthesis.getV
   const n=$('voiceNote');if(!Speech.ok||!Speech.voice){n.hidden=false;n.textContent='جهازك مفيهوش صوت عربي جاهز، فالحوار هيظهر مكتوب. على Edge أو Chrome أندرويد غالبًا هتسمع الحوار.';}else{n.hidden=false;n.textContent='صوت الحوار: '+Speech.voice.name+(/EG/i.test(Speech.voice.lang)?' (مصري)':'');}}
 if(Speech.ok){pickVoices();try{speechSynthesis.addEventListener('voiceschanged',pickVoices);}catch(e){}}
 const VO=createVoices(()=>A.ctx,()=>A.sfx);
-Speech.mode=(()=>{try{return localStorage.getItem('aps_voice')||'game';}catch(e){return 'game';}})();Speech.enabled=Speech.mode!=='off';
+Speech.mode=(()=>{try{return ls.get('aps_voice')||'game';}catch(e){return 'game';}})();Speech.enabled=Speech.mode!=='off';
 function say(text,o){if(A.muted||Speech.mode==='off')return false;if(Speech.mode==='game'){if(!A.ctx)return false;VO.speak(text,o);return true;}
   if(!Speech.ok)return false;try{speechSynthesis.cancel();if(speechSynthesis.paused)speechSynthesis.resume();const u=new SpeechSynthesisUtterance(text);const v=o.female?Speech.voiceF:Speech.voiceM;if(v||Speech.voice){u.voice=v||Speech.voice;u.lang=u.voice.lang;}else u.lang='ar-EG';u.pitch=o.pitch||1;u.rate=o.rate||1;u.onend=u.onerror=()=>{o.onend&&o.onend();};speechSynthesis.speak(u);return true;}catch(e){return false;}}
 
@@ -816,7 +816,7 @@ function arTime(){const d=new Date();let h=d.getHours(),m=d.getMinutes();const H
 function buildRadioUI(){const box=$('stations');RST.forEach((s,i)=>{const b=document.createElement('button');b.className='st';b.textContent=s.name;b.id='st'+i;b.addEventListener('click',()=>{if(!radio.on)radioPower(true);tuneTo(i);});box.appendChild(b);});
   $('rPower').addEventListener('click',()=>radioPower(!radio.on));$('rClose').addEventListener('click',()=>{$('radio').hidden=true;$('bRadio').classList.remove('on');});
   $('rVol').addEventListener('input',e=>{radio.vol=e.target.value/100;radioLevel();});$('rLoad').addEventListener('click',()=>$('rFile').click());
-  $('rUrlSave').addEventListener('click',()=>{const v=$('rUrl').value.trim(),id=RST[radio.idx].id;try{if(v)localStorage.setItem('aps_custom_'+id,v);else localStorage.removeItem('aps_custom_'+id);}catch(e){}if(!radio.on)radioPower(true);tuneTo(radio.idx);});
+  $('rUrlSave').addEventListener('click',()=>{const v=$('rUrl').value.trim(),id=RST[radio.idx].id;try{if(v)ls.set('aps_custom_'+id,v);else ls.del('aps_custom_'+id);}catch(e){}if(!radio.on)radioPower(true);tuneTo(radio.idx);});
   $('rFile').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f)return;initAudio();const st=RST[radio.idx];$('rNote').textContent='بيحمّل '+f.name+'…';const fr=new FileReader();fr.onload=()=>{A.ctx.decodeAudioData(fr.result.slice(0),buf=>{radio.buffers[st.id]={buf:buf,name:f.name};if(!radio.on)radioPower(true);tuneTo(radio.idx);},()=>{$('rNote').textContent='الملف ده مش مدعوم. جرّب MP3 أو M4A.';});};fr.readAsArrayBuffer(f);e.target.value='';});}
 function radioUI(){$('rPower').setAttribute('aria-pressed',radio.on);$('rPower').textContent=radio.on?'شغّال':'مقفول';RST.forEach((s,i)=>$('st'+i).classList.toggle('on',radio.on&&i===radio.idx));$('needle').style.left=NEEDLE[radio.idx];
   const st=RST[radio.idx],b=radio.buffers[st.id];let note;
@@ -825,7 +825,7 @@ function radioUI(){$('rPower').setAttribute('aria-pressed',radio.on);$('rPower')
   else if(radio.liveState)note=radio.liveState+(radio.liveBusy?'':(st.kind==='file'?' — تقدر تحمّل تلاوة من جهازك.':' — شغالين مؤقتًا على محاكاة المحطة.'));
   else note=st.kind==='file'?'حمّل تلاوة من جهازك.':'محاكاة لروح المحطة.';
   if(A.fail)note='المتصفح ده مش بيدعم الصوت. افتح اللعبة في Chrome أو Edge.';
-  $('rNote').textContent=note;let cu='';try{cu=localStorage.getItem('aps_custom_'+st.id)||'';}catch(e){}$('rUrl').value=cu;
+  $('rNote').textContent=note;let cu='';try{cu=ls.get('aps_custom_'+st.id)||'';}catch(e){}$('rUrl').value=cu;
   $('rLoad').textContent=st.kind==='file'?'حمّل تلاوة من جهازك':'شغّل تسجيل من جهازك';if(onairT<=0){const oa=$('onair');if(radio.on&&state==='play'){oa.hidden=false;oa.textContent=(radio.live?'🔴 مباشر • ':'')+(b?st.name+' • '+b.name:st.name);}else oa.hidden=true;}}
 function radioLevel(){const duck=(Dlg.cur?.32:1)*(radio.identSpeaking?.45:1);if(liveEl)liveEl.volume=radio.on&&radio.live?clamp(radio.vol*(Dlg.cur?.4:1),0,1):0;if(!A.ctx)return;A.radioVol.gain.setTargetAtTime(radio.on&&!radio.live?radio.vol*duck:0,A.ctx.currentTime,.12);}
 const LIVEQ={quran:['القرآن الكريم من القاهرة','القرآن الكريم','Quran Cairo'],sharq:['الشرق الأوسط','الشرق الاوسط','Middle East','Sharq','El Sharq','Al Sharq Al Awsat','Sharq Al Awsat'],nogoum:['نجوم','Nogoum','Nogoom','Nojoom'],aghani:['اذاعة الاغاني','إذاعة الأغاني','Aghani','El Aghany','Elaghany','أم كلثوم','ام كلثوم','Kalthoum','Kolthoum','طرب','Tarab','عبد الحليم','Halim','زمان']};
@@ -834,14 +834,14 @@ let liveEl=null,liveTok=0;
 function liveAudio(){if(!liveEl){liveEl=new Audio();liveEl.preload='none';liveEl.addEventListener('playing',()=>{if(liveEl._tok!==liveTok)return;radio.live=true;radio.liveName=liveEl._name;if(A.ctx)A.staticG.gain.setTargetAtTime(0,A.ctx.currentTime,.1);radioLevel();radioUI();});
   liveEl.addEventListener('error',()=>{if(liveEl._tok===liveTok&&radio.live)liveFail('البث اتقطع، اضغط على المحطة تاني');});}return liveEl;}
 async function fetchJ(u,ms){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(u,{signal:c.signal});return await r.json();}finally{clearTimeout(t);}}
-async function findStreams(id){const out=[],seen=new Set();try{const m=localStorage.getItem('aps_custom_'+id);if(m){out.push({url:m,name:'رابط مخصص'});seen.add(m);}}catch(e){}
-  try{const okU=localStorage.getItem('aps_ok_'+id);if(okU&&!seen.has(okU)){seen.add(okU);out.push({url:okU,name:'آخر بث اشتغل'});}}catch(e){}
+async function findStreams(id){const out=[],seen=new Set();try{const m=ls.get('aps_custom_'+id);if(m){out.push({url:m,name:'رابط مخصص'});seen.add(m);}}catch(e){}
+  try{const okU=ls.get('aps_ok_'+id);if(okU&&!seen.has(okU)){seen.add(okU);out.push({url:okU,name:'آخر بث اشتغل'});}}catch(e){}
   const hls=!!document.createElement('audio').canPlayType('application/vnd.apple.mpegurl');
   const add=arr=>{(arr||[]).forEach(x=>{const u=x.url_resolved||x.url;if(u&&!seen.has(u)&&x.lastcheckok!==0&&(hls||!(x.hls||/\.m3u8/i.test(u)))){seen.add(u);out.push({url:u,name:x.name});}});};
   for(const srv of RB){let dead=false;
     for(const q of LIVEQ[id]){try{add(await fetchJ(srv+'/json/stations/search?countrycode=EG&hidebroken=true&order=clickcount&reverse=true&limit=8&name='+encodeURIComponent(q),6000));}catch(e){dead=true;break;}if(out.length>=10)break;}
     if(!dead&&out.length<4){for(const q of LIVEQ[id].slice(0,6)){try{add(await fetchJ(srv+'/json/stations/search?hidebroken=true&order=clickcount&reverse=true&limit=5&name='+encodeURIComponent(q),6000));}catch(e){}}}
-    if(out.length>(localStorage.getItem?0:0)&&!dead)return out;if(dead&&location.protocol==='https:')return out;}
+    if(out.length>0&&!dead)return out;if(dead&&location.protocol==='https:')return out;}
   return out;}
 async function liveTry(i){const tok=++liveTok;radio.live=false;radio.liveBusy=true;radio.liveState='بيدوّر على البث المباشر…';radioUI();const st=RST[i];let list=[];try{list=await findStreams(st.id);}catch(e){}
   if(tok!==liveTok||!radio.on||radio.idx!==i)return;
@@ -851,7 +851,7 @@ async function liveTry(i){const tok=++liveTok;radio.live=false;radio.liveBusy=tr
     const ok=await new Promise(res=>{let done=false;const fin=v=>{if(done)return;done=true;a.removeEventListener('playing',onP);a.removeEventListener('error',onE);clearTimeout(t);res(v);};
       const onP=()=>fin(true),onE=()=>fin(false);a.addEventListener('playing',onP);a.addEventListener('error',onE);const t=setTimeout(()=>fin(false),8000);
       try{a.src=c.url;a.volume=radio.vol;const pr=a.play();if(pr)pr.catch(()=>fin(false));}catch(e){fin(false);}});
-    if(tok!==liveTok)return;if(ok){try{localStorage.setItem('aps_ok_'+st.id,c.url);}catch(e){}return;}}
+    if(tok!==liveTok)return;if(ok){try{ls.set('aps_ok_'+st.id,c.url);}catch(e){}return;}}
   radio.liveBusy=false;liveFail('كل روابط البث للمحطة دي واقفة دلوقتي');}
 function liveFail(msg){radio.live=false;radio.liveBusy=false;radio.liveState=msg;if(liveEl){liveEl.pause();liveEl.removeAttribute('src');}radioLevel();radioUI();}
 function liveStop(){liveTok++;radio.live=false;radio.liveBusy=false;radio.liveState='';if(liveEl){liveEl.pause();liveEl.removeAttribute('src');}}
@@ -1124,7 +1124,7 @@ $('btnVoiceTest').addEventListener('click',()=>{const n=$('voiceNote');n.hidden=
   const ok=say('أهلاً يا اسطى، الوردية بدأت. على مركز التدريب لو سمحت',{pitch:1,rate:1,onend:()=>{}});n.textContent=ok?'لو سمعت الجملة يبقى صوت الحوار شغال: '+Speech.voice.name:'الصوت مقفول من الإعداد.';});
 $('btnQuality').addEventListener('click',e=>{quality=quality==='high'?'med':'high';e.currentTarget.textContent='الرسوم: '+(quality==='high'?'عالية':'خفيفة');applyPR();setShadowQ();resize();});
 const VMODES={game:'أصوات اللعبة',browser:'صوت المتصفح',off:'مقفول'};function voiceUI(){$('btnVoice').textContent='صوت الحوار: '+VMODES[Speech.mode];}
-$('btnVoice').addEventListener('click',()=>{Speech.mode=Speech.mode==='game'?'browser':(Speech.mode==='browser'?'off':'game');Speech.enabled=Speech.mode!=='off';try{localStorage.setItem('aps_voice',Speech.mode);}catch(_){}VO.stop();if(Speech.ok)try{speechSynthesis.cancel();}catch(_){}voiceUI();});voiceUI();
+$('btnVoice').addEventListener('click',()=>{Speech.mode=Speech.mode==='game'?'browser':(Speech.mode==='browser'?'off':'game');Speech.enabled=Speech.mode!=='off';try{ls.set('aps_voice',Speech.mode);}catch(_){}VO.stop();if(Speech.ok)try{speechSynthesis.cancel();}catch(_){}voiceUI();});voiceUI();
 function renderGarage(){vehUI();$('garWallet').textContent='محفظتك: '+Math.round(save.wallet)+' ج.م';const box=$('paints');box.innerHTML='';
   PAINTS.forEach(p=>{const owned=save.owned.includes(p.id);const b=document.createElement('button');b.className='paint'+(save.paint===p.id?' sel':'')+(owned?'':' locked');
     b.innerHTML='<i style="background:'+p.c+'"></i><span>'+p.n+'<small>'+(owned?(save.paint===p.id?'متركّب':'اضغط للتركيب'):p.p+' ج.م')+'</small></span>';
@@ -1147,6 +1147,12 @@ function vehUI(){const v=VEHS.find(x=>x.id===save.vehicle)||VEHS[0];$('btnVeh').
   VEHS.forEach(x=>{const b=document.createElement('button');b.className='paint'+(x.id===save.vehicle?' on':'');b.innerHTML='<b>'+x.n+'</b><small>'+x.d+'</small>';b.addEventListener('click',()=>setVehicle(x.id));box.appendChild(b);});}
 function setVehicle(id){if(id===save.vehicle)return;save.vehicle=id;persist();toast('بنجهّز '+(VEHS.find(x=>x.id===id).n)+'…');setTimeout(()=>location.reload(),400);}
 $('btnVeh').addEventListener('click',()=>setVehicle(save.vehicle==='van'?'tuk':'van'));vehUI();
+
+/* ============ beta channel ============ */
+if(IS_BETA){$('betaSec').hidden=false;$('betaTag').hidden=false;document.title='BETA · '+document.title;}
+function saveNote(){const n=$('saveNote');if(!n)return;n.textContent='حالة الحفظ: '+({new:'جديد',current:'سليم',migrated:'اتحدّث للإصدار ١ واتعمل نسخة احتياطية','migrated-unsaved':'شغال من الذاكرة، الأصل ما اتلمسش',corrupt:'الحفظ القديم مش مقروء ومحفوظ زي ما هو',future:'من نسخة أحدث، مش هيتعدل'}[SAVE_LOAD.status]||SAVE_LOAD.status)+(saveWritable?'':' (الحفظ متوقف في الجلسة دي)');}
+saveNote();
+$('btnImportMain').addEventListener('click',()=>{if(!confirm('هتتجاب نسخة من حفظ النسخة الأساسية للنسخة التجريبية. الحفظ الأساسي مش هيتغير. نكمل؟'))return;const r=importMainSave();if(!r.ok){toast(r.why,'bad');return;}toast('اتستورد الحفظ، بنعيد التحميل…','good');setTimeout(()=>location.reload(),900);});
 
 /* ============ settings panel ============ */
 function seg(id,opts,get,set){const el=$(id);const draw=()=>{el.innerHTML='';opts.forEach(([v,lab])=>{const b=document.createElement('button');b.textContent=lab;b.setAttribute('aria-pressed',String(get()===v));b.addEventListener('click',async()=>{if(get()!==v){await set(v);}draw();});el.appendChild(b);});};draw();return draw;}
@@ -1190,13 +1196,15 @@ $('stImport').addEventListener('click',()=>$('stFile').click());$('stFile').addE
 
 /* ============ PWA: install + forced updates ============ */
 const APP_VERSION=typeof __APP_VERSION__!=='undefined'?__APP_VERSION__:'dev';
-if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('./sw.js?v='+APP_VERSION).catch(e=>console.warn('sw',e));}
+if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('./sw.js?v='+APP_VERSION+(IS_BETA?'&ch=beta':'')).catch(e=>console.warn('sw',e));}
 let installEvt=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;$('install').classList.add('show');});
 $('install').addEventListener('click',async()=>{if(installEvt){installEvt.prompt();try{await installEvt.userChoice;}catch(_){}installEvt=null;$('install').classList.remove('show');}});
 if(/iphone|ipad/i.test(navigator.userAgent)&&!navigator.standalone){$('install').classList.add('show');$('install').addEventListener('click',()=>{if(!installEvt)toast('من Safari: زرار المشاركة ← "إضافة إلى الشاشة الرئيسية"');});}
 async function forceUpdate(){const b=$('updBtn');b.disabled=true;b.textContent='بيحدّث…';
-  try{const regs=await navigator.serviceWorker?.getRegistrations?.()||[];for(const r of regs)await r.unregister();}catch(_){}
-  try{for(const k of await caches.keys())await caches.delete(k);}catch(_){}
+  /* only this channel's worker and caches: updating Beta never touches the main game, and the other way round */
+  const here=new URL('./',location.href).href;
+  try{const regs=await navigator.serviceWorker?.getRegistrations?.()||[];for(const r of regs)if(r.scope===here)await r.unregister();}catch(_){}
+  try{for(const k of await caches.keys())if(IS_BETA?k.startsWith('toktok-beta-'):(k.startsWith('toktok-')&&!k.startsWith('toktok-beta-')))await caches.delete(k);}catch(_){}
   location.replace(location.pathname+'?v='+Date.now());}
 async function checkUpdate(){if(APP_VERSION==='dev'||location.protocol==='file:')return;
   try{const r=await fetch('./version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();

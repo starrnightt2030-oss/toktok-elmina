@@ -60,7 +60,30 @@ const PFX = process.argv[3] === 'main' ? '' : 'beta_';   // main build saves on 
   await click('stClose');
   // ---- reload keeps everything
   await p.reload(); await ready();
-  const rl = await p.evaluate(() => document.getElementById('menuWallet').textContent); ok(/مشاوير: 1/.test(rl), 'save: survives a reload (' + rl + ')');
+  const rl = await p.evaluate(() => document.getElementById('menuWallet').textContent); ok(/(مشاوير: 1|· 1 مشوار)/.test(rl), 'save: survives a reload (' + rl + ')');
+  // ---- Phase 2 UI: every window opens/closes many times without leaking listeners, DOM nodes or hidden world objects
+  {
+    await p.evaluate(() => { document.getElementById('loading').style.display = 'none'; });
+    const cdp = await c.newCDPSession(p); await cdp.send('Performance.enable');
+    const metrics = async () => { await cdp.send('HeapProfiler.collectGarbage'); const m = (await cdp.send('Performance.getMetrics')).metrics; const g = n => (m.find(x => x.name === n) || {}).value; return { L: g('JSEventListeners'), N: g('Nodes'), H: Math.round(g('JSHeapUsedSize') / 1048576) }; };
+    const visCount = () => p.evaluate(() => window.portSim.scene.children.filter(o => o.visible).length);
+    const pairs = [['btnGarage', 'garClose', 'garage'], ['btnSettings', 'setClose', 'settings'], ['btnStudio', 'stClose', 'studio'], ['btnProgress', 'pgClose', 'progress'], ['btnMenuRadio', 'rClose', 'radio']];
+    const cycle = n => p.evaluate(([pairs, n]) => { for (let k = 0; k < n; k++) for (const [o, x] of pairs) { document.getElementById(o).click(); document.getElementById(x).click(); } }, [pairs, n]);
+    const v0 = await visCount(); await cycle(3); const m1 = await metrics(); await cycle(30); const m2 = await metrics();
+    const allClosed = await p.evaluate(pairs => pairs.every(([, , id]) => document.getElementById(id).hidden), pairs);
+    ok(allClosed, 'menus: garage, settings, studio, progress, radio open and close (x33 each)');
+    ok(m2.L - m1.L <= 5 && m2.N - m1.N <= 40, 'menus: no listener/DOM growth after 150 more open/close (listeners ' + m1.L + '→' + m2.L + ', nodes ' + m1.N + '→' + m2.N + ', heap ' + m1.H + '→' + m2.H + ' MB)');
+    ok((await visCount()) === v0 && await p.evaluate(() => !document.body.classList.contains('in-garage')), 'garage: world fully restored after leaving the workshop (' + v0 + ' visible objects)');
+    const w0 = await p.evaluate(() => document.getElementById('menuWallet').textContent);
+    await click('btnGarage'); await p.evaluate(() => [...document.querySelectorAll('#paints .paint')][1].click()); await click('garClose');
+    ok(await p.evaluate(w => document.getElementById('menuWallet').textContent === w, w0), 'garage: re-applying an owned colour after many reopenings charges nothing');
+    await click('btnStart'); await p.waitForTimeout(800);
+    const cams = await p.evaluate(async () => { const out = []; for (let i = 0; i < 3; i++) { document.getElementById('bCam').click(); await new Promise(r => setTimeout(r, 400)); out.push(document.body.classList.contains('cam-in')); } return out; });
+    ok(cams.join() === 'false,true,false', 'camera: far → inside → near cycle, cockpit mode toggles (' + cams.join() + ')');
+    await p.evaluate(() => { document.getElementById('bHorn').click(); });
+    ok(await p.evaluate(() => ['#bPause', '#bCam', '#bMute', '#bRadio', '#bHorn', '.pedal.gas', '#brakePad', '.cbtn.turbo', '.cbtn.horn', '.cbtn.drift'].every(q => { const e = document.querySelector(q); if (!e) return false; const r = e.getBoundingClientRect(); const t = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return r.width >= 36 && r.height >= 36 && t && (t === e || e.contains(t)); })), 'hud: every driving button is visible, ≥36px and not covered');
+    await p.reload(); await ready(); await p.evaluate(() => { document.getElementById('loading').style.display = 'none'; });
+  }
   // ---- Suzuki line, one stop
   await p.evaluate(() => { document.getElementById('loading').style.display = 'none'; document.querySelectorAll('#vehPick button')[1].click(); });
   await p.waitForTimeout(2500); await ready();

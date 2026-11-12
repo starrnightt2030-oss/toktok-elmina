@@ -923,8 +923,8 @@ const L_FULL=['كامل يا جماعة، اللي بعدي!','مفيش مكان
 function lineStops(){const keys=Object.keys(POI);const st=[];let cur=keys.reduce((a,b)=>Math.hypot(POI[a].x-car.x,POI[a].z-car.z)<Math.hypot(POI[b].x-car.x,POI[b].z-car.z)?a:b);
   while(st.length<9){st.push(cur);const rest=keys.filter(k=>!st.includes(k)&&Math.hypot(POI[k].x-POI[cur].x,POI[k].z-POI[cur].z)>70);if(!rest.length)break;cur=rest.reduce((a,b)=>Math.hypot(POI[a].x-POI[cur].x,POI[a].z-POI[cur].z)<Math.hypot(POI[b].x-POI[cur].x,POI[b].z-POI[cur].z)?a:b);}
   return st;}
-function lineInit(){line={stops:lineStops(),idx:1,riders:[],queue:[],phase:'drive',crowd:[],wait:0,announced:false};lineCrowd();lineUI();}
-function lineCrowd(){line.crowd.forEach(c=>{scene.remove(c.m);});line.crowd=[];const k=line.stops[line.idx],p=POI[k];const n=Math.random()<.2?0:1+Math.floor(Math.random()*3);
+function lineInit(){line={stops:lineStops(),idx:0,riders:[],queue:[],phase:'drive',crowd:[],wait:0,announced:false};lineCrowd(true);lineUI();}   /* first stop = the nearest one, with riders already waiting */
+function lineCrowd(first){line.crowd.forEach(c=>{scene.remove(c.m);});line.crowd=[];const k=line.stops[line.idx],p=POI[k];const n=first?2+Math.floor(Math.random()*2):1+Math.floor(Math.random()*3);
   for(let i=0;i<n;i++){const ty=pick(PT);const ox=(i-1)*0.8;const m=person(ty.look,p.x+p.sx+ox*Math.cos(Math.atan2(p.sx,p.sz)),p.z+p.sz-ox*Math.sin(Math.atan2(p.sx,p.sz)),0);line.crowd.push({type:ty,name:pick(ty.names),m:m});}}
 function seatRider(r,i){const s=vanSeats[i];if(!s)return;s.clear();const m=new T.Mesh(personGeo(r.pax.look,true),VC);m.castShadow=true;s.add(m);r.seat=i;}
 function lineUI(){const el=$('lineBar');if(!line){el.hidden=true;return;}el.hidden=false;const n=line.stops.length;
@@ -937,6 +937,7 @@ function lineNextPay(){if(!line.queue.length){line.phase='leave';line.wait=.6;re
     toast('+'+pay+' ج.م'+(tip?' • بقشيش':'')+(lost?' • ضاع منك '+lost:''),lost?'bad':'good');blip('cash');lineNextPay();});}
 function updateLine(dt){if(!line)lineInit();const k=line.stops[line.idx],p=POI[k],d=Math.hypot(p.x-car.x,p.z-car.z);
   for(const c of line.crowd)c.m.rotation.y=Math.atan2(-(car.x-c.m.position.x),-(car.z-c.m.position.z))+Math.PI;
+  if(destBeam){const on=line.phase==='drive';if(destBeam.visible!==on)destBeam.visible=destRing.visible=on;if(on){destBeam.position.set(p.x+p.sx,0,p.z+p.sz);destRing.position.set(p.x+p.sx,.15,p.z+p.sz);}}
   if(line.phase==='drive'){
     if(!line.announced&&d<90){line.announced=true;const down=line.riders.filter(r=>r.dest===line.idx);if(down.length)dlgPush([['p',pick(L_DOWN)]],down[0].pax);}
     if(Math.min(d,Math.hypot(p.x+p.sx-car.x,p.z+p.sz-car.z))<PICK_R+1){if(Math.abs(car.v)<2.2){line.phase='stop';line.wait=.8;}else if(stopHint<=0){toast('هدّي ووقّف في المحطة');stopHint=3;}}
@@ -1153,7 +1154,7 @@ let state='loading';
 function menuWallet(){$('menuWallet').textContent=Math.round(save.wallet)+' ج.م · '+save.trips+' مشوار';}
 function startGame(){closeGarageView();$('garage').hidden=true;initAudio();if(A.ctx){if(A.ctx.state==='suspended')A.ctx.resume();try{const b=A.ctx.createBuffer(1,1,22050),src=A.ctx.createBufferSource();src.buffer=b;src.connect(A.ctx.destination);src.start(0);}catch(e){}}
   if(Speech.ok){try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}}pickVoices();$('menu').hidden=true;$('hud').hidden=false;state='play';snapCam=true;gpsSize();updateMoney();
-  if(!startGame.done){startGame.done=true;radioPower(true);toast('دوّر على الزباين… العمود المنوّر',"good");}else radioUI();canvas.focus({preventScroll:true});}
+  if(!startGame.done){startGame.done=true;radioPower(true);toast(isVan?'روح المحطة اللي عليها العمود المنوّر، الركاب مستنيينك':'دوّر على الزباين… العمود المنوّر',"good");}else radioUI();canvas.focus({preventScroll:true});}
 function pauseGame(){if(state!=='play')return;state='pause';if(liveEl)liveEl.pause();releaseAll();$('pause').hidden=false;if(A.ctx)A.ctx.suspend();if(Speech.ok)try{speechSynthesis.pause();}catch(e){}persist();}
 function resumeGame(){$('pause').hidden=true;state='play';if(liveEl&&radio.live)liveEl.play().catch(()=>{});if(A.ctx)A.ctx.resume();if(Speech.ok)try{speechSynthesis.resume();}catch(e){}canvas.focus({preventScroll:true});}
 $('pResume').addEventListener('click',resumeGame);$('pReset').addEventListener('click',()=>{resetToRoad();resumeGame();toast('رجعناك للطريق');});

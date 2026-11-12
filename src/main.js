@@ -769,7 +769,7 @@ function lerpAng(a,b,t){let d=b-a;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)
 /* ============ audio ============ */
 const A={ctx:null,muted:false};
 function initAudio(){if(A.ctx){if(A.ctx.state!=='running')A.ctx.resume().catch(()=>{});return;}const C=window.AudioContext||window.webkitAudioContext;if(!C){A.fail=true;return;}let ctx;try{ctx=new C();}catch(e){A.fail=true;return;}A.ctx=ctx;
-  A.master=ctx.createGain();A.master.gain.value=.9;A.master.connect(ctx.destination);
+  A.master=ctx.createGain();A.master.gain.value=.9*VOL.master;A.master.connect(ctx.destination);
   const nb=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);const d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;A.noise=nb;
   const eg=ctx.createGain();eg.gain.value=0;const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=650;lp.Q.value=2.2;const o1=ctx.createOscillator();o1.type='sawtooth';const o2=ctx.createOscillator();o2.type='square';const o2g=ctx.createGain();o2g.gain.value=.35;
   const amp=ctx.createGain();amp.gain.value=.55;const lfo=ctx.createOscillator();lfo.type='square';const lfoG=ctx.createGain();lfoG.gain.value=.45;lfo.connect(lfoG);lfoG.connect(amp.gain);o1.connect(lp);o2.connect(o2g);o2g.connect(lp);lp.connect(amp);amp.connect(eg);eg.connect(A.master);o1.start();o2.start();lfo.start();A.eng={o1:o1,o2:o2,lfo:lfo,lp:lp,eg:eg};
@@ -798,7 +798,7 @@ function playSiren(){if(!A.ctx)return;const ctx=A.ctx,t0=ctx.currentTime;if(t0<s
 function blip(kind,s){if(!A.ctx)return;const ctx=A.ctx,t=ctx.currentTime;
   if(kind==='thud'){const src=ctx.createBufferSource();src.buffer=A.noise;const f=ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=380;const g=ctx.createGain();g.gain.setValueAtTime(Math.min(1,.25+s*.08),t);g.gain.exponentialRampToValueAtTime(.001,t+.35);src.connect(f);f.connect(g);g.connect(A.sfx);src.start(t);src.stop(t+.4);}
   else{const notes=kind==='cash'?[880,1174.7,1568]:[660,880];notes.forEach((fq,i)=>{const o=ctx.createOscillator();o.type='triangle';o.frequency.value=fq;const g=ctx.createGain();g.gain.setValueAtTime(.0001,t+i*.09);g.gain.exponentialRampToValueAtTime(.2,t+i*.09+.01);g.gain.exponentialRampToValueAtTime(.0001,t+i*.09+.5);o.connect(g);g.connect(A.sfx);o.start(t+i*.09);o.stop(t+i*.09+.55);});}}
-function setMute(m){A.muted=m;if(A.ctx)A.master.gain.setTargetAtTime(m?0:.9,A.ctx.currentTime,.05);$('bMute').classList.toggle('off',m);if(m&&Speech.ok)try{speechSynthesis.cancel();}catch(e){}}
+function setMute(m){A.muted=m;if(A.ctx)A.master.gain.setTargetAtTime(m?0:.9*VOL.master,A.ctx.currentTime,.05);$('bMute').classList.toggle('off',m);if(m&&Speech.ok)try{speechSynthesis.cancel();}catch(e){}}
 
 /* radio music (maqam synth) */
 const SCALES={hijaz:{root:146.83,c:[0,100,400,500,700,800,1000]},rast:{root:130.81,c:[0,200,350,500,700,900,1050]},bayati:{root:146.83,c:[0,150,300,500,700,800,1000]}};
@@ -1128,7 +1128,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='p
 
 /* ============ menus / state ============ */
 let state='loading';
-function menuWallet(){$('menuWallet').textContent='محفظتك: '+Math.round(save.wallet)+' ج.م · مشاوير: '+save.trips;}
+function menuWallet(){$('menuWallet').textContent=Math.round(save.wallet)+' ج.م · '+save.trips+' مشوار';}
 function startGame(){initAudio();if(A.ctx){if(A.ctx.state==='suspended')A.ctx.resume();try{const b=A.ctx.createBuffer(1,1,22050),src=A.ctx.createBufferSource();src.buffer=b;src.connect(A.ctx.destination);src.start(0);}catch(e){}}
   if(Speech.ok){try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}}pickVoices();$('menu').hidden=true;$('hud').hidden=false;state='play';snapCam=true;gpsSize();updateMoney();
   if(!startGame.done){startGame.done=true;radioPower(true);toast('دوّر على الزباين… العمود المنوّر',"good");}else radioUI();canvas.focus({preventScroll:true});}
@@ -1162,7 +1162,8 @@ let last=performance.now(),mA=0;
 function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000||0);last=now;
   if(state==='play'){animWorld(dt);updateTraffic(dt);updateCar(dt);updateWalkers(dt);syncTuk();updateFares(dt);dlgUpdate(dt);radioUpdate(dt);updateHUD(dt);updateCam(dt);audioTick();}
   else if(state==='menu'||state==='loading'){animWorld(dt);updateTraffic(dt);updateWalkers(dt);syncTuk();mA+=dt*.04;
-    camera.position.set(-140+Math.cos(mA)*70,22+Math.sin(mA*.7)*5,10+Math.sin(mA)*45);camera.lookAt(-120,4,-20);}
+    if(car&&state==='menu'){const a=Math.sin(mA*2.2)*.55,port=innerWidth<innerHeight?0:-2.2;camera.position.set(car.x+Math.sin(a)*7.2+port,2.3+Math.sin(mA*1.3)*.25,car.z+Math.cos(a)*7.2);camera.lookAt(car.x+port*.6,1.35,car.z-3.5);}
+    else{camera.position.set(-140+Math.cos(mA)*70,22+Math.sin(mA*.7)*5,10+Math.sin(mA)*45);camera.lookAt(-120,4,-20);}}
   placeSun();renderer.render(scene,camera);if(perf)perf.tick(now);}
 
 
@@ -1177,6 +1178,28 @@ if(IS_BETA){$('betaSec').hidden=false;$('betaTag').hidden=false;document.title='
 function saveNote(){const n=$('saveNote');if(!n)return;n.textContent='حالة الحفظ: '+({new:'جديد',current:'سليم',migrated:'اتحدّث للإصدار ١ واتعمل نسخة احتياطية','migrated-unsaved':'شغال من الذاكرة، الأصل ما اتلمسش',corrupt:'الحفظ القديم مش مقروء ومحفوظ زي ما هو',future:'من نسخة أحدث، مش هيتعدل'}[SAVE_LOAD.status]||SAVE_LOAD.status)+(saveWritable?'':' (الحفظ متوقف في الجلسة دي)');}
 saveNote();
 $('btnImportMain').addEventListener('click',()=>{if(!confirm('هتتجاب نسخة من حفظ النسخة الأساسية للنسخة التجريبية. الحفظ الأساسي مش هيتغير. نكمل؟'))return;const r=importMainSave();if(!r.ok){toast(r.why,'bad');return;}toast('اتستورد الحفظ، بنعيد التحميل…','good');setTimeout(()=>location.reload(),900);});
+
+/* ============ menu extras: progress, radio from the menu ============ */
+function openProgress(){$('pgWallet').textContent=Math.round(save.wallet);$('pgTotal').textContent=Math.round(save.total);$('pgTrips').textContent=save.trips;$('pgPaints').textContent=save.owned.length;$('progress').hidden=false;}
+$('btnProgress').addEventListener('click',openProgress);$('pgClose').addEventListener('click',()=>{$('progress').hidden=true;});
+$('progress').addEventListener('click',e=>{if(e.target.id==='progress')$('progress').hidden=true;});
+/* the radio panel lives at the top level so it can open over the menu too */
+document.body.appendChild($('radio'));
+$('btnMenuRadio').addEventListener('click',()=>{initAudio();if(A.ctx&&A.ctx.state!=='running')A.ctx.resume().catch(()=>{});toggleRadio();});
+
+/* ============ UI sounds + volume (Phase 2) ============ */
+const VOL={master:1,ui:.7};try{Object.assign(VOL,JSON.parse(ls.get('aps_vol')||'{}'));}catch(e){}
+function saveVol(){ls.set('aps_vol',JSON.stringify(VOL));if(A.ctx&&A.master&&!A.muted)A.master.gain.setTargetAtTime(.9*VOL.master,A.ctx.currentTime,.05);}
+/* short, quiet clicks; only after the player has touched the page (browsers block sound before that) */
+function uiSfx(kind){if(!A.ctx||A.ctx.state!=='running'||VOL.ui<=0||A.muted)return;const ctx=A.ctx,t=ctx.currentTime,g=ctx.createGain();g.connect(A.master);
+  const tone=(f,at,d,type,v)=>{const o=ctx.createOscillator();o.type=type||'sine';o.frequency.setValueAtTime(f,t+at);const e=ctx.createGain();e.gain.setValueAtTime(.0001,t+at);e.gain.exponentialRampToValueAtTime(v*VOL.ui,t+at+.008);e.gain.exponentialRampToValueAtTime(.0001,t+at+d);o.connect(e);e.connect(g);o.start(t+at);o.stop(t+at+d+.02);};
+  if(kind==='ok'){tone(784,0,.12,'triangle',.16);tone(1175,.07,.18,'triangle',.14);}
+  else if(kind==='open'){tone(520,0,.09,'sine',.1);tone(780,.04,.1,'sine',.08);}
+  else tone(1250,0,.045,'square',.035);}
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;if(b.closest('#hud')&&!b.closest('#pay'))return;
+  initAudio();uiSfx(b.matches('#btnStart,#pOk,#garClose,.vpick button,.paint')?'ok':(b.matches('#btnGarage,#btnSettings,#btnStudio,#btnProgress,#btnMenuRadio')?'open':'tap'));},true);
+$('volMaster').value=Math.round(VOL.master*100);$('volUi').value=Math.round(VOL.ui*100);
+$('volMaster').addEventListener('input',e=>{VOL.master=e.target.value/100;saveVol();});$('volUi').addEventListener('input',e=>{VOL.ui=e.target.value/100;saveVol();uiSfx('tap');});
 
 /* ============ settings panel ============ */
 function seg(id,opts,get,set){const el=$(id);const draw=()=>{el.innerHTML='';opts.forEach(([v,lab])=>{const b=document.createElement('button');b.textContent=lab;b.setAttribute('aria-pressed',String(get()===v));b.addEventListener('click',async()=>{if(get()!==v){await set(v);}draw();});el.appendChild(b);});};draw();return draw;}

@@ -186,6 +186,7 @@ kbd{font:700 11px ui-monospace,monospace;border:1px solid rgba(255,255,255,.3);b
 .seg button[aria-pressed="true"]{background:var(--edge);color:#241a00;box-shadow:0 2px 0 #a37800}
 .snote{margin:6px 0 0;font:500 12.5px/1.8 var(--f-body);color:var(--text-muted)}
 #settings .keys{font:500 13px/2 var(--f-body);color:var(--muted)}
+.srow input[type=range]{width:min(200px,48vw);accent-color:var(--tuk);height:var(--touch)}
 .sbtn{border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#fff;font:15px var(--f-game);padding:8px 14px;border-radius:10px}
 @media (max-height:500px){.mlogo{width:min(150px,32vh)}#menu .tag{display:none}}
 #loading{position:fixed;inset:0;z-index:60;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#2b3a8f,var(--navy-900) 70%);font-family:var(--f-game);color:#fff;cursor:pointer;transition:opacity .5s}
@@ -260,7 +261,7 @@ kbd{font:700 11px ui-monospace,monospace;border:1px solid rgba(255,255,255,.3);b
 #onair::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff5a2a;margin-left:6px;box-shadow:0 0 6px #ff5a2a}
 
 /* radio */
-#radio{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,400px);padding:14px;pointer-events:auto;z-index:20;direction:rtl;border-radius:16px;background:rgba(var(--navy-rgb),.95);border:3px solid var(--edge)}
+#radio{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,400px);padding:14px;pointer-events:auto;z-index:50;direction:rtl;border-radius:16px;background:rgba(var(--navy-rgb),.95);border:3px solid var(--edge)}
 .rhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
 .rhead h3{margin:0;font:24px var(--f-game);color:var(--edge)}
 .sm{font:15px var(--f-game);padding:5px 12px;border-radius:10px;border:2px solid rgba(255,255,255,.25)}
@@ -335,6 +336,38 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
 }
 @media (prefers-reduced-motion:reduce){.needle{transition:none}}
 
+
+/* ===== main menu (Phase 2 B) ===== */
+#menu{display:grid;grid-template-rows:1fr auto;align-items:end;justify-items:center;padding:calc(env(safe-area-inset-top,0px) + 10px) max(14px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 14px) max(14px,env(safe-area-inset-left,0px));
+  background:linear-gradient(to top,rgba(var(--navy-rgb),.97) 0%,rgba(var(--navy-rgb),.82) 34%,rgba(var(--navy-rgb),0) 62%),linear-gradient(to bottom,rgba(var(--navy-rgb),.55),rgba(var(--navy-rgb),0) 22%);overflow:hidden}
+.mhero{align-self:start;display:flex;justify-content:center}
+.mlogo{width:min(56vw,30vh,260px);height:auto;margin:0;filter:drop-shadow(0 10px 18px rgba(0,0,0,.55));animation:mfloat 4s ease-in-out infinite}
+.mi{width:min(560px,100%);gap:12px}
+.mstats{display:flex;gap:8px;justify-content:center}
+.ms{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;background:rgba(var(--navy2-rgb),.85);border:1.5px solid var(--line-strong);font:17px var(--f-game);color:var(--tuk)}
+.ms i{font-style:normal}
+#menuWallet{font-weight:400}
+.bigbtn.ui-btn{width:min(100%,420px);min-height:64px;font-size:28px;border-radius:18px}
+.bigbtn svg{width:26px;height:26px}
+.mbar{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:100%;padding:8px;border-radius:var(--radius-l);background:rgba(var(--navy2-rgb),.88);border:1.5px solid var(--line)}
+.mb{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:62px;border-radius:12px;color:var(--cream);font:14px var(--f-game)}
+.mb svg{width:26px;height:26px;color:var(--tuk)}
+button.mb:active{background:rgba(var(--tuk-rgb),.15)}
+.mb.soon{opacity:.45;cursor:default}
+.mb.soon em{position:absolute;top:2px;inset-inline-start:2px;font:10px var(--f-body);font-style:normal;background:var(--copper);color:#fff;padding:0 5px;border-radius:6px}
+.pgcard{width:min(480px,100%)}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px}
+.pg{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px 8px;border-radius:var(--radius);background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.pg i{font-style:normal;font-size:24px}.pg b{font:34px var(--f-num);color:var(--tuk)}.pg span{font:13px var(--f-body);color:var(--text-muted)}
+.pgnote{margin:0 16px 16px;font:500 13px/1.7 var(--f-body);color:var(--text-muted)}
+#progress{z-index:45}
+@media (orientation:landscape) and (max-height:560px){
+  #menu{grid-template-columns:1fr 1.2fr;grid-template-rows:1fr;align-items:center;background:linear-gradient(to left,rgba(var(--navy-rgb),.96) 0%,rgba(var(--navy-rgb),.8) 45%,rgba(var(--navy-rgb),0) 75%)}
+  .mhero{align-self:center}.mlogo{width:min(34vw,62vh)}
+  .mi{gap:8px}.bigbtn.ui-btn{min-height:52px;font-size:24px}.mb{min-height:52px}.mb svg{width:22px;height:22px}
+  .vpick button img{height:44px}
+}
+
 /* ===== shared components (Design System) ===== */
 .ui-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--touch);padding:0 18px;border-radius:var(--radius);font:18px var(--f-game);color:var(--cream);background:var(--navy-700);border:1.5px solid var(--line);box-shadow:var(--shadow-btn);transition:transform .08s,filter .15s}
 .ui-btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.35)}
@@ -390,18 +423,36 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
 <div id="upd" hidden><div class="uc"><h2>في تحديث جديد 🚀</h2><p>نزّلنا نسخة أحدث من اللعبة. لازم تحدّث عشان تكمّل على آخر إصدار.</p><button id="updBtn">حدّث دلوقتي</button><small id="updVer"></small></div></div>
 <div id="menu" dir="rtl" hidden>
   <div class="betaTag" id="betaTag" hidden>نسخة تجريبية BETA</div>
-  <div class="mi">
-    <img class="mlogo" src="./img/logo.webp" alt="توكتوك في المينا">
+  <div class="mhero">
+    <img class="mlogo" src="./img/logo.webp" alt="توكتوك في المينا" width="900" height="900">
     <h1 class="sr">توكتوك في المينا</h1>
-    <div class="walletline" id="menuWallet"></div>
+  </div>
+  <div class="mi">
+    <div class="mstats"><span class="ms"><i>💰</i><b id="menuWallet">0</b></span></div>
     <div class="vpick" id="vehPick" role="radiogroup" aria-label="العربية"></div>
-    <button class="bigbtn" id="btnStart">ابدأ الوردية</button>
-    <div class="tiles">
-      <button class="tile" id="btnGarage"><i>🔧</i>الجراج</button>
-      <button class="tile" id="btnSettings"><i>⚙️</i>الإعدادات</button>
-      <button class="tile" id="btnStudio"><i>🎙️</i>الاستوديو</button>
-    </div>
+    <button class="bigbtn ui-btn primary" id="btnStart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg>ابدأ الوردية</button>
+    <nav class="mbar" aria-label="القوائم">
+      <button class="mb" id="btnGarage"><svg viewBox="0 0 24 24"><path d="M3 10 12 4l9 6v10h-4v-7H7v7H3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 16h8M8 19h8" stroke="currentColor" stroke-width="2"/></svg><span>الجراج</span></button>
+      <div class="mb soon" aria-disabled="true" title="جاية في مرحلة قادمة"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 3h6v3H9zM8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>المهام</span><em>قريبًا</em></div>
+      <button class="mb" id="btnProgress"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>التقدم</span></button>
+      <button class="mb" id="btnMenuRadio"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 8 17 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="15.5" cy="14" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>الراديو</span></button>
+      <button class="mb" id="btnStudio"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>الاستوديو</span></button>
+      <button class="mb" id="btnSettings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>الإعدادات</span></button>
+    </nav>
     <button class="chip" id="install">📲 ثبّت اللعبة على الموبايل</button>
+  </div>
+</div>
+
+<div id="progress" class="ui-overlay" dir="rtl" hidden>
+  <div class="ui-card ui-pop pgcard">
+    <div class="ui-head"><h2>📊 التقدم</h2><button class="ui-x" id="pgClose" aria-label="قفل">✕</button></div>
+    <div class="pgrid">
+      <div class="pg"><i>💰</i><b id="pgWallet">0</b><span>المحفظة (ج.م)</span></div>
+      <div class="pg"><i>📈</i><b id="pgTotal">0</b><span>إجمالي الأرباح (ج.م)</span></div>
+      <div class="pg"><i>🧑‍🤝‍🧑</i><b id="pgTrips">0</b><span>مشاوير اتوصّلت</span></div>
+      <div class="pg"><i>🎨</i><b id="pgPaints">0</b><span>ألوان عندك</span></div>
+    </div>
+    <p class="pgnote">مستويات السمعة والمكافآت جاية مع نظام المهام في مرحلة قادمة.</p>
   </div>
 </div>
 
@@ -421,6 +472,8 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
       <section><h3>🔊 الصوت</h3>
         <div class="srow"><span>صوت الحوار</span><div class="seg" id="segVoice"></div></div>
         <div class="srow"><span>جرّب الصوت</span><button class="sbtn" id="btnVoiceTest">▶️ اسمع جملة</button></div>
+        <div class="srow"><label for="volMaster">الصوت العام</label><input type="range" id="volMaster" min="0" max="100" step="5"></div>
+        <div class="srow"><label for="volUi">أصوات الأزرار</label><input type="range" id="volUi" min="0" max="100" step="5"></div>
         <p class="snote" id="voiceNote" hidden></p>
       </section>
       <section><h3>🖥️ الرسومات</h3>

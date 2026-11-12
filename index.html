@@ -95,6 +95,24 @@ kbd{font:700 11px ui-monospace,monospace;border:1px solid rgba(255,255,255,.3);b
 
 #speedfx{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;background:repeating-conic-gradient(from 0deg at 50% 58%,rgba(255,255,255,0) 0deg 2.6deg,rgba(255,255,255,.28) 2.6deg 3deg);-webkit-mask:radial-gradient(circle at 50% 58%,transparent 32%,#000 78%);mask:radial-gradient(circle at 50% 58%,transparent 32%,#000 78%)}
 #toast{position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);padding:10px 22px;font:26px var(--f-game);border-radius:14px;background:rgba(20,22,48,.88);border:3px solid var(--edge);color:#fff;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;text-align:center}
+#pay{pointer-events:auto;position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(560px,96vw);background:var(--panel);border:3px solid var(--edge);border-radius:18px;padding:12px 14px 14px;color:#fff;z-index:30;font-family:var(--f-game);box-shadow:0 12px 40px rgba(0,0,0,.45)}
+#pay .ptop{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:19px}
+#pay .ptop b{color:var(--edge);font-size:24px}
+#pay .given{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:17px;color:var(--muted)}
+#pay .eq{display:flex;justify-content:center;align-items:flex-start;gap:16px;margin:2px 0 6px;direction:rtl}#pay .eq span{display:flex;flex-direction:column;align-items:center}#pay .eq b{font-size:30px;line-height:1.1}#pay .eq i{font-style:normal;font-size:13px;color:var(--muted)}#pay .eq em{font-style:normal;font-size:28px;color:var(--edge)}#pay .eq .q{color:#3ee0c0}
+#pay .msg{min-height:24px;font-size:17px;text-align:center;margin:4px 0}
+#pay .msg.bad{color:#ff8a7a}#pay .msg.good{color:#7dff8a}
+#pay .tray{display:flex;flex-wrap:wrap;gap:5px;min-height:46px;align-items:center;justify-content:center;background:rgba(0,0,0,.28);border-radius:12px;padding:6px;margin-bottom:8px}
+#pay .tray .sum{font-size:20px;margin-inline-start:auto;color:#fff}
+#pay .notes{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.note{position:relative;border:0;border-radius:6px;height:46px;color:#fff;font:20px var(--f-game);cursor:pointer;box-shadow:inset 0 0 0 2px rgba(255,255,255,.35),0 3px 0 rgba(0,0,0,.35);text-shadow:0 1px 2px rgba(0,0,0,.6);background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.08) 0 3px,transparent 3px 7px)}
+.note small{position:absolute;bottom:2px;inset-inline-start:5px;font-size:10px;opacity:.85}
+.note.coin{border-radius:50%;width:46px;justify-self:center;background:radial-gradient(circle at 35% 35%,#fff3b0,#c9a227 60%,#8a6d14);color:#3a2a00;text-shadow:none}
+.note.mini{height:32px;font-size:15px;min-width:44px;padding:0 6px}
+.note.mini.coin{width:32px;height:32px}
+#pay .acts{display:flex;gap:8px;margin-top:10px}
+#pay .acts button{flex:1;height:46px;border-radius:12px;border:0;font:20px var(--f-game);cursor:pointer}
+#pay .acts .ok{background:#3fb950;color:#fff}#pay .acts .clr{background:#4a4f6a;color:#fff}
 #toast.good{color:var(--edge)}
 #toast.bad{border-color:var(--stop)}
 
@@ -117,7 +135,7 @@ kbd{font:700 11px ui-monospace,monospace;border:1px solid rgba(255,255,255,.3);b
 .dial .lbl{position:absolute;bottom:4px;font:700 10px var(--f-body);color:#e1c07e;transform:translateX(-50%);white-space:nowrap}
 .dial .glow{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 120%,rgba(255,170,60,.3),transparent 70%)}
 .needle{position:absolute;top:2px;bottom:2px;width:3px;background:#ff5a2a;box-shadow:0 0 8px #ff5a2a;transition:left .7s cubic-bezier(.3,1.4,.5,1)}
-.stations{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.stations{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
 .st{padding:8px 6px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);font:15px/1.3 var(--f-game);min-height:50px}
 .st.on{border-color:var(--edge);background:rgba(242,183,5,.16);color:var(--edge)}
 .rrow{display:flex;align-items:center;gap:10px;margin-top:10px;font:15px var(--f-game)}
@@ -231,6 +249,15 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
 
   <div id="onair" hidden></div>
   <div id="nav" hidden><div class="navic"><svg id="navArrow" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 4 13h5v8h6v-8h5z"/></svg></div><span id="navName"></span><b id="navTime"></b><span id="navDist"></span></div>
+  <div id="pay" dir="rtl" hidden>
+    <div class="ptop"><span>الأجرة <b id="pFare">0</b> ج</span><span>الراكب: <span id="pName"></span></span></div>
+    <div class="given">ادّاك: <span id="pGiven"></span></div>
+    <div class="eq"><span><b id="eGiven">0</b><i>دفع</i></span><em>−</em><span><b id="eFare">0</b><i>الأجرة</i></span><em>=</em><span><b class="q" id="eChange">؟</b><i>الباقي</i></span></div>
+    <div class="msg" id="pMsg">رجّعله الباقي من الفكة</div>
+    <div class="tray" id="pTray"><span class="sum">الباقي اللي في إيدك: <b id="pSum">0</b> ج</span></div>
+    <div class="notes" id="pNotes"></div>
+    <div class="acts"><button class="clr" id="pClr">لمّ الفكة تاني</button><button class="ok" id="pOk">رجّع الباقي</button></div>
+  </div>
   <div id="toast" hidden></div>
   <div id="dialog" hidden><span class="who" id="dWho"></span><span id="dText"></span></div>
   <div class="hint">W بنزين · S فرامل · A/D دركسيون · Shift تيربو · Space دريفت · H كلاكس · R راديو</div>

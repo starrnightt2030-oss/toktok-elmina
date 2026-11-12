@@ -610,7 +610,14 @@ const SAFE=[];Object.values(NODES).forEach(n=>SAFE.push(n));
 function resetToRoad(){let best=null,bd=1e9;for(const n of SAFE){const d=Math.hypot(n.x-car.x,n.z-car.z);if(d<bd){bd=d;best=n;}}veh.teleport(best.x,best.z,car.h);snapCam=true;}
 
 /* ============ traffic ============ */
-const traffic=[];
+const traffic=[];let CARS=null;const paintCache={};
+function tintMat(m,hex){const k=m.uuid+hex;if(!paintCache[k]){const c=m.clone();c.color.set(hex).convertSRGBToLinear();paintCache[k]=c;}return paintCache[k];}
+function makeTraffic(k){const NM={taxi:'Taxi',sedan:'Sedan',classic:'Classic',micro:'Micro',truck:'Truck'};
+  let src=k[0]==='tuk'?tuk:(CARS&&CARS.getObjectByName(NM[k[0]]));if(!src){const m=new T.Mesh(vehicleGeo(k[0],k[1],k[2]),VC);m.castShadow=true;return m;}
+  const m=src.clone(true);m.position.set(0,0,0);m.quaternion.identity();const col=k[0]==='truck'?k[2]:k[1];
+  m.traverse(o=>{if(!o.isMesh)return;o.castShadow=true;if(o.material&&o.material.name==='Paint')o.material=tintMat(o.material,col);});
+  if(k[0]==='tuk'){const ps=m.getObjectByName('PaxSeatPt');if(ps)ps.clear();}
+  const g=new T.Group();g.add(m);return g;}
 function laneLoop(pts,off){const out=[];const n=pts.length;for(let i=0;i<n;i++){const p=pts[i],a=pts[(i-1+n)%n],b=pts[(i+1)%n];const d1x=Math.sign(p[0]-a[0]),d1z=Math.sign(p[1]-a[1]),d2x=Math.sign(b[0]-p[0]),d2z=Math.sign(b[1]-p[1]);out.push([p[0]+(-d1z-d2z)*off,p[1]+(d1x+d2x)*off]);}return out;}
 function mkPath(pts){const L=[];let tot=0;for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length];const l=Math.hypot(b[0]-a[0],b[1]-a[1]);L.push(l);tot+=l;}return {pts:pts,L:L,tot:tot};}
 function pathAt(P,s,o){s=((s%P.tot)+P.tot)%P.tot;for(let i=0;i<P.pts.length;i++){if(s<=P.L[i]){const a=P.pts[i],b=P.pts[(i+1)%P.pts.length],t=s/P.L[i];o.x=a[0]+(b[0]-a[0])*t;o.z=a[1]+(b[1]-a[1])*t;o.dx=(b[0]-a[0])/P.L[i];o.dz=(b[1]-a[1])/P.L[i];return o;}s-=P.L[i];}return o;}
@@ -627,10 +634,10 @@ function initTraffic(){
     {p:mkPath(laneLoop([[-230,-30],[40,-30],[40,0],[-230,0]],2.5)),n:3,sp:7,truck:true},
     {p:mkPath(laneLoop([[-120,-30],[-20,-30],[-20,-112],[-120,-112]],2.5)),n:2,sp:6.5,truck:true}];
   /* avenue loops drive on the outer lanes, fix their offsets: they already include lane z */
-  const kinds=[['taxi','#f2c218'],['taxi','#f2c218'],['sedan','#e9e9e9'],['sedan','#2e5e8c'],['sedan','#b23a2a'],['sedan','#3a3a3a'],['micro','#f2f2f2'],['tuk','#2a6fb0'],['tuk','#c9302a'],['tuk','#f09a1a'],['tuk','#1f7a4a'],['sedan','#c9b48a']];
-  loops.forEach(L=>{for(let i=0;i<L.n;i++){let k=L.truck?['truck',pick(['#e9e6dd','#c9302a','#2e5e8c']),pick(CONT)]:pick(kinds);const g=vehicleGeo(k[0],k[1],k[2]);const m=new T.Mesh(g,VC);m.castShadow=true;scene.add(m);
+  const kinds=[['taxi','#f2c218'],['taxi','#f2c218'],['taxi','#f2c218'],['sedan','#e9e9e9'],['sedan','#2e5e8c'],['sedan','#8f1f1a'],['sedan','#3a3a3a'],['sedan','#b9bec4'],['classic','#d8d2c0'],['classic','#3d6b4a'],['classic','#6e2a22'],['micro','#f2f2f2'],['micro','#f2f2f2'],['tuk','#2a6fb0'],['tuk','#c9302a'],['tuk','#ffc400'],['tuk','#1f7a4a']];
+  loops.forEach(L=>{for(let i=0;i<L.n;i++){let k=L.truck?['truck',pick(['#e9e6dd','#c9302a','#2e5e8c']),pick(CONT)]:pick(kinds);const m=makeTraffic(k);scene.add(m);
     const big=k[0]==='truck'||k[0]==='micro';const nc=k[0]==='truck'?4:(k[0]==='tuk'?1:2);const circ=[];for(let j=0;j<nc;j++)circ.push({x:0,z:0,o:k[0]==='truck'?-6.5+j*4.3:(nc===1?0:(j?1.3:-1.3))});
-    traffic.push({kind:k[0],m:m,P:L.p,s:L.p.tot*(i/L.n)+rand(0,20),v:L.sp,sp:L.sp*rand(.85,1.1),circ:circ,r:big?1.4:(k[0]==='tuk'?.9:1.1),len:k[0]==='truck'?8:3,hx:0,hz:-1,x:0,z:0});}});
+    traffic.push({kind:k[0],m:m,P:L.p,s:L.p.tot*(i/L.n)+rand(0,20),v:L.sp,sp:L.sp*rand(.85,1.1),circ:circ,r:big?1.4:(k[0]==='tuk'?.9:1.1),len:k[0]==='truck'?9:(k[0]==='micro'?4:3),hx:0,hz:-1,x:0,z:0});}});
   updateTraffic(0);}
 const tp={x:0,z:0,dx:0,dz:0};
 function updateTraffic(dt){for(const c of traffic){pathAt(c.P,c.s,tp);const fx=tp.dx,fz=tp.dz;let target=c.sp;
@@ -702,7 +709,7 @@ function blip(kind,s){if(!A.ctx)return;const ctx=A.ctx,t=ctx.currentTime;
 function setMute(m){A.muted=m;if(A.ctx)A.master.gain.setTargetAtTime(m?0:.9,A.ctx.currentTime,.05);$('bMute').classList.toggle('off',m);if(m&&Speech.ok)try{speechSynthesis.cancel();}catch(e){}}
 
 /* radio music (maqam synth) */
-const SCALES={hijaz:{root:146.83,c:[0,100,400,500,700,800,1000]},rast:{root:130.81,c:[0,200,350,500,700,900,1050]}};
+const SCALES={hijaz:{root:146.83,c:[0,100,400,500,700,800,1000]},rast:{root:130.81,c:[0,200,350,500,700,900,1050]},bayati:{root:146.83,c:[0,150,300,500,700,800,1000]}};
 const RHY={maqsum:['D','T','','T','D','','T',''],wahda:['D','','','T','','T','','']};
 function degFreq(sc,deg){const o=Math.floor(deg/7),i=((deg%7)+7)%7;return sc.root*Math.pow(2,(sc.c[i]+1200*o)/1200);}
 function pluck(t,f,vel){const ctx=A.ctx;const o=ctx.createOscillator();o.type='sawtooth';o.frequency.value=f;const o2=ctx.createOscillator();o2.type='triangle';o2.frequency.value=f*2.004;const fl=ctx.createBiquadFilter();fl.type='lowpass';fl.frequency.setValueAtTime(3000,t);fl.frequency.exponentialRampToValueAtTime(480,t+.4);
@@ -730,8 +737,9 @@ function say(text,o){if(A.muted||!Speech.ok||!Speech.enabled)return false;try{sp
 /* radio */
 const RST=[{id:'quran',name:'إذاعة القرآن الكريم',kind:'file',idents:['إذاعة القرآن الكريم من القاهرة']},
   {id:'sharq',name:'إذاعة الشرق الأوسط',kind:'synth',maqam:'hijaz',tempo:104,rhythm:'maqsum',voice:'oud',idents:['إذاعة الشرق الأوسط من القاهرة','معاكم إذاعة الشرق الأوسط']},
-  {id:'nogoum',name:'نجوم إف إم',kind:'synth',maqam:'rast',tempo:112,rhythm:'maqsum',voice:'oud',idents:['نجوم إف إم','معاكم نجوم إف إم، مية وستة من عشرة',arTime]}];
-const NEEDLE=['17%','50%','83%'];const radio={on:false,idx:2,vol:.7,buffers:{},src:null,nextIdent:0,identSpeaking:false};
+  {id:'nogoum',name:'نجوم إف إم',kind:'synth',maqam:'rast',tempo:112,rhythm:'maqsum',voice:'oud',idents:['نجوم إف إم','معاكم نجوم إف إم، مية وستة من عشرة',arTime]},
+  {id:'aghani',name:'إذاعة الأغاني',kind:'synth',maqam:'bayati',tempo:92,rhythm:'maqsum',voice:'oud',idents:['إذاعة الأغاني من القاهرة','معاكم إذاعة الأغاني، أغاني زمان الجميل']}];
+const NEEDLE=['12%','37%','63%','88%'];const radio={on:false,idx:2,vol:.7,buffers:{},src:null,nextIdent:0,identSpeaking:false};
 function arTime(){const d=new Date();let h=d.getHours(),m=d.getMinutes();const H=['الثانية عشرة','الواحدة','الثانية','الثالثة','الرابعة','الخامسة','السادسة','السابعة','الثامنة','التاسعة','العاشرة','الحادية عشرة'];let part;const per=h<12?'صباحًا':(h<15?'ظهرًا':'مساءً');
   if(m<8)part='تمامًا';else if(m<23)part='والربع';else if(m<38)part='والنصف';else if(m<53){part='إلا ربعًا';h++;}else{part='تقريبًا';h++;}return 'الساعة دلوقتي '+H[h%12]+' '+part+' '+per;}
 function buildRadioUI(){const box=$('stations');RST.forEach((s,i)=>{const b=document.createElement('button');b.className='st';b.textContent=s.name;b.id='st'+i;b.addEventListener('click',()=>{if(!radio.on)radioPower(true);tuneTo(i);});box.appendChild(b);});
@@ -749,7 +757,7 @@ function radioUI(){$('rPower').setAttribute('aria-pressed',radio.on);$('rPower')
   $('rNote').textContent=note;let cu='';try{cu=localStorage.getItem('aps_custom_'+st.id)||'';}catch(e){}$('rUrl').value=cu;
   $('rLoad').textContent=st.kind==='file'?'حمّل تلاوة من جهازك':'شغّل تسجيل من جهازك';if(onairT<=0){const oa=$('onair');if(radio.on&&state==='play'){oa.hidden=false;oa.textContent=(radio.live?'🔴 مباشر • ':'')+(b?st.name+' • '+b.name:st.name);}else oa.hidden=true;}}
 function radioLevel(){const duck=(Dlg.cur?.32:1)*(radio.identSpeaking?.45:1);if(liveEl)liveEl.volume=radio.on&&radio.live?clamp(radio.vol*(Dlg.cur?.4:1),0,1):0;if(!A.ctx)return;A.radioVol.gain.setTargetAtTime(radio.on&&!radio.live?radio.vol*duck:0,A.ctx.currentTime,.12);}
-const LIVEQ={quran:['القرآن الكريم من القاهرة','القرآن الكريم','Quran Cairo'],sharq:['الشرق الأوسط','الشرق الاوسط','Middle East','Sharq','El Sharq'],nogoum:['نجوم','Nogoum','Nogoom','Nojoom']};
+const LIVEQ={quran:['القرآن الكريم من القاهرة','القرآن الكريم','Quran Cairo'],sharq:['الشرق الأوسط','الشرق الاوسط','Middle East','Sharq','El Sharq'],nogoum:['نجوم','Nogoum','Nogoom','Nojoom'],aghani:['الأغاني','الاغاني','Aghani','El Aghani','Egyptian Songs Radio']};
 const RB=['https://de1.api.radio-browser.info','https://nl1.api.radio-browser.info','https://at1.api.radio-browser.info'];
 let liveEl=null,liveTok=0;
 function liveAudio(){if(!liveEl){liveEl=new Audio();liveEl.preload='none';liveEl.addEventListener('playing',()=>{if(liveEl._tok!==liveTok)return;radio.live=true;radio.liveName=liveEl._name;if(A.ctx)A.staticG.gain.setTargetAtTime(0,A.ctx.currentTime,.1);radioLevel();radioUI();});
@@ -835,20 +843,52 @@ function startFare(w){const opts=Object.keys(POI).filter(k=>k!==w.poi&&Math.hypo
   const r=route(POI[w.poi].x,POI[w.poi].z,POI[to].x,POI[to].z);fare={pax:Object.assign({name:w.name},w.type),from:w.poi,to:to,len:r.len,t:0,budget:Math.round(r.len/7.5+22),hits:0,fast:0,chat:rand(9,13),fastCd:0,phase:'board',wait:1.2};
   scene.remove(w.m);scene.remove(w.b);waiting.splice(waiting.indexOf(w),1);
   paxSeat.clear();const s=new T.Mesh(personGeo(w.type.look,true),VC);s.castShadow=true;paxSeat.add(s);
-  const d=POI[to].n;const intro=[['p',pick(INTRO_P).replace('{d}',d)],['d',pick(INTRO_D).replace('{t}',w.type.title)]];if(Math.random()<.4)intro.push(['d',pick(INTRO_D2)]);dlgPush(intro,fare.pax);fare.area=areaOf(car.x,car.z);
+  fare.price=clamp(Math.round((10+r.len/1000*12)/5)*5,10,60);const d=POI[to].n;const intro=[['p',pick(INTRO_P).replace('{d}',d)],['d',pick(INTRO_D).replace('{t}',w.type.title)],['p',pick(PRICE_P)],['d',pick(PRICE_D).replace('{n}',arNum(fare.price))]];if(Math.random()<.4)intro.push(['d',pick(INTRO_D2)]);dlgPush(intro,fare.pax);fare.area=areaOf(car.x,car.z);
   destBeam.position.set(POI[to].x,0,POI[to].z);destRing.position.set(POI[to].x,.15,POI[to].z);destBeam.visible=destRing.visible=true;gpsRoute=null;blip('ok');}
-function finishFare(){const f=fare;let r=5-f.hits*.6-Math.min(2,f.fast)*.3;const late=f.t>f.budget;if(late)r-=1.2;r=clamp(r,1,5);
-  const base=Math.round((12+f.len/1000*14)/5)*5;const bonus=late?0:Math.round((f.budget-f.t)*.4/5)*5;const tip=r>=4.5?10:0;const pay=base+Math.max(0,bonus)+tip;
+const PRICE_P=['هتاخد كام يا اسطى؟','الأجرة كام يا معلم؟','بكام المشوار ده يا اسطى؟'];
+const PRICE_D=['{n} جنيه بس، عشان خاطرك','هات {n} جنيه وخلاص','{n} جنيه يا باشا، ده سعره'];
+const PAY_GIVE=['اتفضل يا اسطى، معاك فكة؟','خد يا اسطى، رجّعلي الباقي','اتفضل، معلش مش معايا فكة'];
+const PAY_OK=['تمام كده، تسلم إيدك','مظبوط، شكراً يا اسطى','كده تمام، ربنا يباركلك'];
+const PAY_SHORT=['لا يا اسطى، كده ناقص','استنى، الباقي مش مظبوط، ناقص شوية','عدّها تاني يا اسطى، ناقصة'];
+const PAY_OVER_HONEST=['لا يا اسطى، إنت ادّتني زيادة، خد دول','ده كتير يا اسطى، الأمانة بتقول خد الزيادة'];
+const PAY_KEEP=['خلّي الباقي علشانك يا اسطى','الباقي حلاوة ليك'];
+const NOTES=[[1,'coin'],[5,'#2f7fb5'],[10,'#d0533b'],[20,'#3f8f5a'],[50,'#8a5a3a'],[100,'#2f6f6f'],[200,'#6b6b2f']];
+const NOTE_COL=Object.fromEntries(NOTES);
+function arNum(n){return String(n).replace(/[0-9]/g,d=>'٠١٢٣٤٥٦٧٨٩'[d]);}
+function noteEl(v,mini){const b=document.createElement('button');b.className='note'+(NOTE_COL[v]==='coin'?' coin':'')+(mini?' mini':'');if(NOTE_COL[v]!=='coin')b.style.background=NOTE_COL[v];b.innerHTML=arNum(v)+(NOTE_COL[v]==='coin'||mini?'':'<small>جنيه</small>');return b;}
+const payS={tray:[]};
+function payRender(){const tr=$('pTray');tr.querySelectorAll('.note').forEach(e=>e.remove());const sum=payS.tray.reduce((a,b)=>a+b,0);
+  payS.tray.forEach((v,i)=>{const e=noteEl(v,true);e.title='رجّعها';e.onclick=()=>{payS.tray.splice(i,1);blip('ok');payRender();};tr.insertBefore(e,tr.lastElementChild);});$('pSum').textContent=arNum(sum);}
+function startPay(){const f=fare;f.phase='pay';input.up=input.down=0;
+  const opts=[20,50,100,200].filter(n=>n>f.price);let given=Math.random()<.15?f.price:(Math.random()<.55?opts[0]:pick(opts.slice(0,3)));
+  if(given===f.price&&f.price%5){given=opts[0];}
+  const bills=given===f.price?[f.price]:[given];f.given=given;f.change=given-f.price;
+  $('pFare').textContent=arNum(f.price);$('pName').textContent=f.pax.name;const g=$('pGiven');g.innerHTML='';bills.forEach(v=>{const e=noteEl(v,true);e.disabled=true;g.appendChild(e);});
+  g.insertAdjacentHTML('beforeend',' <b>'+arNum(given)+' ج</b>');
+  const nn=$('pNotes');if(!nn.childElementCount){NOTES.slice(0,6).forEach(([v])=>{const e=noteEl(v);e.onclick=()=>{if(fare&&fare.phase==='pay'){payS.tray.push(v);blip('ok');payRender();}};nn.appendChild(e);});
+    $('pClr').onclick=()=>{payS.tray=[];payRender();};$('pOk').onclick=payConfirm;}
+  $('eGiven').textContent=arNum(given);$('eFare').textContent=arNum(f.price);$('eChange').textContent=f.change?'؟':arNum(0);
+  payS.tray=[];payRender();
+  if(f.change===0){$('pMsg').className='msg good';$('pMsg').textContent='الأجرة مظبوطة، مفيش باقي';dlgPush([['p','اتفضل يا اسطى، الأجرة مظبوطة']],f.pax);}
+  else{$('pMsg').className='msg';$('pMsg').textContent='رجّعله '+'الباقي من الفكة';dlgPush([['p',pick(PAY_GIVE)]],f.pax);}
+  $('pay').hidden=false;}
+function payConfirm(){const f=fare;if(!f||f.phase!=='pay')return;const sum=payS.tray.reduce((a,b)=>a+b,0);const m=$('pMsg');
+  if(sum<f.change){m.className='msg bad';m.textContent='ناقص '+arNum(f.change-sum)+' ج';dlgPush([['p',pick(PAY_SHORT)]],f.pax);blip('thud',2);f.short=(f.short||0)+1;return;}
+  let lost=0;if(sum>f.change){if(Math.random()<.65){dlgPush([['p',pick(PAY_OVER_HONEST)]],f.pax);}else{lost=sum-f.change;}}
+  else dlgPush([['p',pick(PAY_OK)]],f.pax);
+  $('pay').hidden=true;finishFare(lost);}
+function finishFare(lost){lost=lost||0;const f=fare;let r=5-f.hits*.6-Math.min(2,f.fast)*.3-(f.short||0)*.4;const late=f.t>f.budget;if(late)r-=1.2;r=clamp(r,1,5);
+  const base=f.price;const bonus=late?0:Math.round((f.budget-f.t)*.2/5)*5;const tip=Math.min(15,(r>=4.5?5:0)+Math.max(0,bonus));const pay=base+tip-lost;
   save.wallet+=pay;save.total+=pay;save.trips++;persist();dlgPush((late?pick(END_LATE):pick(END_SEQ)).map(l=>[l[0],l[1].replace('{t}',f.pax.title)]),f.pax);blip('cash');
-  toast('+'+pay+' ج.م'+(tip?'  • بقشيش':'')+(late?'  • متأخر':''),'good');paxSeat.clear();destBeam.visible=destRing.visible=false;fare=null;gpsRoute=null;updateMoney();}
+  toast('+'+pay+' ج.م'+(tip?'  • بقشيش '+tip:'')+(lost?'  • ضاع منك '+lost:'')+(late?'  • متأخر':''),lost?'bad':'good');paxSeat.clear();destBeam.visible=destRing.visible=false;fare=null;gpsRoute=null;updateMoney();}
 function onImpact(s){blip('thud',s);if(fare&&fare.phase==='ride'){fare.hits++;if(Dlg.q.length<2)dlgPush([['p',pick(HIT_L)]],fare.pax);}}
 let nearMsgT=0,stopHint=0;
 function updateFares(dt){interactions(dt);for(let i=0;i<3&&waiting.length<MAXW;i++)spawnWaiting();
   for(const w of waiting){w.m.rotation.y=Math.atan2(-(car.x-w.m.position.x),-(car.z-w.m.position.z))+Math.PI;}
-  if(fare){fare.t+=dt;if(fare.phase==='board'){fare.wait-=dt;if(fare.wait<=0&&!Dlg.q.length)fare.phase='ride';}
-    else{const p=POI[fare.to],d=Math.hypot(p.x-car.x,p.z-car.z);if(d<5.5){if(Math.abs(car.v)<1.4){finishFare();return;}else if(stopHint<=0){toast('هدّي ووقّف عند العمود');stopHint=3;}}
+  if(fare){if(fare.phase!=='pay')fare.t+=dt;if(fare.phase==='board'){fare.wait-=dt;if(fare.wait<=0&&!Dlg.q.length)fare.phase='ride';}
+    else if(fare.phase==='ride'){const p=POI[fare.to],d=Math.hypot(p.x-car.x,p.z-car.z);if(d<5.5){if(Math.abs(car.v)<1.4){if(fare.phase!=='pay')startPay();return;}else if(stopHint<=0){toast('هدّي ووقّف عند العمود');stopHint=3;}}
       fare.chat-=dt;if(fare.chat<=0&&!Dlg.cur&&!Dlg.q.length){dlgPush([['p',radio.on&&Math.random()<.3?pick(RADIO_L):pick(fare.pax.ride)]],fare.pax);fare.chat=rand(14,22);}
-      fare.fastCd-=dt;if(Math.abs(car.v)*3.6>48&&fare.fastCd<=0){fare.fastCd=10;fare.fast++;dlgPush([['p',pick(FAST_L)]],fare.pax);}}}
+      fare.fastCd-=dt;if(Math.abs(car.v)*3.6>70&&fare.fastCd<=0){fare.fastCd=10;fare.fast++;dlgPush([['p',pick(FAST_L)]],fare.pax);}}}
   else{for(const w of waiting){const p=POI[w.poi];if(Math.hypot(p.x-car.x,p.z-car.z)<5.5){if(Math.abs(car.v)<1.4){startFare(w);break;}else if(stopHint<=0){toast('وقّف عشان الزبون يركب');stopHint=3;}}}}
   stopHint-=dt;
   /* fuel stations */
@@ -979,16 +1019,17 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last
 /* ============ boot ============ */
 async function boot(){try{buildWorld();
   loadingText.textContent='بنجهّز التوكتوك…';
-  const [gltf,R]=await Promise.all([
+  const [gltf,carsG,R]=await Promise.all([
     new GLTFLoader().loadAsync(window.TUK_MODEL||'./models/tuk.glb'),
+    new GLTFLoader().loadAsync(window.CARS_MODEL||'./models/cars.glb').catch(e=>{console.warn('cars model',e);return null;}),
     RAPIER.init().then(()=>RAPIER).catch(e=>{console.warn('physics unavailable, arcade mode',e);return null;})]);
-  loadTuk(gltf);initTraffic();initWalkers();
+  loadTuk(gltf);CARS=carsG&&carsG.scene;initTraffic();initWalkers();
   veh=await createVehicle({RAPIER:R,colliders,traffic,spawn:{x:-160,z:7,h:-Math.PI/2}});car=veh.car;
   veh.onImpact(s=>{shake=Math.min(1,s/9);onImpact(s);});
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);
   destRing=new T.Mesh(new T.TorusGeometry(3,.15,8,40),new T.MeshBasicMaterial({color:'#4cff5e'}));destRing.rotation.x=Math.PI/2;destRing.visible=false;scene.add(destRing);
   buildRadioUI();radioUI();syncTuk();menuWallet();updateMoney();
-  window.portSim={audio:A,mus:Mus,radio:radio,sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,get fare(){return fare;},get fuel(){return fuel;},input:input};
+  window.portSim={audio:A,mus:Mus,radio:radio,sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,get fare(){return fare;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
   $('loading').hidden=true;$('menu').hidden=false;state='menu';requestAnimationFrame(frame);}
   catch(err){console.error(err);loadingText.textContent='حصلت مشكلة: '+err.message;}}
 const fr=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();

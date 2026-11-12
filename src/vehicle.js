@@ -7,16 +7,17 @@ const lerp = (a, b, t) => a + (b - a) * t;
 
 export const TUNING = {
   mass: 380,
-  vmax: 35 / 3.6,          // m/s, normal top speed
-  vmaxTurbo: 55 / 3.6,
-  vmaxRev: 12 / 3.6,
-  force: 1250,             // N at the rear axle, low speed
-  forceTurbo: 1900,
+  vmax: 60 / 3.6,          // m/s, normal top speed
+  vmaxTurbo: 85 / 3.6,
+  vmaxRev: 15 / 3.6,
+  force: 2100,             // N at the rear axle, low speed
+  forceTurbo: 3000,
   brake: 12,
   coastBrake: 0.35,
   steerMax: 0.62,          // rad at walking pace
-  steerMin: 0.16,          // rad at top speed
-  gears: [0, 13, 25],      // km/h where gears 1, 2, 3 start
+  steerMin: 0.09,
+  latMax: 20,             // m/s² lateral acceleration the steering allows          // rad at top speed
+  gears: [0, 20, 40],      // km/h where gears 1, 2, 3 start
   fuelPerMeter: 100 / 12000,   // full tank ~ 12 km
   fuelIdlePerSec: 0.004,
 };
@@ -47,13 +48,15 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
     // smooth steering, tighter at speed
     car.steer += (st - car.steer) * Math.min(1, dt * (st ? 4.5 : 6.5));
     const t = clamp(speedAbs / TUNING.vmaxTurbo, 0, 1);
-    car.steerAng = car.steer * lerp(TUNING.steerMax, TUNING.steerMin, t);
+    // cap the lateral grip demand so a three-wheeler doesn't tip in fast corners
+    const grip = Math.atan(1.93 * TUNING.latMax / Math.max(1, speedAbs * speedAbs));
+    car.steerAng = car.steer * Math.min(lerp(TUNING.steerMax, TUNING.steerMin, t), Math.max(0.07, grip));
     // automatic 3-speed box, rpm for the engine sound
     const kmh = speedAbs * 3.6;
     let g = 1; for (let i = 0; i < TUNING.gears.length; i++) if (kmh >= TUNING.gears[i]) g = i + 1;
     if (car.v < -0.3) g = 0;
     car.gear = g;
-    const lo = g <= 1 ? 0 : TUNING.gears[g - 1], hi = g === 0 ? 12 : (TUNING.gears[g] || 58);
+    const lo = g <= 1 ? 0 : TUNING.gears[g - 1], hi = g === 0 ? 12 : (TUNING.gears[g] || 88);
     const target = (car.thr && fuelOk ? 1500 : 950) + clamp((kmh - lo) / (hi - lo), 0, 1.15) * 4200;
     car.rpm += (target - car.rpm) * Math.min(1, dt * 6);
   }
@@ -71,7 +74,7 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
     const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(spawn.x, 0.15, spawn.z)
       .setRotation(rot).setLinearDamping(0.04).setAngularDamping(0.9).setCcdEnabled(true).setCanSleep(false));
     world.createCollider(RAPIER.ColliderDesc.cuboid(0.62, 0.45, 1.33).setTranslation(0, 0.95, 0)
-      .setMassProperties(TUNING.mass, { x: 0, y: 0.5, z: 0.15 }, { x: 300, y: 280, z: 130 }, { w: 1, x: 0, y: 0, z: 0 })
+      .setMassProperties(TUNING.mass, { x: 0, y: 0.28, z: -0.05 }, { x: 300, y: 280, z: 160 }, { w: 1, x: 0, y: 0, z: 0 })
       .setFriction(0.25).setRestitution(0.2), body);
     const veh = world.createVehicleController(body);
     veh.indexUpAxis = 1; veh.setIndexForwardAxis = 2;
@@ -87,7 +90,7 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
     });
 
     // moving traffic as kinematic boxes
-    const SIZE = { sedan: [0.9, 0.8, 2.2, 0], taxi: [0.9, 0.8, 2.2, 0], micro: [1.0, 1.2, 2.65, 0], tuk: [0.68, 1.0, 1.35, 0], truck: [1.25, 1.95, 7.45, -0.25], bus: [1.25, 1.55, 5.2, 0] };
+    const SIZE = { sedan: [0.9, 0.8, 2.2, 0], taxi: [0.9, 0.8, 2.2, 0], micro: [1.0, 1.2, 2.65, 0], tuk: [0.68, 1.0, 1.35, 0], truck: [1.25, 1.95, 7.0, 0], classic: [0.85, 0.75, 2.05, 0], bus: [1.25, 1.55, 5.2, 0] };
     for (const c of traffic) {
       const s = SIZE[c.kind] || SIZE.sedan;
       c.body = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(c.x, 0, c.z));

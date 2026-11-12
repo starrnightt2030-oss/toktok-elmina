@@ -1166,7 +1166,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='p
 
 /* ============ menus / state ============ */
 let state='loading';
-function menuWallet(){$('menuWallet').textContent=Math.round(save.wallet)+' ج.م · '+save.trips+' مشوار';}
+function menuWallet(){$('menuWallet').textContent=Math.round(save.wallet)+' ج.م · '+save.trips+' مشوار';const st=$('btnStartLbl');if(st)st.textContent=save.trips>0?'كمّل الوردية':'ابدأ الوردية';}
 function startGame(){closeGarageView();$('garage').hidden=true;initAudio();if(A.ctx){if(A.ctx.state==='suspended')A.ctx.resume();try{const b=A.ctx.createBuffer(1,1,22050),src=A.ctx.createBufferSource();src.buffer=b;src.connect(A.ctx.destination);src.start(0);}catch(e){}}
   if(Speech.ok){try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}}pickVoices();$('menu').hidden=true;$('hud').hidden=false;state='play';snapCam=true;gpsSize();updateMoney();
   if(!startGame.done){startGame.done=true;radioPower(true);toast(isVan?'روح المحطة اللي عليها العمود المنوّر، الركاب مستنيينك':'دوّر على الزباين… العمود المنوّر',"good");}else radioUI();canvas.focus({preventScroll:true});}
@@ -1228,6 +1228,7 @@ addEventListener('resize',()=>{if(state==='play')gpsSize();});
 let last=performance.now(),mA=0;
 function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000||0);last=now;
   if(state==='play'){animWorld(dt);updateTraffic(dt);updateCar(dt);updateWalkers(dt);syncTuk();updateFares(dt);dlgUpdate(dt);radioUpdate(dt);updateHUD(dt);updateCam(dt);audioTick();}
+  else if(state==='intro'){animWorld(dt);updateTraffic(dt);updateWalkers(dt);cineTick(dt);}
   else if(state==='menu'||state==='loading'){animWorld(dt);updateTraffic(dt);updateWalkers(dt);syncTuk();mA+=dt*.04;
     if(car&&state==='menu'&&GAR.open){if(!dragging)GAR.yaw+=dt*.18;const port=innerWidth<innerHeight,r=port?6.4:4.8,k=port?0:-1.25,sy=Math.sin(GAR.yaw),cy=Math.cos(GAR.yaw);camera.position.set(car.x+sy*r,port?2.6:1.85,car.z+cy*r);camera.lookAt(car.x+cy*k,port?-.55:.9,car.z-sy*k);}
     else if(car&&state==='menu'){const a=Math.sin(mA*2.2)*.55,port=innerWidth<innerHeight?0:-2.2;camera.position.set(car.x+Math.sin(a)*7.2+port,2.3+Math.sin(mA*1.3)*.25,car.z+Math.cos(a)*7.2);camera.lookAt(car.x+port*.6,1.35,car.z-3.5);}
@@ -1248,6 +1249,28 @@ saveNote();
 $('btnImportMain').addEventListener('click',()=>{if(!confirm('هتتجاب نسخة من حفظ النسخة الأساسية للنسخة التجريبية. الحفظ الأساسي مش هيتغير. نكمل؟'))return;const r=importMainSave();if(!r.ok){toast(r.why,'bad');return;}toast('اتستورد الحفظ، بنعيد التحميل…','good');setTimeout(()=>location.reload(),900);});
 
 /* ============ menu extras: progress, radio from the menu ============ */
+/* ---- missions list (real state from the save) ---- */
+const MISSION_LIST=[{id:'wardian',n:'مشوار الورديان',d:'الحاجة أم سمير مستنياك عند سوق السمك، وديها ساحة الورديان.',bonus:20}];
+function openMissions(){const box=$('msList');box.innerHTML='';
+  MISSION_LIST.forEach(m=>{const done=!!(save.missions&&save.missions[m.id]);const el=document.createElement('div');el.className='msn'+(done?' done':'');
+    el.innerHTML='<div class="mst"><b></b><span class="pill"></span></div><p></p><small></small>';el.querySelector('b').textContent=m.n;el.querySelector('.pill').textContent=done?'خلصت ✓':'متاحة';
+    el.querySelector('p').textContent=m.d;el.querySelector('small').textContent='المكافأة: الأجرة + '+arNum(m.bonus)+' ج.م'+(isVan?' · محتاج التوكتوك':'');box.appendChild(el);});
+  $('missions').hidden=false;}
+/* ---- full map (drawn on demand, no per-frame cost) ---- */
+function openMap(){$('mapView').hidden=false;requestAnimationFrame(drawMap);}
+function drawMap(){const cv=$('mapCv'),r=cv.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1);cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr);const g=cv.getContext('2d');
+  const X0=-470,X1=310,Z0=-140,Z1=250,sc=Math.min(cv.width/(X1-X0),cv.height/(Z1-Z0)),ox=(cv.width-(X1-X0)*sc)/2,oz=(cv.height-(Z1-Z0)*sc)/2,P=(x,z)=>[ox+(x-X0)*sc,oz+(z-Z0)*sc];
+  g.fillStyle='#16314f';g.fillRect(0,0,cv.width,cv.height);const [lx,lz]=P(X0,-124);g.fillStyle='#2a3b52';g.fillRect(lx,lz,(X1-X0)*sc,(Z1+124)*sc);
+  const zone=(x0,x1,z0,z1,c,t)=>{const [a,b]=P(x0,z0),[c2,d]=P(x1,z1);g.fillStyle=c;g.fillRect(a,b,c2-a,d-b);if(t){g.fillStyle='rgba(245,241,232,.75)';g.font=Math.round(15*dpr)+'px '+GAMEF;g.textAlign='center';g.direction='rtl';g.fillText(t,(a+c2)/2,b+20*dpr);}};
+  zone(-300,115,-124,-16,'#33465e','الميناء');zone(115,300,-124,-16,'#3d3a4e','الترسانة');zone(-300,300,9,244,'#3a4458','الحي');zone(-450,-300,9,215,'#4a3f4a','الورديان');
+  g.lineCap='round';g.strokeStyle='#8e9db0';for(const s2 of ROADSEG){g.lineWidth=Math.max(2,s2[4]*sc*.6);g.beginPath();const [a,b]=P(s2[0],s2[1]),[c2,d]=P(s2[2],s2[3]);g.moveTo(a,b);g.lineTo(c2,d);g.stroke();}
+  g.font='600 '+Math.round(10*dpr)+'px '+AR;g.textAlign='center';
+  for(const k in POI){const p=POI[k];const [a,b]=P(p.x,p.z);g.fillStyle=(fare&&fare.to===k)?'#4cff5e':'#F5B928';g.beginPath();g.arc(a,b,3.2*dpr,0,7);g.fill();g.fillStyle='rgba(245,241,232,.9)';g.fillText(p.n,a,b-6*dpr);}
+  for(const s2 of STATIONS_F){const [a,b]=P(s2.sx,s2.sz);g.fillStyle='#ff6a3a';g.fillRect(a-4*dpr,b-4*dpr,8*dpr,8*dpr);}
+  if(car){const [a,b]=P(car.x,car.z);g.save();g.translate(a,b);g.rotate(-car.h);g.fillStyle='#fff';g.strokeStyle='#101B2D';g.lineWidth=2*dpr;g.beginPath();g.moveTo(0,-9*dpr);g.lineTo(7*dpr,7*dpr);g.lineTo(0,3*dpr);g.lineTo(-7*dpr,7*dpr);g.closePath();g.fill();g.stroke();g.restore();}}
+$('btnMissions').addEventListener('click',openMissions);$('msClose').addEventListener('click',()=>{$('missions').hidden=true;});
+$('btnMap').addEventListener('click',openMap);$('mapClose').addEventListener('click',()=>{$('mapView').hidden=true;});
+addEventListener('resize',()=>{if(!$('mapView').hidden)drawMap();});
 function openProgress(){$('pgWallet').textContent=Math.round(save.wallet);$('pgTotal').textContent=Math.round(save.total);$('pgTrips').textContent=save.trips;$('pgPaints').textContent=save.owned.length;$('progress').hidden=false;}
 $('btnProgress').addEventListener('click',openProgress);$('pgClose').addEventListener('click',()=>{$('progress').hidden=true;});
 $('progress').addEventListener('click',e=>{if(e.target.id==='progress')$('progress').hidden=true;});
@@ -1265,7 +1288,7 @@ function uiSfx(kind){if(!A.ctx||A.ctx.state!=='running'||VOL.ui<=0||A.muted)retu
   else if(kind==='open'){tone(520,0,.09,'sine',.1);tone(780,.04,.1,'sine',.08);}
   else tone(1250,0,.045,'square',.035);}
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;if(b.closest('#hud')&&!b.closest('#pay'))return;
-  initAudio();uiSfx(b.matches('#btnStart,#pOk,#garClose,.vpick button,.paint')?'ok':(b.matches('#btnGarage,#btnSettings,#btnStudio,#btnProgress,#btnMenuRadio')?'open':'tap'));},true);
+  initAudio();uiSfx(b.matches('#btnStart,#pOk,#garClose,.vpick button,.paint')?'ok':(b.matches('#btnGarage,#btnSettings,#btnStudio,#btnProgress,#btnMenuRadio,#btnMissions,#btnMap')?'open':'tap'));},true);
 $('volMaster').value=Math.round(VOL.master*100);$('volUi').value=Math.round(VOL.ui*100);
 $('volMaster').addEventListener('input',e=>{VOL.master=e.target.value/100;saveVol();});$('volUi').addEventListener('input',e=>{VOL.ui=e.target.value/100;saveVol();uiSfx('tap');});
 
@@ -1275,6 +1298,7 @@ const segDraw=[];
 segDraw.push(seg('segCtl',[['touch','الدركسيون'],['arrows','الأسهم'],['tilt','الإمالة']],()=>ctl.mode,v=>setCtl(v)));
 segDraw.push(seg('segSens',[[0.7,'تقيل'],[1,'عادي'],[1.35,'خفيف']],()=>ctl.sens,v=>{ctl.sens=v;saveCtl();ctlUI();}));
 segDraw.push(seg('segVoice',[['game','أصوات اللعبة'],['browser','المتصفح'],['off','مقفول']],()=>Speech.mode,v=>{while(Speech.mode!==v)$('btnVoice').click();}));
+segDraw.push(seg('segIntro',[['play','شغّلها'],['skip','اتخطاها']],()=>skipIntro()?'skip':'play',v=>{ls.set('aps_skipIntro',v==='skip'?'1':'0');}));
 segDraw.push(seg('segQ',[['high','عالية'],['med','خفيفة']],()=>quality,v=>{$('btnQuality').click();}));
 $('btnSettings').addEventListener('click',()=>{segDraw.forEach(f=>f());$('verNote').textContent='النسخة '+APP_VERSION;$('settings').hidden=false;});
 $('setClose').addEventListener('click',()=>{$('settings').hidden=true;});
@@ -1331,13 +1355,56 @@ checkUpdate();setInterval(checkUpdate,3*60*1000);document.addEventListener('visi
 let introT0=performance.now();
 function introFit(){document.documentElement.style.setProperty('--fit',(innerWidth/(innerHeight*1672/941)).toFixed(3));}introFit();addEventListener('resize',introFit);
 function introReady(){const L=$('loading');$('loadBar').style.width='100%';L.classList.add('ready');loadingText.textContent='👆 اضغط عشان تبدأ';
-  let played=false,done=false;const timers=[];
-  const finish=()=>{if(done)return;done=true;timers.forEach(clearTimeout);removeEventListener('keydown',go);if(introAmb)try{introAmb.stop();}catch(_){}L.classList.add('out');$('menu').hidden=false;setTimeout(()=>{L.hidden=true;},600);};
-  const at=(ms,f)=>timers.push(setTimeout(()=>{if(!done)f();},ms));
-  const go=()=>{if(played){finish();return;}played=true;initAudio();if(A.ctx)A.ctx.resume().catch(()=>{});L.classList.add('play');
-    at(0,()=>sfxWhoosh(.9,.35));at(560,sfxBoom);at(1100,()=>sfxChime(0));at(1350,()=>sfxChime(1));at(1650,()=>sfxChime(2));at(1900,playSiren);
-    at(2950,()=>sfxWhoosh(.7,.5));at(3150,introEngine);at(3300,sfxWaves);at(3500,sfxGull);at(4300,sfxGull);at(5600,sfxHorn);at(8600,finish);};
+  let played=false,done=false;
+  const toMenu=()=>{if(done)return;done=true;removeEventListener('keydown',go);if(introAmb)try{introAmb.stop();}catch(_){}L.classList.add('out');showMenu();setTimeout(()=>{L.hidden=true;},600);};
+  const go=e=>{if(e&&e.type==='keydown'&&e.repeat)return;if(played)return;played=true;removeEventListener('keydown',go);initAudio();if(A.ctx)A.ctx.resume().catch(()=>{});
+    L.classList.add('out');setTimeout(()=>{L.hidden=true;},600);startCine(()=>{done=true;showMenu();});};
+  if(skipIntro()){toMenu();return;}
   L.addEventListener('pointerdown',go);addEventListener('keydown',go);}
+function showMenu(){const m=$('menu');m.hidden=false;m.classList.remove('enter');void m.offsetWidth;m.classList.add('enter');menuWallet();}
+function skipIntro(){return ls.get('aps_skipIntro')==='1';}
+
+/* ============ cinematic intro (Phase 4): the real game world, the same renderer and the same frame loop ============
+   six shots ≈14 s: sea → port flyover → Wardian street → tuk passes → hero stop → logo. Tap/any key skips.
+   If the first 1.5 s run slowly (avg frame > 45 ms) the port flyover is dropped (light version). */
+const V3=(x,y,z)=>[x,y,z];
+const CINE_SHOTS=[
+  {id:'sea',dur:2.2,cam:[V3(-40,2.6,-200),V3(-70,3.4,-206)],look:[V3(-600,8,-330),V3(-600,10,-345)]},
+  {id:'port',dur:3.2,cam:[V3(-262,50,-6),V3(-150,38,-18)],look:[V3(-150,0,-92),V3(-60,0,-100)]},
+  {id:'street',dur:2.6,cam:[V3(-373,6.5,18),V3(-373.5,4.2,46)],look:[V3(-376,4,130),V3(-376,3,130)]},
+  {id:'pass',dur:2.6,cam:[V3(-380.6,1.05,67),V3(-380.4,1.1,63.5)],look:null,tuk:u=>[-376.4,98-52*u,0],speed:19},
+  {id:'hero',dur:2.2,cam:[V3(-371.2,.95,176.8),V3(-372.6,.75,179.2)],look:null,tuk:()=>[-375,183,0],speed:0,lights:true},
+  {id:'logo',dur:2.6,cam:[V3(-372.6,.75,179.2),V3(-373.2,.9,180.4)],look:null,tuk:()=>[-375,183,0],speed:0,lights:true}];
+const CINE={on:false,t:0,shots:null,end:null,slow:0,frames:0,cues:null,hg:true};
+const easeIO=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+function cineBuild(light){let t=0;CINE.shots=CINE_SHOTS.filter(s=>!(light&&s.id==='port')).map(s=>{const o=Object.assign({},s,{t0:t});t+=s.dur;o.t1=t;return o;});CINE.len=t;}
+function startCine(onEnd){const el=$('cine');CINE.on=true;CINE.t=0;CINE.end=onEnd;CINE.slow=0;CINE.frames=0;CINE.light=false;cineBuild(false);
+  CINE.hg=headGlow?headGlow.visible:true;if(headGlow)headGlow.visible=false;
+  el.hidden=false;el.className='';void el.offsetWidth;el.classList.add('run');
+  state='intro';camera.fov=48;camera.updateProjectionMatrix();
+  /* sound cues, fired from the frame clock so a skip stops them all */
+  CINE.cues=[[0,sfxWaves],[.3,sfxShipHorn],['port',.4,sfxGull],['port',1.7,sfxGull],['street',.2,()=>sfxWhoosh(.5,.25)],['pass',.1,introEngine],['pass',1.1,sfxHorn],['logo',0,()=>sfxWhoosh(.8,.4)],['logo',.35,sfxBoom],['logo',.55,()=>sfxChime(0)],['logo',.8,()=>sfxChime(2)]].map(c=>({c:c,done:false}));
+  el.onpointerdown=()=>finishCine();CINE.key=e=>{finishCine();};addEventListener('keydown',CINE.key);}
+function cueTime(c){if(typeof c[0]==='number')return c[0];const s=CINE.shots.find(x=>x.id===c[0]);return s?s.t0+c[1]:null;}
+function cineTick(dt){CINE.t+=dt;const t=CINE.t;
+  if(t<1.5){CINE.frames++;CINE.slow+=dt;}else if(!CINE.light&&CINE.frames&&t<2.2&&CINE.slow/CINE.frames>.045){CINE.light=true;const sea=CINE.shots[0];cineBuild(true);}
+  for(const q of CINE.cues){if(q.done)continue;const ct=cueTime(q.c);if(ct===null){q.done=true;continue;}if(t>=ct){q.done=true;try{q.c[q.c.length-1]();}catch(_){}}}
+  if(t>=CINE.len){finishCine();return;}
+  const s=CINE.shots.find(x=>t>=x.t0&&t<x.t1)||CINE.shots[CINE.shots.length-1];const u=Math.min(1,(t-s.t0)/s.dur),e=easeIO(u);
+  const el=$('cine');if(el.dataset.shot!==s.id){el.dataset.shot=s.id;}
+  if(s.tuk){const [x,z,h]=s.tuk(u);veh.teleport(x,z,h);car.v=s.speed||0;syncTuk();}
+  const c0=s.cam[0],c1=s.cam[1];camera.position.set(c0[0]+(c1[0]-c0[0])*e,c0[1]+(c1[1]-c0[1])*e,c0[2]+(c1[2]-c0[2])*e);
+  if(s.look){const l0=s.look[0],l1=s.look[1];camera.lookAt(l0[0]+(l1[0]-l0[0])*e,l0[1]+(l1[1]-l0[1])*e,l0[2]+(l1[2]-l0[2])*e);}else camera.lookAt(car.x,car.y+1.15,car.z);
+  if(headGlow&&s.lights){const on=s.id==='logo'||u>.35;if(headGlow.visible!==on){headGlow.visible=on;if(on)blip('ok');}}
+  /* dips to black between shots */
+  const edge=Math.min(t-s.t0,s.t1-t);$('cineFade').style.opacity=s.id==='sea'?Math.max(0,1-t/1.6):(edge<.18&&s.id!=='logo'?(1-edge/.18)*.85:0);}
+function finishCine(){if(!CINE.on)return;CINE.on=false;removeEventListener('keydown',CINE.key);if(introAmb)try{introAmb.stop();}catch(_){}
+  const el=$('cine');el.classList.add('out');setTimeout(()=>{el.hidden=true;el.classList.remove('run','out');el.onpointerdown=null;},450);
+  if(headGlow)headGlow.visible=CINE.hg;camera.fov=baseFov;camera.updateProjectionMatrix();veh.teleport(-160,7,-Math.PI/2);car.v=0;syncTuk();
+  state='menu';const cb=CINE.end;CINE.end=null;if(cb)cb();}
+/* distant ship horn: two low detuned tones with a slow swell */
+function sfxShipHorn(){if(!A.ctx)return;const ctx=A.ctx,t=ctx.currentTime;[[98,.0],[123,.004]].forEach(([f,d])=>{const o=ctx.createOscillator();o.type='sawtooth';o.frequency.value=f*(1+d);const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=420;
+  const g=ctx.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.11,t+.6);g.gain.setValueAtTime(.11,t+1.7);g.gain.exponentialRampToValueAtTime(.0001,t+2.6);o.connect(lp);lp.connect(g);g.connect(A.sfx);o.start(t);o.stop(t+2.7);});}
 /* loading: real steps only — the bar moves when a step actually finishes, no invented percentage */
 const LD={done:0,total:8};
 function ldStep(msg){LD.done=Math.min(LD.total,LD.done+1);const b=$('loadBar');if(b)b.style.width=(LD.done/LD.total*100)+'%';

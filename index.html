@@ -447,6 +447,50 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
   body.in-garage #garage{place-items:stretch end;background:linear-gradient(270deg,rgba(16,27,45,0) 45%,rgba(16,27,45,.5))}
   body.in-garage #garage .gcard{width:min(420px,48vw);max-height:none;height:100%;border-radius:0;border-width:0 1.5px 0 0;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px calc(env(safe-area-inset-bottom,0px) + 10px) max(14px,env(safe-area-inset-left,0px))}
 }
+
+/* ===== cinematic intro (Phase 4) ===== */
+#cine{position:fixed;inset:0;z-index:58;cursor:pointer;overflow:hidden;transition:opacity .45s}
+#cine.out{opacity:0;pointer-events:none}
+#cine .cbar{position:absolute;left:0;right:0;height:9vh;background:#000;transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+#cine .cbar.top{top:0;transform:translateY(-100%)}#cine .cbar.bot{bottom:0;transform:translateY(100%)}
+#cine.run .cbar{transform:none}
+#cine .cshade{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(16,27,45,.25),rgba(16,27,45,.85));opacity:0;transition:opacity .9s}
+#cine[data-shot=logo] .cshade{opacity:1}
+#cine .clogo{position:absolute;left:50%;top:44%;width:min(82vw,118vh,760px);transform:translate(-50%,-50%) scale(.6);opacity:0;text-align:center;pointer-events:none}
+#cine .clogo img{width:100%;height:auto;filter:drop-shadow(0 14px 26px rgba(0,0,0,.6))}
+#cine .clogo p{margin:4px 0 0;font:clamp(18px,3.4vw,30px) var(--f-game);color:var(--cream);text-shadow:0 3px 10px rgba(0,0,0,.8);opacity:0}
+#cine[data-shot=logo] .clogo{animation:clogo 1.1s cubic-bezier(.2,1.5,.35,1) forwards}
+#cine[data-shot=logo] .clogo p{animation:cfade .6s .7s forwards}
+@keyframes clogo{0%{opacity:0;transform:translate(-50%,-62%) scale(.55)}60%{opacity:1}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes cfade{to{opacity:1}}
+#cine .cskip{position:absolute;bottom:calc(9vh + env(safe-area-inset-bottom,0px) + 8px);left:0;right:0;text-align:center;font:600 12px var(--f-body);color:rgba(245,241,232,.6);direction:rtl}
+#cineFade{position:absolute;inset:0;background:#000;opacity:1;pointer-events:none}
+#loading .stage1{aspect-ratio:2.19;width:min(86vw,120vh,640px)}
+#loading .ilogo{object-fit:contain}
+@media (prefers-reduced-motion:reduce){#cine .clogo{animation:none!important;opacity:1;transform:translate(-50%,-50%)}#cine .clogo p{opacity:1}}
+
+/* ===== main menu v2 (Phase 4 D) ===== */
+.mlogo{width:min(88vw,520px);animation:none;filter:drop-shadow(0 12px 22px rgba(0,0,0,.6))}
+.mbar{grid-template-columns:repeat(auto-fit,minmax(68px,1fr))}
+@media (orientation:landscape) and (max-height:560px){.mlogo{width:min(46vw,98vh)}.mbar{grid-template-columns:repeat(4,1fr)}}
+#menu.enter .mlogo{animation:menIn .7s cubic-bezier(.2,1.3,.4,1) both}
+#menu.enter .mi>*{animation:menUp .45s cubic-bezier(.2,.8,.2,1) both}
+#menu.enter .mi>*:nth-child(1){animation-delay:.12s}#menu.enter .mi>*:nth-child(2){animation-delay:.18s}#menu.enter .mi>*:nth-child(3){animation-delay:.24s}#menu.enter .mi>*:nth-child(4){animation-delay:.3s}#menu.enter .mi>*:nth-child(5){animation-delay:.36s}
+@keyframes menIn{from{opacity:0;transform:translateY(-18px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes menUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.mb{transition:transform .08s,background .15s}.mb:active{transform:scale(.94)}
+.bigbtn.ui-btn:active{transform:translateY(2px) scale(.99)}
+#missions,#mapView{z-index:45}
+.mslist{display:grid;gap:10px;padding:14px 16px}
+.msn{padding:12px 14px;border-radius:var(--radius);background:rgba(255,255,255,.05);border:1px solid var(--line);display:grid;gap:4px}
+.msn .mst{display:flex;align-items:center;gap:8px}.msn b{font:20px var(--f-game);color:var(--tuk)}
+.msn .pill{margin-inline-start:auto;font:600 12px var(--f-body);padding:2px 10px;border-radius:999px;background:rgba(59,178,115,.2);color:#9be3b8}
+.msn.done .pill{background:rgba(245,241,232,.12);color:var(--cream)}
+.msn p{margin:0;font:500 14px/1.7 var(--f-body);color:var(--cream)}.msn small{font:12px var(--f-body);color:var(--text-muted)}
+.mapcard{width:min(900px,100%);max-height:100%;display:flex;flex-direction:column}
+#mapCv{display:block;width:100%;height:min(62vh,560px);background:#16314f}
+@media (orientation:landscape) and (max-height:560px){#mapCv{height:calc(100vh - 130px)}}
+@media (prefers-reduced-motion:reduce){#menu.enter .mlogo,#menu.enter .mi>*{animation:none}}
 </style>
 </head>
 <body>
@@ -455,19 +499,19 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
   <div class="rays"></div>
   <div class="stage1">
     <div class="glow"></div>
-    <img class="ilogo" src="./img/logo.webp" alt="توكتوك في المينا">
+    <img class="ilogo" src="./img/logo-v2-s.webp" alt="توكتوك في المينا" width="480" height="220">
     <div class="shine"></div>
     <div class="spark s1"></div><div class="spark s2"></div><div class="spark s3"></div>
   </div>
-  <div class="stage2">
-    <img class="kbg" src="./img/keyart-s.webp" alt="">
-    <img class="kart" src="./img/keyart.webp" srcset="./img/keyart-s.webp 1280w, ./img/keyart.webp 1672w" sizes="100vw" alt="">
-    <div class="flare"></div>
-    <div class="dust2"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="gulls"><i>〰</i><i>〰</i></div>
-  </div>
   <div class="tap" id="introTap"><span id="loadingText">بنجهّز الميناء…</span><div class="bar"><i id="loadBar"></i></div><small id="ldCount" class="ldc" aria-live="polite"></small></div>
   <div class="skip">اضغط للتخطي</div>
+</div>
+<div id="cine" dir="rtl" hidden aria-label="المقدمة — اضغط للتخطي">
+  <div class="cbar top"></div><div class="cbar bot"></div>
+  <div class="cshade"></div>
+  <div class="clogo"><img src="./img/logo-v2.webp" alt="توكتوك في المينا" width="1200" height="549"><p>المينا مستنياك يا أسطى!</p></div>
+  <div class="cskip">اضغط في أي حتة للتخطي</div>
+  <div id="cineFade"></div>
 </div>
 <canvas id="game" tabindex="0" aria-label="مشهد اللعبة"></canvas>
 
@@ -484,16 +528,17 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
 <div id="menu" dir="rtl" hidden>
   <div class="betaTag" id="betaTag" hidden>نسخة تجريبية BETA</div>
   <div class="mhero">
-    <img class="mlogo" src="./img/logo.webp" alt="توكتوك في المينا" width="900" height="900">
+    <img class="mlogo" src="./img/logo-v2.webp" alt="توكتوك في المينا" width="1200" height="549">
     <h1 class="sr">توكتوك في المينا</h1>
   </div>
   <div class="mi">
     <div class="mstats"><span class="ms"><i>💰</i><b id="menuWallet">0</b></span></div>
     <div class="vpick" id="vehPick" role="radiogroup" aria-label="العربية"></div>
-    <button class="bigbtn ui-btn primary" id="btnStart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg>ابدأ الوردية</button>
+    <button class="bigbtn ui-btn primary" id="btnStart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg><span id="btnStartLbl">ابدأ الوردية</span></button>
     <nav class="mbar" aria-label="القوائم">
       <button class="mb" id="btnGarage"><svg viewBox="0 0 24 24"><path d="M3 10 12 4l9 6v10h-4v-7H7v7H3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 16h8M8 19h8" stroke="currentColor" stroke-width="2"/></svg><span>الجراج</span></button>
-      <div class="mb soon" aria-disabled="true" title="جاية في مرحلة قادمة"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 3h6v3H9zM8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>المهام</span><em>قريبًا</em></div>
+      <button class="mb" id="btnMissions"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 3h6v3H9zM8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>المهام</span></button>
+      <button class="mb" id="btnMap"><svg viewBox="0 0 24 24"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z M9 4v13.5M15 6.5V20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>الخريطة</span></button>
       <button class="mb" id="btnProgress"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>التقدم</span></button>
       <button class="mb" id="btnMenuRadio"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 8 17 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="15.5" cy="14" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>الراديو</span></button>
       <button class="mb" id="btnStudio"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>الاستوديو</span></button>
@@ -503,6 +548,20 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
   </div>
 </div>
 
+<div id="missions" class="ui-overlay" dir="rtl" hidden>
+  <div class="ui-card ui-pop pgcard">
+    <div class="ui-head"><h2>📋 المهام</h2><button class="ui-x" id="msClose" aria-label="قفل">✕</button></div>
+    <div id="msList" class="mslist"></div>
+    <p class="pgnote">المهام بتشتغل بنفس نظام الأجرة والفكة. اللي خلصت بتفضل محفوظة.</p>
+  </div>
+</div>
+<div id="mapView" class="ui-overlay" dir="rtl" hidden>
+  <div class="ui-card ui-pop mapcard">
+    <div class="ui-head"><h2>🗺️ الخريطة</h2><button class="ui-x" id="mapClose" aria-label="قفل">✕</button></div>
+    <canvas id="mapCv" aria-label="خريطة عالم اللعبة"></canvas>
+    <p class="pgnote">الأصفر: أماكن الركاب · البرتقاني: البنزينات · السهم: انت. الورديان تخطيط مستوحى، مش خريطة حقيقية.</p>
+  </div>
+</div>
 <div id="progress" class="ui-overlay" dir="rtl" hidden>
   <div class="ui-card ui-pop pgcard">
     <div class="ui-head"><h2>📊 التقدم</h2><button class="ui-x" id="pgClose" aria-label="قفل">✕</button></div>
@@ -538,6 +597,7 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
       </section>
       <section><h3>🖥️ الرسومات</h3>
         <div class="srow"><span>الجودة</span><div class="seg" id="segQ"></div></div>
+        <div class="srow"><span>المقدمة السينمائية</span><div class="seg" id="segIntro"></div></div>
       </section>
       <section><h3>❓ المساعدة</h3>
         <div class="keys"><kbd>W</kbd> بنزين · <kbd>S</kbd> فرامل/رجوع · <kbd>A</kbd><kbd>D</kbd> دركسيون · <kbd>Shift</kbd> تيربو · <kbd>Space</kbd> فرامل يد · <kbd>H</kbd> سرينة · <kbd>R</kbd> راديو · <kbd>C</kbd> كاميرا</div>

@@ -980,7 +980,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last
 async function boot(){try{buildWorld();
   loadingText.textContent='بنجهّز التوكتوك…';
   const [gltf,R]=await Promise.all([
-    new GLTFLoader().loadAsync('./models/tuk.glb'),
+    new GLTFLoader().loadAsync(window.TUK_MODEL||'./models/tuk.glb'),
     RAPIER.init().then(()=>RAPIER).catch(e=>{console.warn('physics unavailable, arcade mode',e);return null;})]);
   loadTuk(gltf);initTraffic();initWalkers();
   veh=await createVehicle({RAPIER:R,colliders,traffic,spawn:{x:-160,z:7,h:-Math.PI/2}});car=veh.car;

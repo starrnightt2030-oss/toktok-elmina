@@ -416,6 +416,18 @@ button.mb:active{background:rgba(var(--tuk-rgb),.15)}
 #loading .ldc{display:block;margin-top:6px;font:500 12px var(--f-body);color:var(--text-muted);letter-spacing:.3px}
 #loading.ready .ldc{display:none}
 #loading .bar i{background:linear-gradient(90deg,var(--copper),var(--tuk));transition:width .35s ease}
+
+/* ===== garage workshop (Phase 2 E): the 3D workshop stays visible, the shop is a sheet ===== */
+body.in-garage #menu{visibility:hidden}
+body.in-garage #garage{background:linear-gradient(180deg,rgba(16,27,45,0) 40%,rgba(16,27,45,.55));backdrop-filter:none;-webkit-backdrop-filter:none;pointer-events:none;place-items:end center;padding:0}
+body.in-garage #garage .gcard{pointer-events:auto;width:100%;max-width:560px;max-height:52vh;border-radius:var(--radius-l) var(--radius-l) 0 0;border-bottom:0;padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 12px)}
+body.in-garage #garage .gcard h2:first-child{display:flex;align-items:center;gap:8px}
+body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاشة عشان تلف حوالين العربية';margin-inline-start:auto;font:500 12px var(--f-body);color:var(--text-muted)}
+#garage #garClose{position:sticky;bottom:0;box-shadow:0 -10px 16px rgba(16,27,45,.9)}
+@media (orientation:landscape){
+  body.in-garage #garage{place-items:stretch end;background:linear-gradient(270deg,rgba(16,27,45,0) 45%,rgba(16,27,45,.5))}
+  body.in-garage #garage .gcard{width:min(420px,48vw);max-height:none;height:100%;border-radius:0;border-width:0 1.5px 0 0;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px calc(env(safe-area-inset-bottom,0px) + 10px) max(14px,env(safe-area-inset-left,0px))}
+}
 </style>
 </head>
 <body>

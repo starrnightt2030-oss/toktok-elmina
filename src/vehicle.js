@@ -22,18 +22,30 @@ export const TUNING = {
   fuelIdlePerSec: 0.004,
 };
 
-const WHEELS = [
-  { x: 0, z: -1.05, front: true },
-  { x: -0.62, z: 0.88 },
-  { x: 0.62, z: 0.88 },
-];
-const CONN_Y = 0.50, REST = 0.32, RADIUS = 0.25;
 
-export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
+// Per-vehicle geometry and handling. Wheel z is along the body (-Z = forward).
+export const SPECS = {
+  tuk: {
+    wheels: [{ x: 0, z: -1.05, front: true }, { x: -0.62, z: 0.88 }, { x: 0.62, z: 0.88 }],
+    drive: [1, 2], conn: 0.50, rest: 0.32, radius: 0.25, base: 1.93, stiffness: 40,
+    box: [0.62, 0.45, 1.33, 0.95], com: { x: 0, y: 0.28, z: -0.05 }, inertia: { x: 300, y: 280, z: 160 },
+    tuning: {},
+  },
+  van: {
+    wheels: [{ x: -0.58, z: -1.05, front: true }, { x: 0.58, z: -1.05, front: true }, { x: -0.58, z: 1.02 }, { x: 0.58, z: 1.02 }],
+    drive: [2, 3], conn: 0.52, rest: 0.32, radius: 0.27, base: 2.07, stiffness: 45,
+    box: [0.72, 0.62, 1.7, 1.15], com: { x: 0, y: 0.3, z: 0 }, inertia: { x: 900, y: 1000, z: 380 },
+    tuning: { mass: 950, vmax: 75 / 3.6, vmaxTurbo: 100 / 3.6, force: 5600, forceTurbo: 8000, brake: 30, coastBrake: 0.8,
+      steerMax: 0.6, gears: [0, 18, 36, 56], fuelPerMeter: 100 / 15000 },
+  },
+};
+
+export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 'tuk' }) {
+  const S = SPECS[kind] || SPECS.tuk, TN = Object.assign({}, TUNING, S.tuning), NW = S.wheels.length;
   const car = {
     x: spawn.x, z: spawn.z, h: spawn.h, y: 0,
     vx: 0, vz: 0, v: 0, lat: 0,
-    steer: 0, steerAng: 0, wheelRot: [0, 0, 0], susp: [REST, REST, REST],
+    steer: 0, steerAng: 0, wheelRot: S.wheels.map(() => 0), susp: S.wheels.map(() => S.rest), kind, spec: S,
     rpm: 900, gear: 1, boost: false, thr: false, braking: false,
     quat: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), spawn.h),
     mode: RAPIER ? 'physics' : 'arcade',
@@ -47,16 +59,16 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
   function common(dt, input, st, fuelOk, speedAbs) {
     // smooth steering, tighter at speed
     car.steer += (st - car.steer) * Math.min(1, dt * (st ? 4.5 : 6.5));
-    const t = clamp(speedAbs / TUNING.vmaxTurbo, 0, 1);
+    const t = clamp(speedAbs / TN.vmaxTurbo, 0, 1);
     // cap the lateral grip demand so a three-wheeler doesn't tip in fast corners
-    const grip = Math.atan(1.93 * TUNING.latMax / Math.max(1, speedAbs * speedAbs));
-    car.steerAng = car.steer * Math.min(lerp(TUNING.steerMax, TUNING.steerMin, t), Math.max(0.07, grip));
+    const grip = Math.atan(S.base * TN.latMax / Math.max(1, speedAbs * speedAbs));
+    car.steerAng = car.steer * Math.min(lerp(TN.steerMax, TN.steerMin, t), Math.max(0.07, grip));
     // automatic 3-speed box, rpm for the engine sound
     const kmh = speedAbs * 3.6;
-    let g = 1; for (let i = 0; i < TUNING.gears.length; i++) if (kmh >= TUNING.gears[i]) g = i + 1;
+    let g = 1; for (let i = 0; i < TN.gears.length; i++) if (kmh >= TN.gears[i]) g = i + 1;
     if (car.v < -0.3) g = 0;
     car.gear = g;
-    const lo = g <= 1 ? 0 : TUNING.gears[g - 1], hi = g === 0 ? 12 : (TUNING.gears[g] || 88);
+    const lo = g <= 1 ? 0 : TN.gears[g - 1], hi = g === 0 ? 12 : (TN.gears[g] || 88);
     const target = (car.thr && fuelOk ? 1500 : 950) + clamp((kmh - lo) / (hi - lo), 0, 1.15) * 4200;
     car.rpm += (target - car.rpm) * Math.min(1, dt * 6);
   }
@@ -75,14 +87,14 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
       .setRotation(rot).setLinearDamping(0.04).setAngularDamping(0.9).setCcdEnabled(true).setCanSleep(false)
       // a three-wheeler that never tips over: only yaw is free; body lean is drawn in syncModel
       .enabledRotations(false, true, false));
-    world.createCollider(RAPIER.ColliderDesc.cuboid(0.62, 0.45, 1.33).setTranslation(0, 0.95, 0)
-      .setMassProperties(TUNING.mass, { x: 0, y: 0.28, z: -0.05 }, { x: 300, y: 280, z: 160 }, { w: 1, x: 0, y: 0, z: 0 })
+    world.createCollider(RAPIER.ColliderDesc.cuboid(S.box[0], S.box[1], S.box[2]).setTranslation(0, S.box[3], 0)
+      .setMassProperties(TN.mass, S.com, S.inertia, { w: 1, x: 0, y: 0, z: 0 })
       .setFriction(0.25).setRestitution(0.2), body);
     const veh = world.createVehicleController(body);
     veh.indexUpAxis = 1; veh.setIndexForwardAxis = 2;
-    WHEELS.forEach((w, i) => {
-      veh.addWheel({ x: w.x, y: CONN_Y, z: w.z }, { x: 0, y: -1, z: 0 }, { x: -1, y: 0, z: 0 }, REST, RADIUS);
-      veh.setWheelSuspensionStiffness(i, 40);
+    S.wheels.forEach((w, i) => {
+      veh.addWheel({ x: w.x, y: S.conn, z: w.z }, { x: 0, y: -1, z: 0 }, { x: -1, y: 0, z: 0 }, S.rest, S.radius);
+      veh.setWheelSuspensionStiffness(i, S.stiffness);
       veh.setWheelSuspensionCompression(i, 2.4);
       veh.setWheelSuspensionRelaxation(i, 3.0);
       veh.setWheelMaxSuspensionTravel(i, 0.18);
@@ -124,25 +136,25 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
         car.thr = thr; car.boost = boost;
         let F = 0, brake = 0;
         if (thr) {
-          if (vF < -0.4) brake = TUNING.brake;      // rolling back: brake first
+          if (vF < -0.4) brake = TN.brake;      // rolling back: brake first
           else {
-            const vmax = boost ? TUNING.vmaxTurbo : TUNING.vmax;
-            const f = boost ? TUNING.forceTurbo : TUNING.force;
+            const vmax = boost ? TN.vmaxTurbo : TN.vmax;
+            const f = boost ? TN.forceTurbo : TN.force;
             F = f * Math.pow(clamp(1 - vF / vmax, 0, 1), 0.55);
           }
         }
         if (input.down) {
-          if (vF > 0.6) brake = TUNING.brake;          // brake while rolling forward
-          else F = -TUNING.force * 0.55 * clamp(1 - (-vF) / TUNING.vmaxRev, 0, 1);
+          if (vF > 0.6) brake = TN.brake;          // brake while rolling forward
+          else F = -TN.force * 0.55 * clamp(1 - (-vF) / TN.vmaxRev, 0, 1);
         }
-        if (!thr && !input.down) brake = TUNING.coastBrake;
-        car.braking = brake >= TUNING.brake;
+        if (!thr && !input.down) brake = TN.coastBrake;
+        car.braking = brake >= TN.brake;
         // engine drives the rear axle; our forward is -Z so the force is negated
-        veh.setWheelEngineForce(1, -F / 2); veh.setWheelEngineForce(2, -F / 2);
-        veh.setWheelSteering(0, car.steerAng);
+        S.drive.forEach(i => veh.setWheelEngineForce(i, -F / S.drive.length));
+        S.wheels.forEach((w, i) => { if (w.front) veh.setWheelSteering(i, car.steerAng); });
         const hand = input.drift && Math.abs(vF) > 3;
-        for (let i = 0; i < 3; i++) veh.setWheelBrake(i, brake * (i === 0 ? 0.6 : 1) + (hand && i > 0 ? 2.2 : 0));
-        veh.setWheelFrictionSlip(1, hand ? 0.75 : 2.3); veh.setWheelFrictionSlip(2, hand ? 0.75 : 2.3);
+        for (let i = 0; i < NW; i++) veh.setWheelBrake(i, brake * (S.wheels[i].front ? 0.6 : 1) + (hand && !S.wheels[i].front ? 2.2 : 0));
+        S.drive.forEach(i => veh.setWheelFrictionSlip(i, hand ? 0.75 : 2.3));
         veh.updateVehicle(STEP);
         // keep the three-wheeler from tipping over: gentle righting torque past ~20 degrees
         up.set(0, 1, 0).applyQuaternion(q);
@@ -152,7 +164,7 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
         world.step();
         // never let a shove from traffic launch the tuk-tuk
         {
-          const v = body.linvel(); const hs = Math.hypot(v.x, v.z), cap = TUNING.vmaxTurbo * 1.12;
+          const v = body.linvel(); const hs = Math.hypot(v.x, v.z), cap = TN.vmaxTurbo * 1.12;
           const k = hs > cap ? cap / hs : 1;
           if (k < 1 || v.y > 2.5 || v.y < -15) body.setLinvel({ x: v.x * k, y: clamp(v.y, -15, 2.5), z: v.z * k }, true);
           const w = body.angvel(); if (Math.abs(w.y) > 3.5) body.setAngvel({ x: 0, y: clamp(w.y, -3.5, 3.5), z: 0 }, true);
@@ -174,7 +186,7 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
       car.vx = lv.x; car.vz = lv.z;
       car.v = lv.x * fwd.x + lv.z * fwd.z;
       car.lat = lv.x * right.x + lv.z * right.z;
-      for (let i = 0; i < 3; i++) { car.wheelRot[i] -= car.v * dt / RADIUS; car.susp[i] = veh.wheelSuspensionLength(i) ?? REST; }
+      for (let i = 0; i < NW; i++) { car.wheelRot[i] -= car.v * dt / S.radius; car.susp[i] = veh.wheelSuspensionLength(i) ?? S.rest; }
       common(dt, input, st, fuelOk, Math.abs(car.v));
       // flipped for 2 s -> stand it back up
       if (up.y < 0.35) { flipT += dt; if (flipT > 2) { api.teleport(car.x, car.z, car.h); flipT = 0; } } else flipT = 0;
@@ -198,15 +210,15 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
       let vl = car.vx * fx + car.vz * fz, vlat = car.vx * rx + car.vz * rz;
       const boost = !!(input.turbo && api.turbo > 0.02 && fuelOk && !input.down);
       const thr = (input.up || boost) && fuelOk;
-      const MAXF = boost ? TUNING.vmaxTurbo : TUNING.vmax;
+      const MAXF = boost ? TN.vmaxTurbo : TN.vmax;
       let a = 0;
       if (thr) a = vl < -0.3 ? 11 : (boost ? 6 : 3.6) * Math.max(0, 1 - vl / MAXF) + 0.2;
-      if (input.down) a = vl > 0.6 ? -11 : -3 * (1 + vl / TUNING.vmaxRev);
+      if (input.down) a = vl > 0.6 ? -11 : -3 * (1 + vl / TN.vmaxRev);
       const drag = (0.5 + 0.012 * vl * vl) * Math.sign(vl); a -= (thr || input.down) ? drag * 0.45 : drag * 1.5;
       let nv = vl + a * dt; if (!thr && !input.down && vl !== 0 && Math.sign(nv) !== Math.sign(vl)) nv = 0;
-      vl = clamp(nv, -TUNING.vmaxRev, MAXF + 1);
+      vl = clamp(nv, -TN.vmaxRev, MAXF + 1);
       common(dt, input, st, fuelOk, Math.abs(vl));
-      const yaw = vl * Math.tan(car.steerAng) / 1.93 * (input.drift ? 1.5 : 1); car.h += yaw * dt;
+      const yaw = vl * Math.tan(car.steerAng) / S.base * (input.drift ? 1.5 : 1); car.h += yaw * dt;
       if (input.drift && Math.abs(vl) > 4) vlat -= yaw * vl * 0.6 * dt;
       vlat *= Math.exp(-(input.drift ? 1.6 : 12) * dt);
       const nfx = -Math.sin(car.h), nfz = -Math.cos(car.h);
@@ -229,7 +241,7 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
         }
       }
       hitCd -= dt; if (imp > 3 && hitCd <= 0) { hitCd = 1; impactCb(imp); }
-      for (let i = 0; i < 3; i++) car.wheelRot[i] -= vl * dt / RADIUS;
+      for (let i = 0; i < NW; i++) car.wheelRot[i] -= vl * dt / S.radius;
       car.quat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), car.h);
       q.setFromEuler(new THREE.Euler(clamp(a * 0.004, -0.03, 0.03), 0, clamp(-yaw * vl * 0.012, -0.1, 0.1)));
       car.quat.multiply(q);
@@ -245,15 +257,23 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn }) {
 // Place the GLB nodes from the vehicle state.
 const _e = new THREE.Euler(), _lq = new THREE.Quaternion();
 export function syncModel(tuk, nodes, car) {
+  const S = car.spec || SPECS.tuk;
   tuk.position.set(car.x, car.mode === 'physics' ? car.y : 0, car.z);
   tuk.quaternion.copy(car.quat);
   // body lean in corners and squat under throttle/brake (the physics keeps the chassis upright)
-  const lean = clamp(car.steerAng * Math.abs(car.v) * 0.011, -0.07, 0.07);
+  const lean = clamp(car.steerAng * Math.abs(car.v) * (car.kind === 'van' ? 0.007 : 0.011), -0.07, 0.07);
   car._pitch = (car._pitch || 0) + (((car.braking ? -0.025 : 0) + (car.thr ? 0.015 : 0)) - (car._pitch || 0)) * 0.08;
   _e.set(car._pitch, 0, lean); _lq.setFromEuler(_e); tuk.quaternion.multiply(_lq);
+  if (car.kind === 'van') {
+    const hub = i => S.conn - car.susp[i];
+    for (const [k, i] of [['sfl', 0], ['sfr', 1]]) if (nodes[k]) { nodes[k].rotation.y = car.steerAng; nodes[k].position.y = hub(i); }
+    for (const [k, i] of [['wfl', 0], ['wfr', 1], ['wrl', 2], ['wrr', 3]]) if (nodes[k]) nodes[k].rotation.x = car.wheelRot[i];
+    if (nodes.wrl) nodes.wrl.position.y = hub(2); if (nodes.wrr) nodes.wrr.position.y = hub(3);
+    return;
+  }
   if (nodes.steer) nodes.steer.rotation.y = car.steerAng;
-  if (nodes.steer) nodes.steer.position.y = (CONN_Y - car.susp[0]) - RADIUS;
+  if (nodes.steer) nodes.steer.position.y = (S.conn - car.susp[0]) - S.radius;
   if (nodes.wf) nodes.wf.rotation.x = car.wheelRot[0];
-  if (nodes.wl) { nodes.wl.rotation.x = car.wheelRot[1]; nodes.wl.position.y = CONN_Y - car.susp[1]; }
-  if (nodes.wr) { nodes.wr.rotation.x = car.wheelRot[2]; nodes.wr.position.y = CONN_Y - car.susp[2]; }
+  if (nodes.wl) { nodes.wl.rotation.x = car.wheelRot[1]; nodes.wl.position.y = S.conn - car.susp[1]; }
+  if (nodes.wr) { nodes.wr.rotation.x = car.wheelRot[2]; nodes.wr.position.y = S.conn - car.susp[2]; }
 }

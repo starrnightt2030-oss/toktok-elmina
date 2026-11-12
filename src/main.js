@@ -18,7 +18,7 @@ if(isTouch)document.body.classList.add('is-touch');
 
 /* ============ save ============ */
 const SAVE_KEY='aps_tuk_v2';
-const save={wallet:60,total:0,trips:0,owned:['yellow','orange','red'],paint:'yellow',slogan:'ماشي بدعا الوالدين'};
+const save={wallet:60,total:0,trips:0,owned:['yellow','orange','red'],paint:'yellow',slogan:'ماشي بدعا الوالدين',vehicle:'tuk'};
 try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(s)Object.assign(save,s);}catch(e){}
 if(!save.owned.includes('orange'))save.owned.unshift('orange');if(!save.owned.includes('yellow')){save.owned.unshift('yellow');save.paint='yellow';}
 function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){}}
@@ -548,7 +548,7 @@ function vehicleGeo(type,c,c2){const k=type+c+(c2||'');if(vehCache[k])return veh
   return vehCache[k]=M.geo();}
 
 /* ============ tuk-tuk (player) ============ */
-let tuk,tukBody,fwPivot,wheels=[],paxSeat,arrow3D,paintMat,headLight;
+let tuk,tukBody,fwPivot,wheels=[],paxSeat,isVan=false,vanSeats=[],TUK_TRAFFIC=null,arrow3D,paintMat,headLight;
 const PAINTS=[{id:'yellow',n:'أصفر أصلي',c:'#ffc400',p:0},{id:'orange',n:'برتقالي أصلي',c:'#f09a1a',p:0},{id:'red',n:'أحمر كلاسيك',c:'#b3161d',p:0},{id:'blue',n:'أزرق بحري',c:'#1f5fa8',p:250},{id:'green',n:'أخضر زيتوني',c:'#4d6b2f',p:500},{id:'purple',n:'بنفسجي مغرب',c:'#6b2fa0',p:800},{id:'black',n:'أسود ملكي',c:'#1b1b1f',p:1200},{id:'gold',n:'دهبي',c:'#c9a227',p:2000}];
 const SLOGANS=['ماشي بدعا الوالدين','يا مسهّل يا رب','عيني عليك باردة','كله بأوانه','الصبر مفتاح الفرج','اللي يحبنا يفوّت'];
 let sloganMat,flame;
@@ -561,14 +561,15 @@ function loadTuk(gltf){tuk=gltf.scene;
     if(m.name==='Paint')paintMat=m;
     if(m.name==='Glass'||m.name==='Tint'){o.castShadow=false;m.depthWrite=false;}
     if(m.name==='Chrome'||m.name==='Paint'||m.name==='Rim'){m.envMapIntensity=1.2;}});
-  tukBody=tuk.getObjectByName('Body')||tuk;
-  tukNodes.steer=tuk.getObjectByName('SteerF');tukNodes.wf=tuk.getObjectByName('WheelF');tukNodes.wl=tuk.getObjectByName('WheelRL');tukNodes.wr=tuk.getObjectByName('WheelRR');
+  tukBody=tuk.getObjectByName('Body')||tuk;isVan=!!tuk.getObjectByName('Seat1');
+  if(isVan){const g=n=>tuk.getObjectByName(n);Object.assign(tukNodes,{sfl:g('SteerFL'),sfr:g('SteerFR'),wfl:g('WheelFL'),wfr:g('WheelFR'),wrl:g('WheelRL'),wrr:g('WheelRR')});vanSeats=[1,2,3,4,5,6].map(i=>g('Seat'+i));}
+  else{tukNodes.steer=tuk.getObjectByName('SteerF');tukNodes.wf=tuk.getObjectByName('WheelF');tukNodes.wl=tuk.getObjectByName('WheelRL');tukNodes.wr=tuk.getObjectByName('WheelRR');}
   setPaint(save.paint);
   sloganMat=new T.MeshStandardMaterial({map:sloganStrip(save.slogan||SLOGANS[0]),roughness:.5});
-  const sp=new T.Mesh(new T.PlaneGeometry(.8,.1),sloganMat);sp.position.set(0,.79,1.402);tukBody.add(sp);
+  const sp=new T.Mesh(new T.PlaneGeometry(isVan?1.1:.8,isVan?.14:.1),sloganMat);if(isVan){const q=tuk.getObjectByName('SloganPt').position;sp.position.set(q.x,q.y,q.z+.03);tuk.add(sp);}else{sp.position.set(0,.79,1.402);tukBody.add(sp);}
   const plate=new T.Mesh(new T.PlaneGeometry(.34,.14),new T.MeshStandardMaterial({map:ctex(256,104,g=>{g.fillStyle='#f4f4f0';g.fillRect(0,0,256,104);g.fillStyle='#1f5fb0';g.fillRect(0,0,256,28);g.fillStyle='#fff';g.font='700 20px '+AR;g.textAlign='center';g.textBaseline='middle';g.fillText('مصر  EGYPT',128,15);g.fillStyle='#111';g.font='48px '+GAMEF;g.direction='rtl';g.fillText('ت ك س  ٥٢٧',128,70);}),roughness:.5}));
-  plate.position.set(0,.63,1.412);tukBody.add(plate);
-  paxSeat=tuk.getObjectByName('PaxSeatPt')||new T.Group();
+  if(isVan){const q=tuk.getObjectByName('PlateR').position;plate.position.set(q.x,q.y,q.z+.02);tuk.add(plate);}else{plate.position.set(0,.63,1.412);tukBody.add(plate);}
+  paxSeat=tuk.getObjectByName('PaxSeatPt')||tuk.getObjectByName('Seat2')||new T.Group();
   /* headlight glow on the road + lamp halos + turbo flame */
   const cg=new T.PlaneGeometry(3.6,8);cg.rotateX(-Math.PI/2);cg.translate(0,.06,-5.6);
   const ct=ctex(64,128,g=>{const gr=g.createLinearGradient(0,128,0,0);gr.addColorStop(0,'rgba(255,236,190,.5)');gr.addColorStop(1,'rgba(255,236,190,0)');g.fillStyle=gr;g.beginPath();g.moveTo(20,128);g.lineTo(44,128);g.lineTo(64,0);g.lineTo(0,0);g.closePath();g.fill();});
@@ -614,7 +615,7 @@ function resetToRoad(){let best=null,bd=1e9;for(const n of SAFE){const d=Math.hy
 const traffic=[];let CARS=null;const paintCache={};
 function tintMat(m,hex){const k=m.uuid+hex;if(!paintCache[k]){const c=m.clone();c.color.set(hex).convertSRGBToLinear();paintCache[k]=c;}return paintCache[k];}
 function makeTraffic(k){const NM={taxi:'Taxi',sedan:'Sedan',classic:'Classic',micro:'Micro',truck:'Truck'};
-  let src=k[0]==='tuk'?tuk:(CARS&&CARS.getObjectByName(NM[k[0]]));if(!src){const m=new T.Mesh(vehicleGeo(k[0],k[1],k[2]),VC);m.castShadow=true;return m;}
+  let src=k[0]==='tuk'?TUK_TRAFFIC:(CARS&&CARS.getObjectByName(NM[k[0]]));if(!src){const m=new T.Mesh(vehicleGeo(k[0],k[1],k[2]),VC);m.castShadow=true;return m;}
   const m=src.clone(true);m.position.set(0,0,0);m.quaternion.identity();const col=k[0]==='truck'?k[2]:k[1];
   m.traverse(o=>{if(!o.isMesh)return;o.castShadow=true;if(o.material&&o.material.name==='Paint')o.material=tintMat(o.material,col);});
   if(k[0]==='tuk'){const ps=m.getObjectByName('PaxSeatPt');if(ps)ps.clear();}
@@ -815,6 +816,47 @@ function dlgStart(it){Dlg.cur=it;Dlg.t=0;Dlg.done=false;const len=it.text.length
 function dlgUpdate(dt){if(Dlg.cur){Dlg.t+=dt;if((Dlg.done&&Dlg.t>=Dlg.minT)||Dlg.t>=Dlg.maxT){Dlg.cur=null;Dlg.gap=.25;if(!Dlg.q.length){$('dialog').hidden=true;radioLevel();}}}else if(Dlg.q.length){Dlg.gap-=dt;if(Dlg.gap<=0)dlgStart(Dlg.q.shift());}}
 function dlgClear(){Dlg.q.length=0;Dlg.cur=null;$('dialog').hidden=true;VO.stop();if(Speech.ok)try{speechSynthesis.cancel();}catch(e){}}
 
+
+/* ============ Suzuki "مشروع": a fixed line with stops, up to 6 riders who pay on boarding ============ */
+let line=null;
+const L_BOARD=['على {d} يا اسطى؟','السلام عليكم، رايح {d}؟','ينفع {d} يا اسطى؟','فيه مكان؟ رايح {d}'];
+const L_YES=['اركب يا باشا، فيه مكان','اتفضل، اتكل على الله','أيوه رايحين، اركب'];
+const L_DOWN=['على جنب يا اسطى!','هنا يا اسطى، الله يكرمك','نزّلني هنا يا معلم','على اليمين لو سمحت'];
+const L_PASS=['حد يوصّل الأجرة دي للاسطى','الأجرة يا اسطى، معاك فكة؟','اتفضل يا اسطى، اتنين من ورا'];
+const L_FULL=['كامل يا جماعة، اللي بعدي!','مفيش مكان، العربية كاملة'];
+function lineStops(){const keys=Object.keys(POI);const st=[];let cur=keys.reduce((a,b)=>Math.hypot(POI[a].x-car.x,POI[a].z-car.z)<Math.hypot(POI[b].x-car.x,POI[b].z-car.z)?a:b);
+  while(st.length<9){st.push(cur);const rest=keys.filter(k=>!st.includes(k)&&Math.hypot(POI[k].x-POI[cur].x,POI[k].z-POI[cur].z)>70);if(!rest.length)break;cur=rest.reduce((a,b)=>Math.hypot(POI[a].x-POI[cur].x,POI[a].z-POI[cur].z)<Math.hypot(POI[b].x-POI[cur].x,POI[b].z-POI[cur].z)?a:b);}
+  return st;}
+function lineInit(){line={stops:lineStops(),idx:1,riders:[],queue:[],phase:'drive',crowd:[],wait:0,announced:false};lineCrowd();lineUI();}
+function lineCrowd(){line.crowd.forEach(c=>{scene.remove(c.m);});line.crowd=[];const k=line.stops[line.idx],p=POI[k];const n=Math.random()<.2?0:1+Math.floor(Math.random()*3);
+  for(let i=0;i<n;i++){const ty=pick(PT);const ox=(i-1)*0.8;const m=person(ty.look,p.x+p.sx+ox*Math.cos(Math.atan2(p.sx,p.sz)),p.z+p.sz-ox*Math.sin(Math.atan2(p.sx,p.sz)),0);line.crowd.push({type:ty,name:pick(ty.names),m:m});}}
+function seatRider(r,i){const s=vanSeats[i];if(!s)return;s.clear();const m=new T.Mesh(personGeo(r.pax.look,true),VC);m.castShadow=true;s.add(m);r.seat=i;}
+function lineUI(){const el=$('lineBar');if(!line){el.hidden=true;return;}el.hidden=false;const n=line.stops.length;
+  let dots='';for(let i=0;i<n;i++){const done=(i-line.idx+n)%n>n/2;dots+='<i class="'+(i===line.idx?'nx':(i===(line.idx-1+n)%n?'cur':''))+'" style="right:'+(i/(n-1)*100)+'%" title="'+POI[line.stops[i]].n+'"></i>';}
+  el.querySelector('.track').innerHTML=dots+'<b class="van" style="right:'+(((line.idx-1+n)%n)/(n-1)*100)+'%">🚐</b>';
+  $('lineNext').textContent='المحطة الجاية: '+POI[line.stops[line.idx]].n;$('lineSeats').textContent='الركاب '+arNum(line.riders.length)+'/٦';}
+function linePrice(hops){return [5,5,7,7,10][Math.min(4,hops)];}
+function lineNextPay(){if(!line.queue.length){line.phase='leave';line.wait=.6;return;}const r=line.queue.shift();
+  dlgPush([['p',pick(L_PASS)]],r.pax);startPay({price:r.price,pax:r.pax,hits:0,fast:0,t:0,budget:999},lost=>{const tip=Math.random()<.15?5:0;const pay=r.price-lost+tip;save.wallet+=pay;save.total+=pay;persist();updateMoney();
+    toast('+'+pay+' ج.م'+(tip?' • بقشيش':'')+(lost?' • ضاع منك '+lost:''),lost?'bad':'good');blip('cash');lineNextPay();});}
+function updateLine(dt){if(!line)lineInit();const k=line.stops[line.idx],p=POI[k],d=Math.hypot(p.x-car.x,p.z-car.z);
+  for(const c of line.crowd)c.m.rotation.y=Math.atan2(-(car.x-c.m.position.x),-(car.z-c.m.position.z))+Math.PI;
+  if(line.phase==='drive'){
+    if(!line.announced&&d<90){line.announced=true;const down=line.riders.filter(r=>r.dest===line.idx);if(down.length)dlgPush([['p',pick(L_DOWN)]],down[0].pax);}
+    if(d<7){if(Math.abs(car.v)<1.4){line.phase='stop';line.wait=.8;}else if(stopHint<=0){toast('هدّي ووقّف في المحطة');stopHint=3;}}
+    return;}
+  if(line.phase==='stop'){line.wait-=dt;if(line.wait>0)return;
+    const down=line.riders.filter(r=>r.dest===line.idx);down.forEach(r=>{if(vanSeats[r.seat])vanSeats[r.seat].clear();save.trips++;});line.riders=line.riders.filter(r=>r.dest!==line.idx);
+    if(down.length)dlgPush([['d',down.length>1?'مع السلامة يا جماعة':'مع السلامة يا باشا']],down[0].pax);
+    const free=[0,1,2,3,4,5].filter(i=>!line.riders.some(r=>r.seat===i));const n=line.stops.length;
+    line.crowd.forEach((c,ci)=>{const pax=Object.assign({name:c.name},c.type);if(!free.length){if(ci===0)dlgPush([['d',pick(L_FULL)]],pax);return;}
+      const hops=1+Math.floor(Math.random()*4),dest=(line.idx+hops)%n,price=linePrice(hops);
+      if(ci<2)dlgPush([['p',pick(L_BOARD).replace('{d}',POI[line.stops[dest]].n)],['d',pick(L_YES)]],pax);
+      const r={pax:pax,dest:dest,price:price};seatRider(r,free.shift());line.riders.push(r);line.queue.push(r);scene.remove(c.m);c.gone=true;});
+    line.crowd=line.crowd.filter(c=>!c.gone);line.phase='pay';line.wait=1.4;lineUI();return;}
+  if(line.phase==='pay'){if(line.wait>0){line.wait-=dt;if(line.wait<=0)lineNextPay();}return;}
+  if(line.phase==='leave'){line.wait-=dt;if(line.wait>0)return;line.crowd.forEach(c=>scene.remove(c.m));line.idx=(line.idx+1)%line.stops.length;line.announced=false;line.phase='drive';lineCrowd();gpsRoute=null;lineUI();}}
+
 /* ============ fares ============ */
 const PT=[
  {names:['عم سيد','عم محمود','عم رجب'],title:'يا حاج',pitch:.8,look:{shirt:'#2f4f7a',pants:'#2b2b2b',helmet:'#f2c230',skin:'#9a6b4a'},likes:['ws','dock','gate50','quay','store','gateS','weld'],ride:['الوردية النهارده طويلة أوي','النهارده عندنا لحام بدن مركب كبيرة','المهندس قال لازم نخلّص قبل الضهر','ربنا يعين الواحد على المعيشة']},
@@ -874,31 +916,31 @@ function noteEl(v,mini){const b=document.createElement('button');b.className='no
 const payS={tray:[]};
 function payRender(){const tr=$('pTray');tr.querySelectorAll('.note').forEach(e=>e.remove());const sum=payS.tray.reduce((a,b)=>a+b,0);
   payS.tray.forEach((v,i)=>{const e=noteEl(v,true);e.title='رجّعها';e.onclick=()=>{payS.tray.splice(i,1);blip('ok');payRender();};tr.insertBefore(e,tr.lastElementChild);});$('pSum').textContent=arNum(sum);}
-function startPay(){const f=fare;f.phase='pay';input.up=input.down=0;
+function startPay(f,done){f=f||fare;payS.f=f;payS.done=done||(lost=>finishFare(lost));f.phase='pay';input.up=input.down=0;
   const opts=[20,50,100,200].filter(n=>n>f.price);let given=Math.random()<.15?f.price:(Math.random()<.55?opts[0]:pick(opts.slice(0,3)));
   if(given===f.price&&f.price%5){given=opts[0];}
   const bills=given===f.price?[f.price]:[given];f.given=given;f.change=given-f.price;
   $('pFare').textContent=arNum(f.price);$('pName').textContent=f.pax.name;const g=$('pGiven');g.innerHTML='';bills.forEach(v=>{const e=noteEl(v,true);e.disabled=true;g.appendChild(e);});
   g.insertAdjacentHTML('beforeend',' <b>'+arNum(given)+' ج</b>');
-  const nn=$('pNotes');if(!nn.childElementCount){NOTES.slice(0,6).forEach(([v])=>{const e=noteEl(v);e.onclick=()=>{if(fare&&fare.phase==='pay'){payS.tray.push(v);blip('ok');payRender();}};nn.appendChild(e);});
+  const nn=$('pNotes');if(!nn.childElementCount){NOTES.slice(0,6).forEach(([v])=>{const e=noteEl(v);e.onclick=()=>{if(payS.f&&payS.f.phase==='pay'){payS.tray.push(v);blip('ok');payRender();}};nn.appendChild(e);});
     $('pClr').onclick=()=>{payS.tray=[];payRender();};$('pOk').onclick=payConfirm;}
   $('eGiven').textContent=arNum(given);$('eFare').textContent=arNum(f.price);$('eChange').textContent=f.change?'؟':arNum(0);
   payS.tray=[];payRender();
   if(f.change===0){$('pMsg').className='msg good';$('pMsg').textContent='الأجرة مظبوطة، مفيش باقي';dlgPush([['p','اتفضل يا اسطى، الأجرة مظبوطة']],f.pax);}
   else{$('pMsg').className='msg';$('pMsg').textContent='رجّعله '+'الباقي من الفكة';dlgPush([['p',pick(PAY_GIVE)]],f.pax);}
   $('pay').hidden=false;}
-function payConfirm(){const f=fare;if(!f||f.phase!=='pay')return;const sum=payS.tray.reduce((a,b)=>a+b,0);const m=$('pMsg');
+function payConfirm(){const f=payS.f;if(!f||f.phase!=='pay')return;const sum=payS.tray.reduce((a,b)=>a+b,0);const m=$('pMsg');
   if(sum<f.change){m.className='msg bad';m.textContent='ناقص '+arNum(f.change-sum)+' ج';dlgPush([['p',pick(PAY_SHORT)]],f.pax);blip('thud',2);f.short=(f.short||0)+1;return;}
   let lost=0;if(sum>f.change){if(Math.random()<.65){dlgPush([['p',pick(PAY_OVER_HONEST)]],f.pax);}else{lost=sum-f.change;}}
   else dlgPush([['p',pick(PAY_OK)]],f.pax);
-  $('pay').hidden=true;finishFare(lost);}
+  $('pay').hidden=true;f.phase='paid';payS.done(lost);}
 function finishFare(lost){lost=lost||0;const f=fare;let r=5-f.hits*.6-Math.min(2,f.fast)*.3-(f.short||0)*.4;const late=f.t>f.budget;if(late)r-=1.2;r=clamp(r,1,5);
   const base=f.price;const bonus=late?0:Math.round((f.budget-f.t)*.2/5)*5;const tip=Math.min(15,(r>=4.5?5:0)+Math.max(0,bonus));const pay=base+tip-lost;
   save.wallet+=pay;save.total+=pay;save.trips++;persist();dlgPush((late?pick(END_LATE):pick(END_SEQ)).map(l=>[l[0],l[1].replace('{t}',f.pax.title)]),f.pax);blip('cash');
   toast('+'+pay+' ج.م'+(tip?'  • بقشيش '+tip:'')+(lost?'  • ضاع منك '+lost:'')+(late?'  • متأخر':''),lost?'bad':'good');paxSeat.clear();destBeam.visible=destRing.visible=false;fare=null;gpsRoute=null;updateMoney();}
 function onImpact(s){blip('thud',s);if(fare&&fare.phase==='ride'){fare.hits++;if(Dlg.q.length<2)dlgPush([['p',pick(HIT_L)]],fare.pax);}}
 let nearMsgT=0,stopHint=0;
-function updateFares(dt){interactions(dt);for(let i=0;i<3&&waiting.length<MAXW;i++)spawnWaiting();
+function updateFares(dt){interactions(dt);if(isVan){updateLine(dt);return;}for(let i=0;i<3&&waiting.length<MAXW;i++)spawnWaiting();
   for(const w of waiting){w.m.rotation.y=Math.atan2(-(car.x-w.m.position.x),-(car.z-w.m.position.z))+Math.PI;}
   if(fare){if(fare.phase!=='pay')fare.t+=dt;if(fare.phase==='board'){fare.wait-=dt;if(fare.wait<=0&&!Dlg.q.length)fare.phase='ride';}
     else if(fare.phase==='ride'){const p=POI[fare.to],d=Math.hypot(p.x-car.x,p.z-car.z);if(d<5.5){if(Math.abs(car.v)<1.4){if(fare.phase!=='pay')startPay();return;}else if(stopHint<=0){toast('هدّي ووقّف عند العمود');stopHint=3;}}
@@ -934,12 +976,13 @@ function drawGPS(){const W=gps.width,H=gps.height;if(!W)return;const sc=W/2/95;g
   if(fare){const p=POI[fare.to];gg.fillStyle='#4cff5e';gg.beginPath();gg.arc(p.x,p.z,8,0,7);gg.fill();}
   gg.restore();gg.save();gg.translate(W/2,H/2+W*.12);gg.fillStyle='#ffffff';gg.strokeStyle='#0f2433';gg.lineWidth=2*gpsDpr;gg.beginPath();gg.moveTo(0,-9*gpsDpr);gg.lineTo(7*gpsDpr,7*gpsDpr);gg.lineTo(0,3*gpsDpr);gg.lineTo(-7*gpsDpr,7*gpsDpr);gg.closePath();gg.fill();gg.stroke();gg.restore();}
 function updateHUD(dt){const sp=Math.round(Math.abs(car.v)*3.6);if(sp!==lastSpd){$('speed').textContent=sp;lastSpd=sp;}
-  $('turboBar').style.width=(turbo*100).toFixed(0)+'%';$('speedfx').style.opacity=car.boost?Math.min(1,Math.abs(car.v)/14):0;flame.visible=!!car.boost;if(car.boost){const f=.5+Math.random()*.5;flame.scale.set(f,f,1);}$('fuelBar').style.width=fuel.toFixed(0)+'%';{const gt=$('revTag');gt.hidden=false;gt.textContent=car.gear===0?'رجوع':'غيار '+'٠١٢٣'[car.gear];}
+  $('turboBar').style.width=(turbo*100).toFixed(0)+'%';$('speedfx').style.opacity=car.boost?Math.min(1,Math.abs(car.v)/14):0;flame.visible=!!car.boost;if(car.boost){const f=.5+Math.random()*.5;flame.scale.set(f,f,1);}$('fuelBar').style.width=fuel.toFixed(0)+'%';{const gt=$('revTag');gt.hidden=false;gt.textContent=car.gear===0?'رجوع':'غيار '+'٠١٢٣٤٥'[car.gear];}
   const bp=$('brakePad');const rev=Math.abs(car.v)<.6;if(bp.classList.contains('revmode')!==rev){bp.classList.toggle('revmode',rev);bp.textContent=rev?'رجوع':'فرامل';}
   if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').hidden=true;}
   /* navigation target */
   let tx=null,tz=null,name='',showTime=false;
-  if(fare&&fare.phase!=='board'){const p=POI[fare.to];tx=p.x;tz=p.z;name=p.n;showTime=true;}
+  if(isVan&&line&&fuel>=15){const p=POI[line.stops[line.idx]];tx=p.x;tz=p.z;name='المحطة الجاية: '+p.n;}
+  else if(fare&&fare.phase!=='board'){const p=POI[fare.to];tx=p.x;tz=p.z;name=p.n;showTime=true;}
   else if(!fare&&fuel<25){const s=nearestStation();tx=s.sx;tz=s.sz;name='أقرب بنزينة';}
   else if(!fare&&waiting.length){let b=null,bd=1e9;for(const w of waiting){const p=POI[w.poi],d=Math.hypot(p.x-car.x,p.z-car.z);if(d<bd){bd=d;b=w;}}if(b){const p=POI[b.poi];tx=p.x;tz=p.z;name='زبون عند '+p.n;}}
   const nav=$('nav');
@@ -1019,7 +1062,7 @@ $('btnVoiceTest').addEventListener('click',()=>{const n=$('voiceNote');n.hidden=
 $('btnQuality').addEventListener('click',e=>{quality=quality==='high'?'med':'high';e.currentTarget.textContent='الرسوم: '+(quality==='high'?'عالية':'خفيفة');applyPR();setShadowQ();resize();});
 const VMODES={game:'أصوات اللعبة',browser:'صوت المتصفح',off:'مقفول'};function voiceUI(){$('btnVoice').textContent='صوت الحوار: '+VMODES[Speech.mode];}
 $('btnVoice').addEventListener('click',()=>{Speech.mode=Speech.mode==='game'?'browser':(Speech.mode==='browser'?'off':'game');Speech.enabled=Speech.mode!=='off';try{localStorage.setItem('aps_voice',Speech.mode);}catch(_){}VO.stop();if(Speech.ok)try{speechSynthesis.cancel();}catch(_){}voiceUI();});voiceUI();
-function renderGarage(){$('garWallet').textContent='محفظتك: '+Math.round(save.wallet)+' ج.م';const box=$('paints');box.innerHTML='';
+function renderGarage(){vehUI();$('garWallet').textContent='محفظتك: '+Math.round(save.wallet)+' ج.م';const box=$('paints');box.innerHTML='';
   PAINTS.forEach(p=>{const owned=save.owned.includes(p.id);const b=document.createElement('button');b.className='paint'+(save.paint===p.id?' sel':'')+(owned?'':' locked');
     b.innerHTML='<i style="background:'+p.c+'"></i><span>'+p.n+'<small>'+(owned?(save.paint===p.id?'متركّب':'اضغط للتركيب'):p.p+' ج.م')+'</small></span>';
     b.addEventListener('click',()=>{if(!owned){if(save.wallet<p.p){$('garWallet').textContent='محتاج '+Math.round(p.p-save.wallet)+' ج.م كمان';return;}save.wallet-=p.p;save.owned.push(p.id);}save.paint=p.id;setPaint(p.id);persist();renderGarage();menuWallet();});box.appendChild(b);});
@@ -1035,6 +1078,12 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last
     camera.position.set(-140+Math.cos(mA)*70,22+Math.sin(mA*.7)*5,10+Math.sin(mA)*45);camera.lookAt(-120,4,-20);}
   placeSun();renderer.render(scene,camera);}
 
+
+const VEHS=[{id:'tuk',n:'توكتوك',d:'راكب واحد، توصيل لحد الباب'},{id:'van',n:'سوزوكي ٧ راكب',d:'مشروع بمحطات، لحد ٦ ركاب'}];
+function vehUI(){const v=VEHS.find(x=>x.id===save.vehicle)||VEHS[0];$('btnVeh').textContent='العربية: '+v.n;const box=$('vehicles');if(!box)return;box.innerHTML='';
+  VEHS.forEach(x=>{const b=document.createElement('button');b.className='paint'+(x.id===save.vehicle?' on':'');b.innerHTML='<b>'+x.n+'</b><small>'+x.d+'</small>';b.addEventListener('click',()=>setVehicle(x.id));box.appendChild(b);});}
+function setVehicle(id){if(id===save.vehicle)return;save.vehicle=id;persist();toast('بنجهّز '+(VEHS.find(x=>x.id===id).n)+'…');setTimeout(()=>location.reload(),400);}
+$('btnVeh').addEventListener('click',()=>setVehicle(save.vehicle==='van'?'tuk':'van'));vehUI();
 
 /* ============ voice lines registry + studio ============ */
 VO.register('ركوب الزبون',[INTRO_P,PRICE_P,HAIL_L],'p');VO.register('ردود الاسطى',[INTRO_D,INTRO_D2,PRICE_D],'d');
@@ -1079,21 +1128,27 @@ async function checkUpdate(){if(APP_VERSION==='dev'||location.protocol==='file:'
 $('updBtn').addEventListener('click',forceUpdate);
 checkUpdate();setInterval(checkUpdate,3*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate();});
 
+/* ============ intro ============ */
+let introT0=performance.now();
+function introReady(){const wait=Math.max(0,2900-(performance.now()-introT0));setTimeout(()=>{const L=$('loading');L.classList.add('ready');loadingText.textContent='اضغط في أي حتة عشان تبدأ';
+  const go=()=>{L.removeEventListener('pointerdown',go);removeEventListener('keydown',go);initAudio();if(A.ctx){A.ctx.resume().catch(()=>{});setTimeout(playSiren,60);}L.classList.add('out');$('menu').hidden=false;setTimeout(()=>{L.hidden=true;},500);};
+  L.addEventListener('pointerdown',go);addEventListener('keydown',go);},wait);}
 /* ============ boot ============ */
 async function boot(){try{buildWorld();
   loadingText.textContent='بنجهّز التوكتوك…';
-  const [gltf,carsG,R]=await Promise.all([
+  const [gltf,vanG,carsG,R]=await Promise.all([
     new GLTFLoader().loadAsync(window.TUK_MODEL||'./models/tuk.glb'),
+    save.vehicle==='van'?new GLTFLoader().loadAsync('./models/van.glb').catch(e=>{console.warn('van',e);return null;}):Promise.resolve(null),
     new GLTFLoader().loadAsync(window.CARS_MODEL||'./models/cars.glb').catch(e=>{console.warn('cars model',e);return null;}),
     RAPIER.init().then(()=>RAPIER).catch(e=>{console.warn('physics unavailable, arcade mode',e);return null;})]);
-  loadTuk(gltf);CARS=carsG&&carsG.scene;initTraffic();initWalkers();
-  veh=await createVehicle({RAPIER:R,colliders,traffic,spawn:{x:-160,z:7,h:-Math.PI/2}});car=veh.car;
+  TUK_TRAFFIC=vanG?gltf.scene:null;loadTuk(vanG||gltf);if(!TUK_TRAFFIC)TUK_TRAFFIC=tuk;CARS=carsG&&carsG.scene;initTraffic();initWalkers();
+  veh=await createVehicle({RAPIER:R,colliders,traffic,spawn:{x:-160,z:7,h:-Math.PI/2},kind:isVan?'van':'tuk'});car=veh.car;
   veh.onImpact(s=>{shake=Math.min(1,s/9);onImpact(s);});
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);
   destRing=new T.Mesh(new T.TorusGeometry(3,.15,8,40),new T.MeshBasicMaterial({color:'#4cff5e'}));destRing.rotation.x=Math.PI/2;destRing.visible=false;scene.add(destRing);
   buildRadioUI();radioUI();syncTuk();menuWallet();updateMoney();
-  window.portSim={audio:A,mus:Mus,radio:radio,sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,get fare(){return fare;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
-  $('loading').hidden=true;$('menu').hidden=false;state='menu';requestAnimationFrame(frame);}
+  window.portSim={audio:A,mus:Mus,radio:radio,sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,get fare(){return fare;},get line(){return line;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
+  state='menu';requestAnimationFrame(frame);introReady();}
   catch(err){console.error(err);loadingText.textContent='حصلت مشكلة: '+err.message;}}
 const fr=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();
 Promise.race([fr,new Promise(r=>setTimeout(r,2500))]).then(boot);

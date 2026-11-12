@@ -3,7 +3,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { createVehicle } from '../src/vehicle.js';
 await RAPIER.init();
 const traffic = [];
-const veh = await createVehicle({ RAPIER, colliders: [{ x0: 900, x1: 910, z0: -50, z1: 50, h: 3 }], traffic, spawn: { x: 0, z: 0, h: -Math.PI / 2 } });
+const veh = await createVehicle({ RAPIER, colliders: [{ x0: 900, x1: 910, z0: -50, z1: 50, h: 3 }], traffic, spawn: { x: 0, z: 0, h: -Math.PI / 2 }, kind: process.argv[2] || 'tuk' });
 const c = veh.car; const inp = { up: 0, down: 0, steerKey: 0, joy: 0, drift: 0, turbo: 0 };
 let impacts = 0; veh.onImpact(() => impacts++);
 const run = (sec, f) => { for (let i = 0; i < sec * 60; i++) { f && f(i / 60); veh.update(1 / 60, inp, true); } };

@@ -31,7 +31,30 @@ button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;paddin
 button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .pn{background:var(--panel);border:2px solid rgba(242,183,5,.85);border-radius:12px}
 
-#loading{position:fixed;inset:0;display:grid;place-items:center;background:var(--ink);z-index:60;font:22px var(--f-game);color:var(--edge)}
+#loading{position:fixed;inset:0;z-index:60;display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse at 50% 35%,#2a2f66,#141a33 70%);font-family:var(--f-game);color:#fff;cursor:pointer;transition:opacity .45s}
+#loading.out{opacity:0;pointer-events:none}
+#loading .intro{position:relative;width:min(92vw,520px,72vh);aspect-ratio:1/1.12;display:flex;flex-direction:column;align-items:center;container-type:inline-size;margin-top:-6vh}
+#loading .emb{width:78%;filter:drop-shadow(0 12px 30px rgba(0,0,0,.5));animation:embIn .7s cubic-bezier(.2,1.4,.4,1) both}
+#loading .gantry path{stroke-dasharray:900;stroke-dashoffset:900;animation:draw 1.1s .35s ease-out forwards}
+#loading .gantry path[fill]{fill-opacity:0;animation:draw 1.1s .35s ease-out forwards,fillIn .4s 1.2s forwards}
+#loading .gtext{opacity:0;animation:fade .4s 1.35s forwards}
+#loading .sun{transform-origin:200px 232px;animation:sunUp 1.4s .1s ease-out both}
+#loading .waves{animation:wave 3s linear infinite}#loading .w2{animation-duration:2.2s;animation-direction:reverse}
+#loading .hero{position:absolute;width:58%;top:36%;left:21%;filter:drop-shadow(0 14px 12px rgba(0,0,0,.55));animation:drive 1.1s .9s cubic-bezier(.15,.9,.3,1.15) both}
+#loading .word{position:absolute;top:69%;display:flex;flex-direction:column;align-items:center;animation:pop .6s 1.7s cubic-bezier(.2,1.6,.4,1) both}
+#loading .word b{font-weight:400;font-size:19cqw;line-height:.95;color:#f2b705;-webkit-text-stroke:3px #141a33;paint-order:stroke fill;text-shadow:0 6px 0 #141a33,0 10px 24px rgba(0,0,0,.5)}
+#loading .rib{margin-top:-4px;padding:2px 26px 6px;background:#d32f2f;border:3px solid #fff;border-radius:10px;font-size:7.5cqw;transform:rotate(-3deg);box-shadow:0 5px 0 #7a1414;animation:rib .5s 2.1s cubic-bezier(.2,1.6,.4,1) both}
+#loading .sub{position:absolute;bottom:-4%;font:700 3.6cqw var(--f-body);white-space:nowrap;color:#cfd3ef;letter-spacing:.3px;animation:fade .6s 2.4s both}
+#loading .tap{position:absolute;bottom:-13%;font-size:4.6cqw;white-space:nowrap;color:var(--edge);animation:fade .5s 2.6s both}
+#loading.ready .tap span{animation:pulse 1.1s infinite}
+@keyframes embIn{from{transform:scale(.6) rotate(-12deg);opacity:0}}
+@keyframes draw{to{stroke-dashoffset:0}}@keyframes fillIn{to{fill-opacity:1}}@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes sunUp{from{transform:translateY(90px) scale(.7);opacity:.2}}
+@keyframes wave{to{transform:translateX(-100px)}}
+@keyframes drive{0%{transform:translateX(130%) rotate(4deg);opacity:0}70%{transform:translateX(-6%) rotate(-3deg);opacity:1}85%{transform:translateX(2%) rotate(1deg)}100%{transform:none}}
+@keyframes pop{from{transform:scale(0);opacity:0}}@keyframes rib{from{transform:scale(0) rotate(-20deg)}}
+@keyframes pulse{50%{opacity:.35;transform:scale(.96)}}
+@media (prefers-reduced-motion:reduce){#loading *{animation-duration:.01s!important;animation-delay:0s!important}}
 
 /* ---------- menu ---------- */
 #menu{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;overflow-y:auto;
@@ -137,6 +160,15 @@ kbd{font:700 11px ui-monospace,monospace;border:1px solid rgba(255,255,255,.3);b
 #studio .row button:disabled{opacity:.4}#studio .rec{background:#c62828!important;font-size:20px!important}#studio .rec.on{animation:recp 1s infinite}#studio .rec.has{background:#2e7d32!important}
 @keyframes recp{50%{background:#ff5252}}
 #studio .foot span{flex:1.3;font:13px var(--f-body);color:var(--muted)}
+#lineBar{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 296px);width:min(520px,calc(100vw - 30px));font-family:var(--f-game);color:#fff;text-shadow:0 2px 3px rgba(0,0,0,.6)}
+#lineBar .track{position:relative;height:16px;margin:0 10px;border-radius:9px;background:#1f6b3a;border:3px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.4)}
+#lineBar .track i{position:absolute;top:50%;width:10px;height:10px;margin:-5px -5px 0 0;border-radius:50%;background:#fff}
+#lineBar .track i.nx{background:#f2b705;width:14px;height:14px;margin:-7px -7px 0 0;box-shadow:0 0 0 3px rgba(242,183,5,.4)}
+#lineBar .track .van{position:absolute;top:50%;transform:translate(50%,-55%);font-size:22px;transition:right .8s}
+#lineBar .lrow{display:flex;justify-content:space-between;gap:10px;margin-top:6px;font-size:18px}#lineBar .lrow span{color:var(--edge)}
+@media (max-height:500px){#lineBar{top:calc(env(safe-area-inset-top,0px) + 80px);width:40vw}#lineBar .lrow{font-size:15px}}
+@media (min-width:700px) and (min-height:501px){#lineBar{top:calc(env(safe-area-inset-top,0px) + 100px);width:min(520px,44vw)}}
+#lineNext{display:none}#lineBar .lrow{justify-content:center}
 #toast.good{color:var(--edge)}
 #toast.bad{border-color:var(--stop)}
 
@@ -222,7 +254,34 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
 </head>
 <body>
 
-<div id="loading"><span id="loadingText">بنجهّز الميناء…</span></div>
+<div id="loading" dir="rtl">
+  <div class="intro">
+    <svg class="emb" viewBox="0 0 400 400" aria-hidden="true">
+      <defs>
+        <radialGradient id="iSky" cx="50%" cy="38%" r="65%"><stop offset="0" stop-color="#ffcf6b"/><stop offset=".35" stop-color="#f08a4b"/><stop offset=".7" stop-color="#6a3f8f"/><stop offset="1" stop-color="#1c2150"/></radialGradient>
+        <clipPath id="iClip"><circle cx="200" cy="200" r="176"/></clipPath>
+      </defs>
+      <circle cx="200" cy="200" r="190" fill="#141a33"/>
+      <circle cx="200" cy="200" r="176" fill="url(#iSky)"/>
+      <g clip-path="url(#iClip)">
+        <circle class="sun" cx="200" cy="232" r="54" fill="#ffe08a"/>
+        <g class="gantry" fill="none" stroke="#ff7a1a" stroke-width="13" stroke-linejoin="round">
+          <path d="M70 300 L92 104 L308 104 L330 300"/><path d="M84 104 L316 104 L316 132 L84 132Z" fill="#ff7a1a"/>
+          <path d="M100 150 L300 150" stroke-width="5"/><path d="M200 132 L200 186" stroke-width="4" stroke="#2a2a2a"/>
+        </g>
+        <text x="200" y="124" text-anchor="middle" font-family="Arial,Helvetica" font-weight="700" font-size="15" fill="#fff" class="gtext">ALEXANDRIA PORT</text>
+        <path class="waves" d="M0 300 Q25 288 50 300 T100 300 T150 300 T200 300 T250 300 T300 300 T350 300 T400 300 V400 H0Z" fill="#1f6fb8"/>
+        <path class="waves w2" d="M0 318 Q25 306 50 318 T100 318 T150 318 T200 318 T250 318 T300 318 T350 318 T400 318 V400 H0Z" fill="#17558f"/>
+      </g>
+      <circle cx="200" cy="200" r="182" fill="none" stroke="#f2b705" stroke-width="10"/>
+      <circle cx="200" cy="200" r="190" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2"/>
+    </svg>
+    <img class="hero" src="./img/tuk-hero.png" alt="">
+    <div class="word"><b>توكتوك</b><span class="rib">الميناء</span></div>
+    <div class="sub">ميناء الإسكندرية • ترسانة الإسكندرية</div>
+    <div class="tap" id="introTap"><span id="loadingText">بنجهّز الميناء…</span></div>
+  </div>
+</div>
 <canvas id="game" tabindex="0" aria-label="مشهد اللعبة"></canvas>
 
 <div id="studio" dir="rtl" hidden><div class="sc">
@@ -249,6 +308,7 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
       <button class="chip" id="btnVoiceTest">جرّب صوت الحوار</button>
       <button class="chip" id="btnStudio">🎙️ استوديو الأصوات</button>
       <button class="chip" id="btnCtl">التحكم: جويستيك</button>
+      <button class="chip" id="btnVeh">العربية: توكتوك</button>
       <button class="chip" id="btnSens">الدركسيون: عادي</button>
       <button class="chip" id="install">📲 ثبّت اللعبة على الموبايل</button>
     </div>
@@ -264,7 +324,9 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
     <h2>الجراج</h2>
     <div class="walletline" id="garWallet"></div>
     <div class="paints" id="paints"></div>
-    <h2 style="font-size:22px">الكتابة على ضهر التوكتوك</h2>
+    <h2 style="font-size:22px">العربية</h2>
+    <div class="paints" id="vehicles"></div>
+    <h2 style="font-size:22px">الكتابة على الضهر</h2>
     <div class="paints" id="slogans"></div>
     <button class="pb go" id="garClose">تمام</button>
   </div>
@@ -303,6 +365,7 @@ body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
     <div class="notes" id="pNotes"></div>
     <div class="acts"><button class="clr" id="pClr">لمّ الفكة تاني</button><button class="ok" id="pOk">رجّع الباقي</button></div>
   </div>
+  <div id="lineBar" dir="rtl" hidden><div class="track"></div><div class="lrow"><span id="lineNext"></span><b id="lineSeats"></b></div></div>
   <div id="toast" hidden></div>
   <div id="dialog" hidden><span class="who" id="dWho"></span><span id="dText"></span></div>
   <div class="hint">W بنزين · S فرامل · A/D دركسيون · Shift تيربو · Space دريفت · H كلاكس · R راديو</div>

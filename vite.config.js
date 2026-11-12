@@ -12,6 +12,9 @@ export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(VERSION) },
   build: { target: 'es2020', assetsInlineLimit: 0, chunkSizeWarningLimit: 4000 },
   plugins: [{
+    name: 'html-version',   // the early update check in index.html compares against this
+    transformIndexHtml(html) { return html.replace(/%APP_VERSION%/g, VERSION); },
+  }, {
     name: 'write-version',
     writeBundle(opts) {
       const dir = opts.dir || 'dist';

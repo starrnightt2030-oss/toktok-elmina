@@ -2,6 +2,24 @@
 <html lang="ar">
 <head>
 <meta charset="utf-8">
+<meta name="app-version" content="%APP_VERSION%">
+<script>
+/* Forced update, independent of the game bundle:
+   - ?update=1  → drop this channel's service worker + caches and reload the newest build (the fast update link)
+   - otherwise  → compare this page's version with version.json right away and show the update screen before the game loads */
+(function(){var V='%APP_VERSION%',beta=/\/beta\//.test(location.pathname);
+function hard(){var here=new URL('./',location.href).href,p=[];
+ try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.filter(function(r){return r.scope===here;}).map(function(r){return r.unregister();}));}).catch(function(){}));}catch(e){}
+ try{if(window.caches)p.push(caches.keys().then(function(ks){return Promise.all(ks.filter(function(k){return beta?k.indexOf('toktok-beta-')===0:(k.indexOf('toktok-')===0&&k.indexOf('toktok-beta-')!==0);}).map(function(k){return caches.delete(k);}));}).catch(function(){}));}catch(e){}
+ var go=function(){location.replace(location.pathname+'?v='+Date.now());};Promise.all(p).then(go,go);setTimeout(go,4000);}
+window.__hardUpdate=hard;
+if(/[?&]update=1\b/.test(location.search)){document.documentElement.className+=' updating';hard();return;}
+if(V.charAt(0)==='%'||location.protocol==='file:')return;
+fetch('./version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){if(!j||!j.version||j.version===V)return;window.__updNeeded=j.version;
+ var show=function(){var u=document.getElementById('upd'),b=document.getElementById('updBtn');if(!u||!b){setTimeout(show,40);return;}document.getElementById('updVer').textContent='نسختك: '+V+' ← الجديدة: '+j.version;u.hidden=false;
+  if(!b.__h){b.__h=1;b.addEventListener('click',function(){b.disabled=true;b.textContent='بيحدّث…';hard();});}};show();}).catch(function(){});})();
+</script>
+<style>html.updating body>*{visibility:hidden}html.updating body::after{content:'بنحدّث لآخر نسخة…';position:fixed;inset:0;display:grid;place-items:center;background:#101B2D;color:#F5B928;font:28px Lalezar,Tahoma,sans-serif;z-index:999}</style>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./icons/icon-192.png">

@@ -1299,7 +1299,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.service
 let installEvt=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;$('install').classList.add('show');});
 $('install').addEventListener('click',async()=>{if(installEvt){installEvt.prompt();try{await installEvt.userChoice;}catch(_){}installEvt=null;$('install').classList.remove('show');}});
 if(/iphone|ipad/i.test(navigator.userAgent)&&!navigator.standalone){$('install').classList.add('show');$('install').addEventListener('click',()=>{if(!installEvt)toast('من Safari: زرار المشاركة ← "إضافة إلى الشاشة الرئيسية"');});}
-async function forceUpdate(){const b=$('updBtn');b.disabled=true;b.textContent='بيحدّث…';
+async function forceUpdate(){const b=$('updBtn');b.disabled=true;b.textContent='بيحدّث…';if(window.__hardUpdate){window.__hardUpdate();return;}
   /* only this channel's worker and caches: updating Beta never touches the main game, and the other way round */
   const here=new URL('./',location.href).href;
   try{const regs=await navigator.serviceWorker?.getRegistrations?.()||[];for(const r of regs)if(r.scope===here)await r.unregister();}catch(_){}

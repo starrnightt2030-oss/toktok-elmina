@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Alexandria Port Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=IBM+Plex+Sans+Arabic:wght@500;700&family=Big+Shoulders+Display:wght@800;900&display=swap">
+<style>
+:root{
+  /* Layout: full-bleed sunset city; chunky game HUD — icons + wallet + round GPS top-left, speed box top-right, nav card centre, joystick + pedal pads at the bottom */
+  --ink:#141a33; --panel:rgba(20,22,48,.84); --edge:#f2b705; --paper:#fff6e6; --muted:#b9b3cf;
+  --go:#3fbf5a; --stop:#d8433a; --turbo:#ee7a2a; --drift:#2f8fd0; --cyan:#3ec6ff;
+  --f-game:"Lalezar","IBM Plex Sans Arabic",Tahoma,sans-serif;
+  --f-body:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+  --f-num:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--ink);color:var(--paper);overflow:hidden;overscroll-behavior:none;font-family:var(--f-body);-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+#game{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none;outline:none}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
+button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.pn{background:var(--panel);border:2px solid rgba(242,183,5,.85);border-radius:12px}
+
+#loading{position:fixed;inset:0;display:grid;place-items:center;background:var(--ink);z-index:60;font:22px var(--f-game);color:var(--edge)}
+
+/* ---------- menu ---------- */
+#menu{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;overflow-y:auto;
+  padding:calc(env(safe-area-inset-top,0px) + 18px) max(18px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 22px) max(18px,env(safe-area-inset-left,0px));
+  background:linear-gradient(to top,rgba(20,18,44,.96) 0%,rgba(20,18,44,.55) 50%,rgba(20,18,44,0) 80%)}
+.mi{width:min(560px,100%);display:flex;flex-direction:column;gap:12px;text-align:center;align-items:center}
+.en{margin:0;font:900 clamp(15px,3.6vw,20px)/1 var(--f-num);letter-spacing:.24em;color:var(--edge);direction:ltr}
+.logo{margin:0;font:clamp(54px,15vw,96px)/1 var(--f-game);color:#fff;text-shadow:0 4px 0 #b4421c,0 8px 22px rgba(0,0,0,.5)}
+.logo span{color:var(--edge)}
+.tag{margin:0;font:500 15px/1.7 var(--f-body);color:#e9e2f4;max-width:44ch}
+.bigbtn{font:26px/1 var(--f-game);padding:16px 44px;border-radius:16px;background:var(--go);color:#fff;border:3px solid #c9ffd2;box-shadow:0 6px 0 #1f7a33,0 10px 24px rgba(0,0,0,.4)}
+.bigbtn:active{transform:translateY(3px);box-shadow:0 3px 0 #1f7a33}
+.row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.chip{font:16px var(--f-game);padding:9px 16px;border-radius:12px;background:var(--panel);border:2px solid rgba(242,183,5,.6)}
+.walletline{font:18px var(--f-game);color:var(--edge)}
+.keys{font:500 13px/1.9 var(--f-body);color:var(--muted)}
+kbd{font:700 11px ui-monospace,monospace;border:1px solid rgba(255,255,255,.3);border-bottom-width:2px;border-radius:4px;padding:0 5px;color:#fff}
+.note{margin:0;font:500 12px/1.7 var(--f-body);color:#a9a2c2;max-width:52ch}
+
+/* ---------- garage ---------- */
+#garage{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:rgba(14,12,32,.7);padding:18px}
+.gcard{max-height:calc(100vh - 36px);overflow-y:auto;width:min(420px,100%);padding:16px;display:flex;flex-direction:column;gap:10px}
+.gcard h2{margin:0;font:28px var(--f-game);color:var(--edge)}
+.paints{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.paint{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;border:2px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);font:16px var(--f-game);text-align:right}
+.paint i{width:30px;height:30px;border-radius:8px;flex:none;border:2px solid rgba(255,255,255,.5)}
+.paint small{display:block;font:600 12px var(--f-body);color:var(--muted)}
+.paint.sel{border-color:var(--edge);background:rgba(242,183,5,.14)}
+.paint.locked{opacity:.75}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+.pe{pointer-events:auto}
+.tl{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:calc(env(safe-area-inset-left,0px) + 10px);display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.icons{display:flex;gap:6px;direction:ltr}
+.ib{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;background:var(--panel);border:2px solid rgba(242,183,5,.85)}
+.ib svg{width:22px;height:22px}
+.ib.off{opacity:.5}
+.ib.on{background:#3b2f10}
+.wallet{padding:4px 12px 4px 12px;border-right:6px solid var(--edge);border-radius:8px;background:var(--panel);display:flex;align-items:baseline;gap:6px;direction:rtl}
+.wallet b{font:900 30px/1.1 var(--f-num);color:var(--edge);font-variant-numeric:tabular-nums}
+.wallet span{font:16px var(--f-game)}
+.total{padding:3px 12px;border-right:6px solid var(--edge);border-radius:8px;background:var(--panel);direction:rtl}
+.total div{font:14px var(--f-game);color:#fff}
+.total b{font:900 22px/1 var(--f-num);color:var(--edge)}
+#gps{width:150px;height:150px;border-radius:50%;border:4px solid var(--edge);display:block;background:#0f2433;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+
+.tr{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:calc(env(safe-area-inset-right,0px) + 10px);width:150px;padding:8px 12px 10px;border:3px solid var(--edge);border-radius:14px;background:rgba(14,14,30,.9);direction:ltr}
+.spd{display:flex;align-items:baseline;justify-content:center;gap:6px}
+.spd b{font:900 46px/1 var(--f-num);color:var(--edge);font-variant-numeric:tabular-nums;min-width:2ch;text-align:center}
+.spd span{font:800 15px var(--f-num);color:#fff}
+.bar{height:8px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;border-radius:5px;transition:width .2s}
+#turboBar{background:var(--cyan)}
+#fuelBar{background:linear-gradient(90deg,#f2b705,#ee7a2a)}
+.fuelrow{display:flex;align-items:center;gap:6px}
+.fuelrow svg{width:16px;height:16px;flex:none;color:#ff5a4a}
+.fuelrow .bar{flex:1;margin-top:0}
+.rev{font:14px var(--f-game);color:#ff9c7a;text-align:center;margin-top:2px}
+
+#nav{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;align-items:center;gap:12px;padding:8px 16px 8px 10px;border-radius:999px;border:3px solid var(--cyan);background:rgba(20,24,48,.9);direction:rtl;max-width:calc(100vw - 20px);white-space:nowrap}
+.navic{width:42px;height:42px;border-radius:50%;border:3px solid #2c8a52;display:grid;place-items:center;flex:none;background:#14283a}
+.navic svg{width:24px;height:24px;color:var(--go);transition:transform .2s}
+#navName{font:22px var(--f-game);color:var(--cyan);overflow:hidden;text-overflow:ellipsis;min-width:0}
+#navTime{font:900 28px/1 var(--f-num);color:var(--edge);direction:ltr}
+#navTime.late{color:#ff6a5a}
+#navDist{font:18px var(--f-game);color:#fff;direction:rtl}
+
+#speedfx{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;background:repeating-conic-gradient(from 0deg at 50% 58%,rgba(255,255,255,0) 0deg 2.6deg,rgba(255,255,255,.28) 2.6deg 3deg);-webkit-mask:radial-gradient(circle at 50% 58%,transparent 32%,#000 78%);mask:radial-gradient(circle at 50% 58%,transparent 32%,#000 78%)}
+#toast{position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);padding:10px 22px;font:26px var(--f-game);border-radius:14px;background:rgba(20,22,48,.88);border:3px solid var(--edge);color:#fff;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;text-align:center}
+#toast.good{color:var(--edge)}
+#toast.bad{border-color:var(--stop)}
+
+#dialog{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 22px);width:min(92vw,560px);padding:10px 14px;display:flex;gap:10px;align-items:flex-start;direction:rtl;border-radius:14px;background:rgba(20,22,48,.9);border:2px solid rgba(255,255,255,.18)}
+.who{flex:none;font:15px/1.7 var(--f-game);padding:0 10px;border-radius:8px;background:var(--drift);color:#fff}
+.who.d{background:var(--edge);color:var(--ink)}
+#dText{font:700 16.5px/1.6 var(--f-body);min-width:0}
+
+#onair{position:fixed;right:calc(env(safe-area-inset-right,0px) + 10px);top:calc(env(safe-area-inset-top,0px) + 132px);max-width:200px;padding:5px 10px;font:600 12px/1.5 var(--f-body);color:#ffd98a;border-radius:10px;background:rgba(20,22,48,.8);direction:rtl}
+#onair::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff5a2a;margin-left:6px;box-shadow:0 0 6px #ff5a2a}
+
+/* radio */
+#radio{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,400px);padding:14px;pointer-events:auto;z-index:20;direction:rtl;border-radius:16px;background:rgba(20,22,48,.95);border:3px solid var(--edge)}
+.rhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.rhead h3{margin:0;font:24px var(--f-game);color:var(--edge)}
+.sm{font:15px var(--f-game);padding:5px 12px;border-radius:10px;border:2px solid rgba(255,255,255,.25)}
+.sm[aria-pressed="true"]{background:var(--stop);border-color:var(--stop)}
+.dial{position:relative;height:42px;border-radius:8px;background:linear-gradient(#2b1d11,#1a120a);border:2px solid #6a5034;overflow:hidden;direction:ltr}
+.dial .ticks{position:absolute;left:10px;right:10px;top:6px;height:12px;background:repeating-linear-gradient(90deg,rgba(242,214,150,.6) 0 1px,transparent 1px 9px)}
+.dial .lbl{position:absolute;bottom:4px;font:700 10px var(--f-body);color:#e1c07e;transform:translateX(-50%);white-space:nowrap}
+.dial .glow{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 120%,rgba(255,170,60,.3),transparent 70%)}
+.needle{position:absolute;top:2px;bottom:2px;width:3px;background:#ff5a2a;box-shadow:0 0 8px #ff5a2a;transition:left .7s cubic-bezier(.3,1.4,.5,1)}
+.stations{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.st{padding:8px 6px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);font:15px/1.3 var(--f-game);min-height:50px}
+.st.on{border-color:var(--edge);background:rgba(242,183,5,.16);color:var(--edge)}
+.rrow{display:flex;align-items:center;gap:10px;margin-top:10px;font:15px var(--f-game)}
+.rrow input{flex:1;accent-color:var(--edge);min-width:0}
+.rnote{font:500 12.5px/1.6 var(--f-body);color:var(--muted);margin:8px 0 0}
+.linkbtn{width:100%;margin-top:8px;padding:8px;border-radius:10px;border:2px dashed rgba(255,255,255,.3);font:15px var(--f-game)}
+
+/* pause */
+#pause{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(14,12,32,.6);padding:20px}
+.pcard{width:min(340px,100%);padding:18px;display:flex;flex-direction:column;gap:10px;direction:rtl}
+.pcard h2{margin:0 0 4px;font:30px var(--f-game);color:var(--edge);text-align:center}
+.pb{padding:12px;border-radius:12px;font:19px var(--f-game);background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.18)}
+.pb.go{background:var(--go);border-color:#c9ffd2}
+
+/* touch controls */
+.touch{display:none}
+body.is-touch .touch{display:block}
+#joy{position:fixed;left:calc(env(safe-area-inset-left,0px) + 16px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:156px;height:156px;border-radius:50%;border:3px solid rgba(242,183,5,.7);background:rgba(20,22,48,.35);touch-action:none}
+#joy::before,#joy::after{position:absolute;top:50%;transform:translateY(-50%);font:22px var(--f-game);color:rgba(255,255,255,.75)}
+#joy::before{content:"◀";left:14px}#joy::after{content:"▶";right:14px}
+#knob{position:absolute;left:50%;top:50%;width:66px;height:66px;margin:-33px 0 0 -33px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe27a,#f2b705 55%,#c98d00);box-shadow:0 4px 10px rgba(0,0,0,.4)}
+.pads{position:fixed;right:calc(env(safe-area-inset-right,0px) + 12px);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:grid;grid-template-columns:86px 86px;grid-template-rows:64px 82px;gap:10px;direction:ltr}
+.pad{border-radius:16px;font:21px var(--f-game);color:#fff;border:3px solid rgba(255,255,255,.55);touch-action:none;text-shadow:0 2px 0 rgba(0,0,0,.35);box-shadow:0 5px 0 rgba(0,0,0,.35)}
+.pad.on{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.35);filter:brightness(1.2)}
+.pad.drift{background:linear-gradient(#45a6e6,#2a7cb8);grid-column:1;grid-row:1}
+.pad.turbo{background:linear-gradient(#f39a4c,#d9611c);grid-column:2;grid-row:1}
+.pad.brake{background:linear-gradient(#e2574d,#b83229);grid-column:1;grid-row:2}
+.pad.brake.revmode{background:linear-gradient(#9aa0a8,#6d737b)}
+.pad.gas{background:linear-gradient(#4fd06a,#2f9a47);grid-column:2;grid-row:2}
+body.is-touch #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 186px)}
+.hint{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);left:50%;transform:translateX(-50%);font:600 12px var(--f-body);color:rgba(255,255,255,.65);white-space:nowrap;direction:rtl}
+body.is-touch .hint{display:none}
+body:not(.is-touch) #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 34px)}
+@media (max-width:420px){
+  .ib{width:36px;height:36px;border-radius:10px}.ib svg{width:18px;height:18px}.icons{gap:5px}
+  #gps{width:124px;height:124px}
+  .tr{width:112px;padding:6px 9px 8px}.spd b{font-size:36px}
+  .wallet b{font-size:25px}
+  #nav{left:auto;right:calc(env(safe-area-inset-right,0px) + 10px);transform:none;top:calc(env(safe-area-inset-top,0px) + 112px);max-width:calc(100vw - 160px);flex-wrap:wrap;gap:2px 8px;padding:6px 10px;border-radius:16px}.navic{width:30px;height:30px;border-width:2px}.navic svg{width:18px;height:18px}#navName{font-size:16px;flex:1 1 100%;order:-1;white-space:normal;line-height:1.3}#navTime{font-size:20px}#navDist{font-size:15px}
+  #onair{top:calc(env(safe-area-inset-top,0px) + 205px)}
+}
+@media (max-height:500px){
+  #gps{width:104px;height:104px}
+  #nav{top:calc(env(safe-area-inset-top,0px) + 10px);left:50%;right:auto;transform:translateX(-50%);max-width:46vw}
+  #onair{display:none}
+  #joy{width:128px;height:128px}
+  body.is-touch #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 10px);width:calc(100vw - 420px);min-width:200px}
+}
+@media (prefers-reduced-motion:reduce){.needle{transition:none}}
+</style>
+</head>
+<body>
+
+<div id="loading"><span id="loadingText">بنجهّز الميناء…</span></div>
+<canvas id="game" tabindex="0" aria-label="مشهد اللعبة"></canvas>
+
+<div id="menu" dir="rtl" hidden>
+  <div class="mi">
+    <p class="en">ALEXANDRIA PORT SIMULATOR</p>
+    <h1 class="logo">توكتوك <span>الميناء</span></h1>
+    <p class="tag">لِف بالتوكتوك في شوارع الميناء والترسانة ومركز التدريب، لِم الزباين، فوّل بنزين، وزوّق توكتوكك من فلوس الوردية. والراديو شغال على إذاعات زمان.</p>
+    <div class="walletline" id="menuWallet"></div>
+    <button class="bigbtn" id="btnStart">ابدأ الوردية</button>
+    <div class="row">
+      <button class="chip" id="btnGarage">الجراج</button>
+      <button class="chip" id="btnQuality">الرسوم: عالية</button>
+      <button class="chip" id="btnVoice">صوت الحوار: شغال</button>
+      <button class="chip" id="btnVoiceTest">جرّب صوت الحوار</button>
+      <button class="chip" id="btnCtl">التحكم: جويستيك</button>
+      <button class="chip" id="btnSens">الدركسيون: عادي</button>
+    </div>
+    <p class="note" id="voiceNote" hidden></p>
+    <div class="keys"><kbd>W</kbd> بنزين · <kbd>S</kbd> فرامل/رجوع · <kbd>A</kbd><kbd>D</kbd> دركسيون · <kbd>Shift</kbd> تيربو · <kbd>Space</kbd> دريفت · <kbd>H</kbd> كلاكس · <kbd>R</kbd> راديو · <kbd>C</kbd> كاميرا</div>
+    <p class="note">لو بتلعب من آيفون: اقفل زرار الصامت عشان الراديو والأصوات تشتغل.</p>
+    <p class="note">نموذج مستوحى من أجواء ميناء الإسكندرية وترسانتها. الشوارع والمباني تقريبية ومش مطابقة للخرايط. الإذاعات محاكاة لروح زمان، وتقدر تشغّل تسجيلاتك عليها.</p>
+  </div>
+</div>
+
+<div id="garage" dir="rtl" hidden>
+  <div class="gcard pn">
+    <h2>الجراج</h2>
+    <div class="walletline" id="garWallet"></div>
+    <div class="paints" id="paints"></div>
+    <h2 style="font-size:22px">الكتابة على ضهر التوكتوك</h2>
+    <div class="paints" id="slogans"></div>
+    <button class="pb go" id="garClose">تمام</button>
+  </div>
+</div>
+
+<div id="hud" hidden>
+  <div id="speedfx"></div>
+  <div class="tl">
+    <div class="icons">
+      <button class="ib pe" id="bPause" aria-label="إيقاف"><svg viewBox="0 0 24 24" fill="#fff"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+      <button class="ib pe" id="bCam" aria-label="الكاميرا"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+      <button class="ib pe" id="bMute" aria-label="الصوت"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M4 10v4h3l6 4V6L7 10z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11" stroke-linecap="round"/></svg></button>
+      <button class="ib pe" id="bRadio" aria-label="الراديو"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M7 8 17 3"/><circle cx="15.5" cy="14" r="2.6"/><path d="M6.5 12.5h3.5M6.5 15.5h3.5"/></svg></button>
+      <button class="ib pe" id="bHorn" aria-label="كلاكس"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M3 10v4l13 5V5z"/><path d="M19 9v6" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="wallet"><b id="wallet">0</b><span>ج.م</span></div>
+    <div class="total"><div>إجمالي الأرباح</div><b id="total">0</b> <span style="font:14px var(--f-game)">ج.م</span></div>
+    <canvas id="gps" width="150" height="150"></canvas>
+  </div>
+
+  <div class="tr">
+    <div class="spd"><b id="speed">0</b><span>km/h</span></div>
+    <div class="bar"><i id="turboBar" style="width:100%"></i></div>
+    <div class="fuelrow" style="margin-top:6px"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3h9v18H4zM6 5v5h5V5zm9 3 3 3v7a1.5 1.5 0 0 0 3 0v-8l-3-3-1 1 1.5 1.5V18h-1v-6l-2.5-2.5z"/></svg><div class="bar"><i id="fuelBar" style="width:100%"></i></div></div>
+    <div class="rev" id="revTag" hidden>رجوع</div>
+  </div>
+
+  <div id="onair" hidden></div>
+  <div id="nav" hidden><div class="navic"><svg id="navArrow" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 4 13h5v8h6v-8h5z"/></svg></div><span id="navName"></span><b id="navTime"></b><span id="navDist"></span></div>
+  <div id="toast" hidden></div>
+  <div id="dialog" hidden><span class="who" id="dWho"></span><span id="dText"></span></div>
+  <div class="hint">W بنزين · S فرامل · A/D دركسيون · Shift تيربو · Space دريفت · H كلاكس · R راديو</div>
+
+  <div id="radio" hidden>
+    <div class="rhead"><h3>راديو التوكتوك</h3><div class="row"><button class="sm" id="rPower" aria-pressed="false">مقفول</button><button class="sm" id="rClose">إخفاء</button></div></div>
+    <div class="dial" aria-hidden="true"><div class="glow"></div><div class="ticks"></div>
+      <span class="lbl" style="left:17%">القرآن الكريم</span><span class="lbl" style="left:50%">الشرق الأوسط</span><span class="lbl" style="left:83%">نجوم FM</span>
+      <div class="needle" id="needle" style="left:83%"></div></div>
+    <div class="stations" id="stations"></div>
+    <div class="rrow"><span>الصوت</span><input type="range" id="rVol" min="0" max="100" value="70" aria-label="صوت الراديو"></div>
+    <p class="rnote" id="rNote"></p>
+    <div class="rrow"><input id="rUrl" type="url" placeholder="أو الصق رابط بث مباشر للمحطة دي" style="flex:1;min-width:0;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.06);color:#fff;font:600 13px var(--f-body);direction:ltr"><button class="sm" id="rUrlSave">حفظ</button></div>
+    <button class="linkbtn" id="rLoad">شغّل تسجيل من جهازك</button>
+    <input type="file" id="rFile" accept="audio/*" hidden>
+  </div>
+
+  <div class="touch">
+    <div id="joy" class="pe"><div id="knob"></div></div>
+    <div class="pads">
+      <button class="pad drift pe" data-in="drift">دريفت</button>
+      <button class="pad turbo pe" data-in="turbo">تيربو</button>
+      <button class="pad brake pe" data-in="down" id="brakePad">فرامل</button>
+      <button class="pad gas pe" data-in="up">بنزين</button>
+    </div>
+  </div>
+</div>
+
+<div id="pause" dir="rtl" hidden>
+  <div class="pcard pn">
+    <h2>استراحة</h2>
+    <button class="pb go" id="pResume">كمّل الوردية</button>
+    <button class="pb" id="pReset">رجّعني للطريق</button>
+    <button class="pb" id="pMenu">القائمة الرئيسية</button>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

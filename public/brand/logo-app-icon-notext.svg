@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs><linearGradient id="bgB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2c48"/><stop offset=".6" stop-color="#101B2D"/><stop offset="1" stop-color="#0a1220"/></linearGradient>
+    <linearGradient id="sB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9a52" stop-opacity="0"/><stop offset="1" stop-color="#ff8a4a" stop-opacity=".55"/></linearGradient>
+    <clipPath id="rB"><rect width="1024" height="1024" rx="224"/></clipPath></defs><g clip-path="url(#rB)"><rect width="1024" height="1024" fill="url(#bgB)"/><rect y="300" width="1024" height="212" fill="url(#sB)"/><g transform="translate(120 512) scale(1.5)" stroke="#C87938" stroke-width="9" fill="none" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M0 0 L20 -150 L60 -150 L80 0 M20 -150 L40 -260 L60 -150 M30 -80 L70 -80 M10 -40 L74 -110 M70 -40 L6 -110"/>
+  <path d="M-120 -170 L260 -170 M-120 -185 L260 -185 M-120 -170 L-120 -185 M40 -260 L-110 -185 M40 -260 L240 -185"/>
+  <path d="M-80 -170 L-60 -185 L-40 -170 L-20 -185 L0 -170 M100 -170 L120 -185 L140 -170 L160 -185 L180 -170 L200 -185 L220 -170"/>
+  <path d="M150 -170 L150 -110 M140 -110 h20"/></g><rect y="508" width="1024" height="10" fill="#C87938" opacity=".7"/><g transform="translate(212 140) scale(1.5)">
+  <defs><radialGradient id="hlB2" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#fff3c4"/><stop offset="1" stop-color="#ffcf4a"/></radialGradient>
+  <radialGradient id="hgB2" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff2b0" stop-opacity=".9"/><stop offset="1" stop-color="#ffcf4a" stop-opacity="0"/></radialGradient>
+  <linearGradient id="bdB2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD453"/><stop offset=".55" stop-color="#F5B928"/><stop offset="1" stop-color="#D98E12"/></linearGradient>
+  <linearGradient id="glB2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a5878"/><stop offset="1" stop-color="#0d1828"/></linearGradient></defs>
+  <path d="M58 92 Q200 52 342 92 L348 112 Q200 84 52 112 Z" fill="#14161b"/>
+  <rect x="50" y="98" width="300" height="16" rx="6" fill="#1d2027"/>
+  <path d="M62 110 h12 l-8 150 h-12 Z M338 110 h-12 l8 150 h12 Z" fill="#14161b"/>
+  <g stroke="#14161b" stroke-width="7" fill="none"><path d="M78 128 Q40 120 26 150"/><path d="M322 128 Q360 120 374 150"/></g>
+  <ellipse cx="22" cy="160" rx="16" ry="22" fill="#14161b"/><ellipse cx="378" cy="160" rx="16" ry="22" fill="#14161b"/>
+  <ellipse cx="22" cy="160" rx="10" ry="15" fill="#7d9bb8"/><ellipse cx="378" cy="160" rx="10" ry="15" fill="#7d9bb8"/>
+  <path d="M96 120 L304 120 Q322 122 324 140 L314 236 L86 236 L76 140 Q78 122 96 120 Z" fill="#14161b"/>
+  <path d="M104 130 L296 130 Q310 132 311 146 L303 224 L97 224 L89 146 Q90 132 104 130 Z" fill="url(#glB2)"/>
+  <path d="M118 134 L170 134 L128 220 L104 220 Z" fill="#ffffff" opacity=".13"/>
+  <path d="M84 232 L316 232 Q338 236 336 262 L314 330 Q306 352 276 356 L124 356 Q94 352 86 330 L64 262 Q62 236 84 232 Z" fill="url(#bdB2)" stroke="#14161b" stroke-width="6"/>
+  <path d="M90 246 L310 246" stroke="#ffffff" stroke-opacity=".45" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="200" cy="290" r="78" fill="url(#hgB2)"/>
+  <circle cx="200" cy="290" r="36" fill="#14161b"/><circle cx="200" cy="290" r="28" fill="url(#hlB2)"/>
+  <rect x="96" y="276" width="34" height="18" rx="5" fill="#ff9a1f" stroke="#14161b" stroke-width="4"/><rect x="270" y="276" width="34" height="18" rx="5" fill="#ff9a1f" stroke="#14161b" stroke-width="4"/>
+  <rect x="168" y="334" width="64" height="18" rx="3" fill="#F5F1E8" stroke="#14161b" stroke-width="3"/>
+  <path d="M146 362 Q200 340 254 362 L248 378 Q200 362 152 378 Z" fill="#14161b"/>
+  <rect x="172" y="364" width="56" height="54" rx="18" fill="#1d2027"/><rect x="182" y="372" width="36" height="38" rx="10" fill="#3a3d44"/>
+</g><rect x="10" y="10" width="1004" height="1004" rx="216" fill="none" stroke="#F5B928" stroke-width="20"/></g></svg>

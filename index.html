@@ -150,8 +150,10 @@ kbd{font:700 11px ui-monospace,monospace;border:1px solid rgba(255,255,255,.3);b
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .mlogo{width:min(250px,56vw,36vh);margin-bottom:-4px;filter:drop-shadow(0 10px 16px rgba(0,0,0,.5));animation:mfloat 3s ease-in-out infinite}
 @keyframes mfloat{50%{transform:translateY(-6px) rotate(-1deg)}}
-.vpick{display:flex;gap:8px;background:rgba(0,0,0,.3);padding:5px;border-radius:16px;border:2px solid rgba(255,255,255,.12)}
-.vpick button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 16px;border-radius:12px;border:0;background:transparent;color:#cfd3ef;font:18px var(--f-game);min-width:132px}
+.vpick{display:flex;width:100%;gap:8px;background:rgba(0,0,0,.3);padding:5px;border-radius:16px;border:2px solid rgba(255,255,255,.12)}
+.vpick button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 12px;border-radius:12px;border:0;background:transparent;color:#cfd3ef;font:18px var(--f-game);min-width:132px}
+.vpick button img{height:clamp(54px,9vh,78px);width:auto;margin-bottom:2px;filter:drop-shadow(0 4px 5px rgba(0,0,0,.45));transition:transform .2s}
+.vpick button[aria-checked="true"] img{transform:scale(1.08) translateY(-2px)}
 .vpick button small{font:600 11px var(--f-body);color:var(--muted)}
 .vpick button[aria-checked="true"]{background:linear-gradient(#ffd54a,#f2b705);color:#2a1d00;box-shadow:0 3px 0 #a37800}
 .vpick button[aria-checked="true"] small{color:#5a4300}

@@ -843,7 +843,7 @@ function updateLine(dt){if(!line)lineInit();const k=line.stops[line.idx],p=POI[k
   for(const c of line.crowd)c.m.rotation.y=Math.atan2(-(car.x-c.m.position.x),-(car.z-c.m.position.z))+Math.PI;
   if(line.phase==='drive'){
     if(!line.announced&&d<90){line.announced=true;const down=line.riders.filter(r=>r.dest===line.idx);if(down.length)dlgPush([['p',pick(L_DOWN)]],down[0].pax);}
-    if(d<7){if(Math.abs(car.v)<1.4){line.phase='stop';line.wait=.8;}else if(stopHint<=0){toast('هدّي ووقّف في المحطة');stopHint=3;}}
+    if(Math.min(d,Math.hypot(p.x+p.sx-car.x,p.z+p.sz-car.z))<PICK_R+1){if(Math.abs(car.v)<2.2){line.phase='stop';line.wait=.8;}else if(stopHint<=0){toast('هدّي ووقّف في المحطة');stopHint=3;}}
     return;}
   if(line.phase==='stop'){line.wait-=dt;if(line.wait>0)return;
     const down=line.riders.filter(r=>r.dest===line.idx);down.forEach(r=>{if(vanSeats[r.seat])vanSeats[r.seat].clear();save.trips++;});line.riders=line.riders.filter(r=>r.dest!==line.idx);
@@ -889,7 +889,7 @@ function interactions(dt){walkCd-=dt;hailCd-=dt;const quiet=!Dlg.cur&&!Dlg.q.len
   if(walkCd<=0&&Math.abs(car.v)>5&&Dlg.q.length<2){for(const w of walkers){if(Math.hypot(w.m.position.x-car.x,w.m.position.z-car.z)<2.6){dlgPush([['p',pick(WALK_L)]],WALKER);walkCd=10;break;}}}
   if(!fare&&hailCd<=0&&quiet){for(const w of waiting){const p=POI[w.poi],d=Math.hypot(p.x-car.x,p.z-car.z);if(!w.hailed&&d>12&&d<35){w.hailed=true;dlgPush([['p',pick(HAIL_L)]],{name:w.name,pitch:w.type.pitch,female:w.type.female});hailCd=12;break;}}}
   if(fare&&fare.phase==='ride'){const a=areaOf(car.x,car.z);if(a!==fare.area){fare.area=a;if(Math.random()<.6&&quiet)dlgPush([['p',pick(AREA_C[a])]],fare.pax);}}}
-const waiting=[];let fare=null;const MAXW=6;
+const PICK_R=12;const waiting=[];let fare=null;const MAXW=6;
 const beamMat=new T.MeshBasicMaterial({color:'#fff1c8',transparent:true,opacity:.22,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide});
 const beamGeo=new T.CylinderGeometry(1.6,1.6,60,20,1,true);beamGeo.translate(0,30,0);
 let destBeam,destRing;
@@ -943,10 +943,10 @@ let nearMsgT=0,stopHint=0;
 function updateFares(dt){interactions(dt);if(isVan){updateLine(dt);return;}for(let i=0;i<3&&waiting.length<MAXW;i++)spawnWaiting();
   for(const w of waiting){w.m.rotation.y=Math.atan2(-(car.x-w.m.position.x),-(car.z-w.m.position.z))+Math.PI;}
   if(fare){if(fare.phase!=='pay')fare.t+=dt;if(fare.phase==='board'){fare.wait-=dt;if(fare.wait<=0&&!Dlg.q.length)fare.phase='ride';}
-    else if(fare.phase==='ride'){const p=POI[fare.to],d=Math.hypot(p.x-car.x,p.z-car.z);if(d<5.5){if(Math.abs(car.v)<1.4){if(fare.phase!=='pay')startPay();return;}else if(stopHint<=0){toast('هدّي ووقّف عند العمود');stopHint=3;}}
+    else if(fare.phase==='ride'){const p=POI[fare.to],d=Math.min(Math.hypot(p.x-car.x,p.z-car.z),Math.hypot(p.x+p.sx-car.x,p.z+p.sz-car.z));if(d<PICK_R){if(Math.abs(car.v)<2.2){if(fare.phase!=='pay')startPay();return;}else if(stopHint<=0){toast('هدّي ووقّف عند العمود');stopHint=3;}}
       fare.chat-=dt;if(fare.chat<=0&&!Dlg.cur&&!Dlg.q.length){dlgPush([['p',radio.on&&Math.random()<.3?pick(RADIO_L):pick(fare.pax.ride)]],fare.pax);fare.chat=rand(14,22);}
       fare.fastCd-=dt;if(Math.abs(car.v)*3.6>70&&fare.fastCd<=0){fare.fastCd=10;fare.fast++;dlgPush([['p',pick(FAST_L)]],fare.pax);}}}
-  else{for(const w of waiting){const p=POI[w.poi];if(Math.hypot(p.x-car.x,p.z-car.z)<5.5){if(Math.abs(car.v)<1.4){startFare(w);break;}else if(stopHint<=0){toast('وقّف عشان الزبون يركب');stopHint=3;}}}}
+  else{for(const w of waiting){const p=POI[w.poi];const d=Math.min(Math.hypot(p.x-car.x,p.z-car.z),Math.hypot(p.x+p.sx-car.x,p.z+p.sz-car.z));if(d<PICK_R){if(Math.abs(car.v)<2.2){startFare(w);break;}else if(stopHint<=0){toast('هدّي ووقّف جنب الزبون');stopHint=3;}}else if(d<PICK_R+14&&stopHint<=0&&Math.abs(car.v)>2.2){toast('الزبون قدامك، هدّي');stopHint=4;}}}
   stopHint-=dt;
   /* fuel stations */
   let near=null;for(const s of STATIONS_F){if(Math.hypot(s.sx-car.x,s.sz-car.z)<8)near=s;}
@@ -1020,6 +1020,8 @@ addEventListener('keyup',e=>{const k=KEY[e.code];if(k)input[k]=0;if(e.code==='Ke
 addEventListener('blur',releaseAll);
 ['pointerdown','touchend','keydown'].forEach(ev=>addEventListener(ev,()=>{if(A.ctx&&A.ctx.state!=='running'&&state==='play')A.ctx.resume().catch(()=>{});},{passive:true}));
 setInterval(()=>{if(state==='play'&&A.ctx&&A.ctx.state!=='running'&&radio.on){toast('المس الشاشة مرة عشان الصوت يشتغل');}},6000);
+['arrL','arrR'].forEach(id=>{const b=$(id),k=id==='arrL'?'left':'right';const on=e=>{e.preventDefault();steerKeys[k]=1;input.steerKey=steerKeys.left-steerKeys.right;b.classList.add('on');try{b.setPointerCapture(e.pointerId);}catch(_){}};
+  const off=()=>{steerKeys[k]=0;input.steerKey=steerKeys.left-steerKeys.right;b.classList.remove('on');};b.addEventListener('pointerdown',on);['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,off));b.addEventListener('contextmenu',e=>e.preventDefault());});
 function releaseAll(){for(const k in input)input[k]=0;steerKeys.left=steerKeys.right=0;document.querySelectorAll('.pad.on').forEach(b=>b.classList.remove('on'));wheelAng=0;$('knob').style.transform='';}
 document.querySelectorAll('[data-in]').forEach(b=>{const k=b.dataset.in;const on=e=>{e.preventDefault();input[k]=1;b.classList.add('on');try{b.setPointerCapture(e.pointerId);}catch(_){}};const off=()=>{input[k]=0;b.classList.remove('on');};
   b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('lostpointercapture',off);b.addEventListener('contextmenu',e=>e.preventDefault());});
@@ -1054,8 +1056,9 @@ function resumeGame(){$('pause').hidden=true;state='play';if(liveEl&&radio.live)
 $('pResume').addEventListener('click',resumeGame);$('pReset').addEventListener('click',()=>{resetToRoad();resumeGame();toast('رجعناك للطريق');});
 $('pMenu').addEventListener('click',()=>{if(liveEl)liveEl.pause();$('pause').hidden=true;$('hud').hidden=true;$('menu').hidden=false;state='menu';dlgClear();menuWallet();$('btnStart').textContent='كمّل الوردية';});
 $('btnStart').addEventListener('click',startGame);
-function ctlUI(){$('btnCtl').textContent='التحكم: '+(ctl.mode==='tilt'?'إمالة الموبايل':'الدركسيون');$('btnSens').textContent='الدركسيون: '+({0.7:'تقيل',1:'عادي',1.35:'خفيف'}[ctl.sens]||'عادي');}
-$('btnCtl').addEventListener('click',async()=>{if(ctl.mode!=='tilt'){try{if(window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission){const r=await DeviceOrientationEvent.requestPermission();if(r!=='granted'){toast('الموبايل رفض الإمالة');return;}}}catch(e){}ctl.mode='tilt';}else ctl.mode='touch';saveCtl();ctlUI();});
+function ctlUI(){document.body.classList.toggle('ctl-arrows',ctl.mode==='arrows');$('btnCtl').textContent='التحكم: '+({tilt:'إمالة الموبايل',arrows:'الأسهم'}[ctl.mode]||'الدركسيون');$('btnSens').textContent='الدركسيون: '+({0.7:'تقيل',1:'عادي',1.35:'خفيف'}[ctl.sens]||'عادي');}
+async function setCtl(m){if(m==='tilt'){try{if(window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission){const r=await DeviceOrientationEvent.requestPermission();if(r!=='granted'){toast('الموبايل رفض الإمالة');return;}}}catch(e){}}ctl.mode=m;saveCtl();ctlUI();}
+$('btnCtl').addEventListener('click',()=>setCtl(ctl.mode==='touch'?'arrows':(ctl.mode==='arrows'?'tilt':'touch')));
 $('btnSens').addEventListener('click',()=>{ctl.sens=ctl.sens===1?1.35:(ctl.sens===1.35?0.7:1);saveCtl();ctlUI();});
 ctlUI();
 $('btnVoiceTest').addEventListener('click',()=>{const n=$('voiceNote');n.hidden=false;if(Speech.mode!=='browser'){initAudio();if(A.ctx&&A.ctx.state!=='running')A.ctx.resume();const ln=pick(INTRO_P).replace('{d}','مركز التدريب');VO.speak(ln,{pitch:1});n.textContent=VO.find(ln)&&VO.mine.has(VO.find(ln).key)?'ده صوتك المتسجّل 🎙️':'دي أصوات اللعبة المرحة. سجّل أصوات مصرية حقيقية من «استوديو الأصوات».';return;}pickVoices();
@@ -1091,7 +1094,7 @@ $('btnVeh').addEventListener('click',()=>setVehicle(save.vehicle==='van'?'tuk':'
 /* ============ settings panel ============ */
 function seg(id,opts,get,set){const el=$(id);const draw=()=>{el.innerHTML='';opts.forEach(([v,lab])=>{const b=document.createElement('button');b.textContent=lab;b.setAttribute('aria-pressed',String(get()===v));b.addEventListener('click',async()=>{if(get()!==v){await set(v);}draw();});el.appendChild(b);});};draw();return draw;}
 const segDraw=[];
-segDraw.push(seg('segCtl',[['touch','الدركسيون'],['tilt','إمالة الموبايل']],()=>ctl.mode==='tilt'?'tilt':'touch',v=>new Promise(r=>{$('btnCtl').click();setTimeout(r,350);})));
+segDraw.push(seg('segCtl',[['touch','الدركسيون'],['arrows','الأسهم'],['tilt','الإمالة']],()=>ctl.mode,v=>setCtl(v)));
 segDraw.push(seg('segSens',[[0.7,'تقيل'],[1,'عادي'],[1.35,'خفيف']],()=>ctl.sens,v=>{ctl.sens=v;saveCtl();ctlUI();}));
 segDraw.push(seg('segVoice',[['game','أصوات اللعبة'],['browser','المتصفح'],['off','مقفول']],()=>Speech.mode,v=>{while(Speech.mode!==v)$('btnVoice').click();}));
 segDraw.push(seg('segQ',[['high','عالية'],['med','خفيفة']],()=>quality,v=>{$('btnQuality').click();}));
@@ -1146,11 +1149,29 @@ checkUpdate();setInterval(checkUpdate,3*60*1000);document.addEventListener('visi
 
 /* ============ intro ============ */
 let introT0=performance.now();
-function introReady(){const L=$('loading');L.classList.add('ready');loadingText.textContent='👆 اضغط عشان تبدأ';
-  let played=false,done=false;
-  const finish=()=>{if(done)return;done=true;removeEventListener('keydown',go);L.classList.add('out');$('menu').hidden=false;setTimeout(()=>{L.hidden=true;},500);};
-  const go=()=>{if(played){finish();return;}played=true;initAudio();if(A.ctx)A.ctx.resume().catch(()=>{});L.classList.add('play');introEngine();setTimeout(()=>{if(!done)playSiren();},1150);setTimeout(finish,4200);};
+function introFit(){document.documentElement.style.setProperty('--fit',(innerWidth/(innerHeight*1672/941)).toFixed(3));}introFit();addEventListener('resize',introFit);
+function introReady(){const L=$('loading');$('loadBar').style.width='100%';L.classList.add('ready');loadingText.textContent='👆 اضغط عشان تبدأ';
+  let played=false,done=false;const timers=[];
+  const finish=()=>{if(done)return;done=true;timers.forEach(clearTimeout);removeEventListener('keydown',go);if(introAmb)try{introAmb.stop();}catch(_){}L.classList.add('out');$('menu').hidden=false;setTimeout(()=>{L.hidden=true;},600);};
+  const at=(ms,f)=>timers.push(setTimeout(()=>{if(!done)f();},ms));
+  const go=()=>{if(played){finish();return;}played=true;initAudio();if(A.ctx)A.ctx.resume().catch(()=>{});L.classList.add('play');
+    at(0,()=>sfxWhoosh(.9,.35));at(560,sfxBoom);at(1100,()=>sfxChime(0));at(1350,()=>sfxChime(1));at(1650,()=>sfxChime(2));at(1900,playSiren);
+    at(2950,()=>sfxWhoosh(.7,.5));at(3150,introEngine);at(3300,sfxWaves);at(3500,sfxGull);at(4300,sfxGull);at(5600,sfxHorn);at(8600,finish);};
   L.addEventListener('pointerdown',go);addEventListener('keydown',go);}
+function introProgress(p){const b=$('loadBar');if(b)b.style.width=Math.round(p*100)+'%';}
+/* --- intro sound design (all synthesized, no files) --- */
+let introAmb=null;
+function noiseBuf(sec){const ctx=A.ctx;const b=ctx.createBuffer(1,ctx.sampleRate*sec,ctx.sampleRate);const d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;return b;}
+function sfxWhoosh(dur,vol){if(!A.ctx)return;const ctx=A.ctx,t=ctx.currentTime;const n=ctx.createBufferSource();n.buffer=noiseBuf(dur);const f=ctx.createBiquadFilter();f.type='bandpass';f.Q.value=1.2;f.frequency.setValueAtTime(300,t);f.frequency.exponentialRampToValueAtTime(3500,t+dur*.7);f.frequency.exponentialRampToValueAtTime(800,t+dur);
+  const g=ctx.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+dur*.6);g.gain.exponentialRampToValueAtTime(.0001,t+dur);n.connect(f);f.connect(g);g.connect(A.sfx);n.start(t);}
+function sfxBoom(){if(!A.ctx)return;const ctx=A.ctx,t=ctx.currentTime;const o=ctx.createOscillator();o.type='sine';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(38,t+.6);const g=ctx.createGain();g.gain.setValueAtTime(.9,t);g.gain.exponentialRampToValueAtTime(.0001,t+.8);o.connect(g);g.connect(A.sfx);o.start(t);o.stop(t+.85);
+  const n=ctx.createBufferSource();n.buffer=noiseBuf(.3);const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1200;const ng=ctx.createGain();ng.gain.setValueAtTime(.4,t);ng.gain.exponentialRampToValueAtTime(.0001,t+.3);n.connect(lp);lp.connect(ng);ng.connect(A.sfx);n.start(t);}
+function sfxChime(i){if(!A.ctx)return;const ctx=A.ctx,t=ctx.currentTime;[1568,2093,2637].forEach((fq,k)=>{const o=ctx.createOscillator();o.type='triangle';o.frequency.value=fq*(1+i*.12);const g=ctx.createGain();g.gain.setValueAtTime(.0001,t+k*.05);g.gain.exponentialRampToValueAtTime(.12,t+k*.05+.01);g.gain.exponentialRampToValueAtTime(.0001,t+k*.05+.6);o.connect(g);g.connect(A.sfx);o.start(t+k*.05);o.stop(t+k*.05+.65);});}
+function sfxWaves(){if(!A.ctx)return;const ctx=A.ctx,t=ctx.currentTime;const n=ctx.createBufferSource();n.buffer=noiseBuf(6);const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=700;const g=ctx.createGain();g.gain.value=0;
+  const l=ctx.createOscillator();l.frequency.value=.28;const lg=ctx.createGain();lg.gain.value=.09;l.connect(lg);lg.connect(g.gain);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.12,t+1);n.connect(lp);lp.connect(g);g.connect(A.sfx);n.start(t);l.start(t);n.stop(t+6);l.stop(t+6);introAmb=n;}
+function sfxGull(){if(!A.ctx)return;const ctx=A.ctx;let t=ctx.currentTime;for(let k=0;k<3;k++){const o=ctx.createOscillator();o.type='sawtooth';const f0=1500+Math.random()*300;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f0*1.45,t+.07);o.frequency.exponentialRampToValueAtTime(f0*.75,t+.28);
+  const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=2200;bp.Q.value=2;const g=ctx.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.09,t+.03);g.gain.exponentialRampToValueAtTime(.0001,t+.3);o.connect(bp);bp.connect(g);g.connect(A.sfx);o.start(t);o.stop(t+.32);t+=.34+Math.random()*.1;}}
+function sfxHorn(){if(!A.ctx)return;const ctx=A.ctx;let t=ctx.currentTime;for(const d of [.12,.26]){[415,523].forEach(fq=>{const o=ctx.createOscillator();o.type='square';o.frequency.value=fq;const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=2200;const g=ctx.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.12,t+.01);g.gain.setValueAtTime(.12,t+d-.02);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(lp);lp.connect(g);g.connect(A.sfx);o.start(t);o.stop(t+d+.02);});t+=d+.08;}}
 /* tuk-tuk two-stroke putter revving up as it drives into the intro */
 function introEngine(){if(!A.ctx)return;const ctx=A.ctx,t=ctx.currentTime;const o=ctx.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(48,t);o.frequency.exponentialRampToValueAtTime(150,t+.8);o.frequency.exponentialRampToValueAtTime(55,t+1.25);
   const am=ctx.createOscillator();am.type='square';am.frequency.setValueAtTime(18,t);am.frequency.linearRampToValueAtTime(42,t+.8);am.frequency.linearRampToValueAtTime(16,t+1.3);const amg=ctx.createGain();amg.gain.value=.5;am.connect(amg);
@@ -1160,14 +1181,14 @@ function introEngine(){if(!A.ctx)return;const ctx=A.ctx,t=ctx.currentTime;const 
   const n=ctx.createBufferSource();const b=ctx.createBuffer(1,ctx.sampleRate*.5,ctx.sampleRate);const d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);n.buffer=b;
   const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=2600;bp.Q.value=3;const ng=ctx.createGain();ng.gain.value=.18;n.connect(bp);bp.connect(ng);ng.connect(A.sfx);n.start(t+.85);}
 /* ============ boot ============ */
-async function boot(){try{buildWorld();
-  loadingText.textContent='بنجهّز التوكتوك…';
+async function boot(){try{introProgress(.15);buildWorld();introProgress(.45);
+  loadingText.textContent='بنجهّز العربيات…';introProgress(.55);
   const [gltf,vanG,carsG,R]=await Promise.all([
     new GLTFLoader().loadAsync(window.TUK_MODEL||'./models/tuk.glb'),
     save.vehicle==='van'?new GLTFLoader().loadAsync('./models/van.glb').catch(e=>{console.warn('van',e);return null;}):Promise.resolve(null),
     new GLTFLoader().loadAsync(window.CARS_MODEL||'./models/cars.glb').catch(e=>{console.warn('cars model',e);return null;}),
     RAPIER.init().then(()=>RAPIER).catch(e=>{console.warn('physics unavailable, arcade mode',e);return null;})]);
-  TUK_TRAFFIC=vanG?gltf.scene:null;loadTuk(vanG||gltf);if(!TUK_TRAFFIC)TUK_TRAFFIC=tuk;CARS=carsG&&carsG.scene;initTraffic();initWalkers();
+  TUK_TRAFFIC=vanG?gltf.scene:null;introProgress(.85);loadTuk(vanG||gltf);if(!TUK_TRAFFIC)TUK_TRAFFIC=tuk;CARS=carsG&&carsG.scene;initTraffic();initWalkers();
   veh=await createVehicle({RAPIER:R,colliders,traffic,spawn:{x:-160,z:7,h:-Math.PI/2},kind:isVan?'van':'tuk'});car=veh.car;
   veh.onImpact(s=>{shake=Math.min(1,s/9);onImpact(s);});
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);

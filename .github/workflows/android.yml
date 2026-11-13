@@ -79,7 +79,8 @@ jobs:
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
           IN=$(ls /tmp/cap/android/app/build/outputs/apk/release/*.apk | head -1)
           $BT/zipalign -p -f 4 "$IN" /tmp/aligned.apk
-          $BT/apksigner sign --ks /tmp/release.jks --ks-key-alias toktok --ks-pass file:/tmp/release.pass --key-pass file:/tmp/release.pass \
+          export KSP="$(cat /tmp/release.pass)"
+          $BT/apksigner sign --ks /tmp/release.jks --ks-key-alias toktok --ks-pass env:KSP --key-pass env:KSP \
             --out toktok-elmina.apk /tmp/aligned.apk
           $BT/apksigner verify toktok-elmina.apk
           rm -f /tmp/release.jks /tmp/release.pass

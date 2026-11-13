@@ -4,6 +4,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { createVehicle, syncModel, TUNING } from './vehicle.js';
 import { createVoices } from './voices.js';
 import { ls, loadSave, importMainSave, SAVE_KEY, IS_BETA, NS, CHANNEL } from './storage.js';
+import { MISSIONS, MODS, REP_LEVELS, repLevel, repProgress, rideXP, LEVEL_REWARD, modOpt } from './career.js';
 import { WD, WARDIAN_POI, WARDIAN_GAPS, WARDIAN_AREA_TALK, wardianGraph, wardianBounds, buildWardian, buildWardianLate } from './districts/wardian.js';
 
 (async function(){
@@ -279,6 +280,7 @@ function buildWorld(){
   for(let x=-290;x<=290;x+=26){if(GATES.some(g=>Math.abs(x-g.x)<10)||ST_X.some(s=>Math.abs(x-s)<8))continue;lampsList.push([x,10.2,Math.PI]);lampsList.push([x+13,-10.2,0]);}
   ST_X.forEach(x=>{for(let z=30;z<230;z+=34){if(Math.abs(z-120)<10)continue;lampsList.push([x+5.8,z,-Math.PI/2]);}});
   WARDIAN=buildWardian({T,scene,S,Merger,NI,VC,col,ctex,rep,texStreet,texAsph,texPave,AR,GAMEF,lampsList,plainSign});
+  {const g=WARDIAN&&WARDIAN.shops.find(q=>q.kind==='ورشة توكتوك');if(g&&Math.abs(g.nx)>.5)POI.wgarage={n:g.name,x:g.x+g.nx*6.3,z:g.z,sx:-g.nx*4.6,sz:0,area:'wardian'};}
   buildLamps();buildPalms();buildTrees();
   /* gulls */
   for(let i=0;i<10;i++){const g=new T.Group();const m=new T.MeshStandardMaterial({color:'#f2eef0'});const body=new T.Mesh(new T.BoxGeometry(.24,.16,.75),m);g.add(body);const l=new T.Group(),r=new T.Group();const wg=new T.BoxGeometry(.9,.04,.3);wg.translate(-.45,0,0);const wl=new T.Mesh(wg,m);l.add(wl);const wg2=wg.clone();wg2.translate(.9,0,0);r.add(new T.Mesh(wg2,m));g.add(l,r);scene.add(g);gulls.push({g:g,l:l,r:r,cx:rand(-250,150),cz:rand(-200,-130),rad:rand(18,45),y:rand(14,30),sp:rand(.15,.3)*(Math.random()<.5?-1:1),ph:rand(0,6.28)});}
@@ -637,7 +639,7 @@ function loadTuk(gltf){tuk=gltf.scene;
   coneGlow=new T.Mesh(cg,new T.MeshBasicMaterial({map:ct,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));tuk.add(coneGlow);
   headGlow=new T.Group();[-.27,.27].forEach(x=>{const s=new T.Sprite(new T.SpriteMaterial({map:texGlow,color:'#fff0c8',transparent:true,depthWrite:false,blending:T.AdditiveBlending}));s.scale.set(.6,.6,1);s.position.set(x,.86,-1.47);headGlow.add(s);});tukBody.add(headGlow);
   flame=new T.Sprite(new T.SpriteMaterial({map:texGlow,color:'#ff7a1a',transparent:true,depthWrite:false,blending:T.AdditiveBlending}));flame.position.set(.46,.33,1.52);flame.visible=false;tukBody.add(flame);
-  if(!isVan)buildDial();buildBrakeLights();tukNodes.driver=tuk.getObjectByName('Driver');tukNodes.charm=null;tuk.traverse(o=>{if(o.isMesh&&o.material&&o.material.name==='EvilEye')tukNodes.charm=o;});
+  if(!isVan)buildDial();buildBrakeLights();modsHook();applyMods();tukNodes.driver=tuk.getObjectByName('Driver');tukNodes.charm=null;tuk.traverse(o=>{if(o.isMesh&&o.material&&o.material.name==='EvilEye')tukNodes.charm=o;});
   scene.add(tuk);arrow3D=new T.Object3D();buildChev();}
 /* --- cockpit speedometer (Phase 2 F): static dial texture + rotating needle mesh, shown only in the inside camera --- */
 let dial=null,dialNeedle=null;const DIAL_MAX=80;
@@ -666,6 +668,38 @@ function updateChev(tx){if(!gpsRoute||tx===null){chev.count=0;return;}
     for(;;){const d=3+n*5+ph-acc;if(d>L||n>=CH_N)break;if(d>=0){const px=a[0]+ux*d+(-uz)*off,pz=a[1]+uz*d+ux*off;_dum.position.set(px,.12,pz);_dum.rotation.set(0,Math.atan2(-ux,-uz),0);const sc=n>CH_N-4?(CH_N-n)/4:1;_dum.scale.set(sc,1,sc);_dum.updateMatrix();chev.setMatrixAt(n,_dum.matrix);}n++;}
     acc+=L;}
   chev.count=n;chev.instanceMatrix.needsUpdate=true;chev.material.color.set(fare?'#4cff5e':(fuel<25?'#ffb347':'#ffe066'));}
+/* ---- customisations: preview on the vehicle, buy once, saved in save.mods / save.modsOwned ---- */
+const MODP={};   // option being previewed per item (not bought yet)
+function modsSaved(){return save.mods||{};}
+function ownedMod(item,id){return !modOpt(item,id).p||(save.modsOwned||[]).includes(item+':'+id);}
+function renderMods(){const box=$('mods');if(!box)return;box.innerHTML='';const lv=repLevel((save.rep&&save.rep.xp)||0);
+  MODS.forEach(M=>{const fitted=modsSaved()[M.id]||M.opts[0].id,prev=MODP[M.id];const locked=lv<M.lvl;const d=document.createElement('div');d.className='mod';
+    d.innerHTML='<h3></h3><div class="mopts"></div><div class="mbuy" hidden><button class="ui-btn primary"></button><button class="ui-btn ghost">إلغاء المعاينة</button><small class="pgnote"></small></div>';
+    d.querySelector('h3').innerHTML=M.n+(locked?' <small>🔒 تتفتح في «'+REP_LEVELS[M.lvl].n+'»</small>':'');
+    const opts=d.querySelector('.mopts');M.opts.forEach(o=>{const b=document.createElement('button');const own=ownedMod(M.id,o.id);
+      b.className='mopt'+(fitted===o.id?' sel':'')+(prev===o.id?' prev':'')+(locked&&o.p?' lock':'');
+      b.innerHTML=(o.c?'<i style="background:'+o.c+'"></i>':'')+'<span></span><small></small>';b.querySelector('span').textContent=o.n;b.querySelector('small').textContent=fitted===o.id?'متركّب':(own?'عندك':o.p+' ج.م');
+      b.addEventListener('click',()=>{if(locked&&o.p)return;if(own){MODP[M.id]=null;save.mods=Object.assign({},save.mods,{[M.id]:o.id});persist();applyMods();renderMods();return;}MODP[M.id]=o.id;applyMods();renderMods();});opts.appendChild(b);});
+    if(prev&&!ownedMod(M.id,prev)){const o=modOpt(M.id,prev);const bb=d.querySelector('.mbuy');bb.hidden=false;const buy=bb.querySelector('.primary');buy.textContent='اشتري «'+o.n+'» بـ '+o.p+' ج.م';
+      bb.querySelector('small').textContent='بتتفرّج عليه دلوقتي على العربية';
+      buy.addEventListener('click',()=>{if(save.wallet<o.p){bb.querySelector('small').textContent='محتاج '+Math.round(o.p-save.wallet)+' ج.م كمان';return;}
+        save.wallet-=o.p;save.modsOwned=(save.modsOwned||[]).concat([M.id+':'+o.id]);save.mods=Object.assign({},save.mods,{[M.id]:o.id});MODP[M.id]=null;persist();applyMods();renderGarage();menuWallet();blip('cash');});
+      bb.querySelector('.ghost').addEventListener('click',()=>{MODP[M.id]=null;applyMods();renderMods();});}
+    box.appendChild(d);});}
+const MODV={rimMats:[],seatMats:[],glow:null,roof:null};
+function modsHook(){MODV.rimMats=[];MODV.seatMats=[];const seen=new Set();tuk.traverse(o=>{if(!o.isMesh)return;(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(!m||seen.has(m))return;seen.add(m);
+    if(/^rim$/i.test(m.name)){m.userData.c0=m.color.clone();m.userData.m0=m.metalness;m.userData.r0=m.roughness;MODV.rimMats.push(m);}
+    if(/^(vinyl|seatfabric)$/i.test(m.name)){m.userData.c0=m.color.clone();m.userData.map0=m.map;MODV.seatMats.push(m);}});});
+  if(MODV.glow&&MODV.glow.parent)MODV.glow.parent.remove(MODV.glow);if(MODV.roof&&MODV.roof.parent)MODV.roof.parent.remove(MODV.roof);
+  const L=isVan?4.2:2.7,Wd=isVan?1.9:1.35;MODV.glow=new T.Mesh(new T.PlaneGeometry(Wd*1.5,L*1.25).rotateX(-Math.PI/2),new T.MeshBasicMaterial({map:texGlow,transparent:true,opacity:.85,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false}));MODV.glow.position.set(0,.06,0);MODV.glow.visible=false;tuk.add(MODV.glow);
+  MODV.roof=new T.Group();for(let i=0;i<4;i++){const sp=new T.Sprite(new T.SpriteMaterial({map:texGlow,color:'#ffc44a',transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false}));sp.scale.set(.32,.32,1);sp.position.set(-.45+i*.3,isVan?2.05:1.98,isVan?-1.9:-.95);MODV.roof.add(sp);}MODV.roof.visible=false;tukBody.add(MODV.roof);}
+const seatTex={};function patTex(kind){if(seatTex[kind])return seatTex[kind];seatTex[kind]=ctex(128,128,g=>{g.fillStyle='#ffffff';g.fillRect(0,0,128,128);
+  if(kind==='leopard'){for(let i=0;i<26;i++){const x=Math.random()*128,y=Math.random()*128,r=5+Math.random()*7;g.fillStyle='#3a2410';g.beginPath();g.ellipse(x,y,r,r*.7,Math.random()*3,0,7);g.fill();g.fillStyle='#8a5a22';g.beginPath();g.ellipse(x,y,r*.5,r*.35,0,0,7);g.fill();}}
+  else{for(let y=0;y<128;y+=4){g.fillStyle='rgba(0,0,0,'+(y%8?.08:.16)+')';g.fillRect(0,y,128,2);}}});seatTex[kind].repeat.set(3,3);return seatTex[kind];}
+function applyMods(){if(!tuk)return;const cur=Object.assign({},modsSaved());for(const k in MODP)if(MODP[k])cur[k]=MODP[k];
+  const r=modOpt('rims',cur.rims);MODV.rimMats.forEach(m=>{if(r.c){m.color.set(r.c).convertSRGBToLinear();m.metalness=r.metal;m.roughness=r.rough;}else{m.color.copy(m.userData.c0);m.metalness=m.userData.m0;m.roughness=m.userData.r0;}m.needsUpdate=true;});
+  const st=modOpt('seats',cur.seats);MODV.seatMats.forEach(m=>{if(st.c){m.color.set(st.c).convertSRGBToLinear();m.map=st.pattern?patTex(st.pattern):m.userData.map0;}else{m.color.copy(m.userData.c0);m.map=m.userData.map0;}m.needsUpdate=true;});
+  const li=modOpt('lights',cur.lights);if(MODV.glow){MODV.glow.visible=!!(li.c&&!li.roof);if(li.c)MODV.glow.material.color.set(li.c);}if(MODV.roof){MODV.roof.visible=!!li.roof;}}
 function setPaint(id){const p=PAINTS.find(q=>q.id===id);if(p&&paintMat)paintMat.color.set(p.c).convertSRGBToLinear();}
 
 /* ============ vehicle (see vehicle.js) ============ */
@@ -1010,14 +1044,18 @@ const beamMat=new T.MeshBasicMaterial({color:'#fff1c8',transparent:true,opacity:
 const beamGeo=new T.CylinderGeometry(1.6,1.6,60,20,1,true);beamGeo.translate(0,30,0);
 let destBeam,destRing;
 /* ============ mission «مشوار الورديان»: one scripted rider on the normal fare + change system ============ */
-const MISSION={id:'wardian',from:'fish',to:'wplaza',bonus:20,pax:{names:['الحاجة أم سمير'],female:true,title:'يا حاجة',pitch:1.15,rate:.95,look:{shirt:'#3b2a4a',pants:'#3b2a4a',skin:'#c69472',hijab:'#1f1f2a',galabeya:true},likes:[],ride:['بنتي ساكنة في الورديان، رايحة أزورها','الورديان حتة جميلة يا اسطى، بس خلي بالك من المطبات']}};
+/* ============ missions (Phase 6): scripted riders on the normal fare + change system, one at a time ============ */
 const missionBeamMat=new T.MeshBasicMaterial({color:'#ffb12a',transparent:true,opacity:.32,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide});
-let missionCd=5;
-function missionDone(){return !!(save.missions&&save.missions[MISSION.id]);}
-function spawnMission(dt){missionCd-=dt;if(missionCd>0||isVan||fare||missionDone()||waiting.some(w=>w.mission))return;
-  const k=MISSION.from,p=POI[k];const old=waiting.find(w=>w.poi===k);if(old){scene.remove(old.m);scene.remove(old.b);waiting.splice(waiting.indexOf(old),1);}
-  const m=person(MISSION.pax.look,p.x+p.sx,p.z+p.sz,Math.atan2(p.sx,p.sz));const b=new T.Mesh(beamGeo,missionBeamMat);b.position.set(p.x,0,p.z);addSpot(b,p,true);scene.add(b);
-  waiting.push({poi:k,type:MISSION.pax,name:MISSION.pax.names[0],m:m,b:b,mission:MISSION.id});toast('مهمة جديدة: «مشوار الورديان» — زبونة مستنياك عند '+p.n,'good');}
+let missionCd=5,missionFails={};
+const missionById=id=>MISSIONS.find(m=>m.id===id);
+function missionTo(m){return m.to==='@wgarage'?(POI.wgarage?'wgarage':'wshops'):m.to;}
+function missionState(m){if(m.soon)return 'soon';if(save.missions&&save.missions[m.id])return 'done';if(repLevel((save.rep&&save.rep.xp)||0)<m.lvl)return 'locked';return 'open';}
+function nextMission(){return MISSIONS.find(m=>missionState(m)==='open'&&POI[m.from]&&POI[missionTo(m)]);}
+function missionDone(){return !nextMission();}
+function spawnMission(dt){missionCd-=dt;if(missionCd>0||isVan||fare||waiting.some(w=>w.mission))return;const M=nextMission();if(!M)return;
+  const k=M.from,p=POI[k];const old=waiting.find(w=>w.poi===k);if(old){scene.remove(old.m);scene.remove(old.b);waiting.splice(waiting.indexOf(old),1);}
+  const m=person(M.pax.look,p.x+p.sx,p.z+p.sz,Math.atan2(p.sx,p.sz));const b=new T.Mesh(beamGeo,missionBeamMat);b.position.set(p.x,0,p.z);addSpot(b,p,true);scene.add(b);
+  waiting.push({poi:k,type:M.pax,name:M.pax.names[0],m:m,b:b,mission:M.id});toast('مهمة جديدة: «'+M.n+'» — '+M.pax.names[0]+' مستني عند '+p.n,'good');}
 /* dotted square on the pavement where a rider waits (child of the stop beam, so it goes away with it) */
 const spotTex=ctex(128,128,g=>{g.fillStyle='rgba(245,185,40,.26)';g.fillRect(8,8,112,112);g.strokeStyle='#FFD24A';g.lineWidth=10;g.setLineDash([16,10]);g.lineCap='round';g.strokeRect(9,9,110,110);});
 const spotGeo=new T.PlaneGeometry(2.1,2.1).rotateX(-Math.PI/2);
@@ -1027,11 +1065,11 @@ function addSpot(b,p,mission){const q=new T.Mesh(spotGeo,mission?spotMatM:spotMa
 function spawnWaiting(){const keys=Object.keys(POI).filter(k=>!waiting.some(w=>w.poi===k)&&(!fare||fare.to!==k)&&Math.hypot(POI[k].x-car.x,POI[k].z-car.z)>40);if(!keys.length)return;
   const k=pick(keys),p=POI[k];const ty=pick(PT);const lk=ty.look;const m=person(lk,p.x+p.sx,p.z+p.sz,Math.atan2(-(p.x-(p.x+p.sx)),-(p.z-(p.z+p.sz))));const b=new T.Mesh(beamGeo,beamMat);b.position.set(p.x,0,p.z);addSpot(b,p);scene.add(b);
   waiting.push({poi:k,type:ty,name:pick(ty.names),m:m,b:b});}
-function startFare(w){const opts=Object.keys(POI).filter(k=>k!==w.poi&&Math.hypot(POI[k].x-POI[w.poi].x,POI[k].z-POI[w.poi].z)>110);let to=opts.filter(k=>w.type.likes.includes(k));to=to.length&&Math.random()<.75?pick(to):pick(opts);if(w.mission)to=MISSION.to;
-  const r=route(POI[w.poi].x,POI[w.poi].z,POI[to].x,POI[to].z);fare={pax:Object.assign({name:w.name},w.type),from:w.poi,to:to,len:r.len,t:0,budget:Math.round(r.len/7.5+22),hits:0,fast:0,chat:rand(9,13),fastCd:0,phase:'board',wait:1.2,mission:w.mission||null};
+function startFare(w){const opts=Object.keys(POI).filter(k=>k!==w.poi&&Math.hypot(POI[k].x-POI[w.poi].x,POI[k].z-POI[w.poi].z)>110);let to=opts.filter(k=>w.type.likes.includes(k));to=to.length&&Math.random()<.75?pick(to):pick(opts);const M=w.mission&&missionById(w.mission);if(M)to=missionTo(M);
+  const r=route(POI[w.poi].x,POI[w.poi].z,POI[to].x,POI[to].z);fare={pax:Object.assign({name:w.name},w.type),from:w.poi,to:to,len:r.len,t:0,budget:M&&M.urgent?Math.round(r.len/9+8):Math.round(r.len/7.5+22),hits:0,fast:0,chat:rand(9,13),fastCd:0,phase:'board',wait:1.2,mission:w.mission||null};
   scene.remove(w.m);scene.remove(w.b);waiting.splice(waiting.indexOf(w),1);
   paxSeat.clear();const s=new T.Mesh(personGeo(w.type.look,true),VC);s.castShadow=true;paxSeat.add(s);
-  fare.price=clamp(Math.round((10+r.len/1000*12)/5)*5,10,60);const d=POI[to].n;const intro=[['p',w.mission?'يا اسطى، وديني '+d+' الله يخليك، بنتي ساكنة هناك':pick(INTRO_P).replace('{d}',d)],['d',pick(INTRO_D).replace('{t}',w.type.title)],['p',pick(PRICE_P)],['d',pick(PRICE_D).replace('{n}',arNum(fare.price))]];if(Math.random()<.4)intro.push(['d',pick(INTRO_D2)]);dlgPush(intro,fare.pax);fare.area=areaOf(car.x,car.z);
+  fare.price=clamp(Math.round((10+r.len/1000*12)/5)*5,10,60);const d=POI[to].n;const intro=[['p',M?M.intro.replace('{d}',d):pick(INTRO_P).replace('{d}',d)],['d',pick(INTRO_D).replace('{t}',w.type.title)],['p',pick(PRICE_P)],['d',pick(PRICE_D).replace('{n}',arNum(fare.price))]];if(Math.random()<.4)intro.push(['d',pick(INTRO_D2)]);dlgPush(intro,fare.pax);fare.area=areaOf(car.x,car.z);
   destBeam.position.set(POI[to].x,0,POI[to].z);destRing.position.set(POI[to].x,.15,POI[to].z);destBeam.visible=destRing.visible=true;gpsRoute=null;blip('ok');}
 const PRICE_P=['هتاخد كام يا اسطى؟','الأجرة كام يا معلم؟','بكام المشوار ده يا اسطى؟'];
 const PRICE_D=['{n} جنيه بس، عشان خاطرك','هات {n} جنيه وخلاص','{n} جنيه يا باشا، ده سعره'];
@@ -1066,9 +1104,12 @@ function payConfirm(){const f=payS.f;if(!f||f.phase!=='pay')return;const sum=pay
   else dlgPush([['p',pick(PAY_OK)]],f.pax);
   $('pay').hidden=true;f.phase='paid';payS.done(lost);}
 function finishFare(lost){lost=lost||0;const f=fare;let r=5-f.hits*.6-Math.min(2,f.fast)*.3-(f.short||0)*.4;const late=f.t>f.budget;if(late)r-=1.2;r=clamp(r,1,5);
-  const base=f.price;const bonus=late?0:Math.round((f.budget-f.t)*.2/5)*5;const tip=Math.min(15,(r>=4.5?5:0)+Math.max(0,bonus));const mb=f.mission?MISSION.bonus:0;const pay=base+tip+mb-lost;
-  save.wallet+=pay;save.total+=pay;save.trips++;if(f.mission)save.missions=Object.assign({},save.missions,{[f.mission]:1});persist();dlgPush((late?pick(END_LATE):pick(END_SEQ)).map(l=>[l[0],l[1].replace('{t}',f.pax.title)]),f.pax);blip('cash');
-  toast('+'+pay+' ج.م'+(mb?'  • مكافأة مهمة الورديان '+mb:'')+(tip?'  • بقشيش '+tip:'')+(lost?'  • ضاع منك '+lost:'')+(late?'  • متأخر':''),lost?'bad':'good');paxSeat.clear();destBeam.visible=destRing.visible=false;fare=null;gpsRoute=null;updateMoney();}
+  const base=f.price;const bonus=late?0:Math.round((f.budget-f.t)*.2/5)*5;const tip=Math.min(15,(r>=4.5?5:0)+Math.max(0,bonus));const FM=f.mission&&missionById(f.mission);const mFail=!!(FM&&FM.urgent&&late);const mb=FM&&!mFail?FM.bonus:0;const pay=base+tip+mb-lost;
+  save.wallet+=pay;save.total+=pay;save.trips++;if(FM&&!mFail)save.missions=Object.assign({},save.missions,{[f.mission]:1});if(FM)missionCd=mFail?40:25;
+  const lv0=repLevel((save.rep&&save.rep.xp)||0);const gx=rideXP({rating:r,short:f.short,lost,hits:f.hits,mission:!!FM,failed:mFail});save.rep={xp:((save.rep&&save.rep.xp)||0)+gx};const lv1=repLevel(save.rep.xp);
+  if(lv1>lv0){const rw=LEVEL_REWARD(lv1);save.wallet+=rw;save.total+=rw;setTimeout(()=>toast('⭐ ترقية! بقيت «'+REP_LEVELS[lv1].n+'» — مكافأة '+rw+' ج.م'+(MISSIONS.some(m=>m.lvl===lv1)||MODS.some(m=>m.lvl===lv1)?' وفتحت حاجات جديدة':''),'good'),2600);}
+  persist();dlgPush((late?pick(END_LATE):pick(END_SEQ)).map(l=>[l[0],l[1].replace('{t}',f.pax.title)]),f.pax);blip('cash');
+  toast((mFail?'المهمة فشلت، اتأخرت! تقدر تعيدها بعدين  • ':'')+'+'+pay+' ج.م'+(mb?'  • مكافأة «'+FM.n+'» '+mb:'')+'  • +'+gx+' سمعة'+(tip?'  • بقشيش '+tip:'')+(lost?'  • ضاع منك '+lost:'')+(late?'  • متأخر':''),lost?'bad':'good');paxSeat.clear();destBeam.visible=destRing.visible=false;fare=null;gpsRoute=null;updateMoney();}
 function onImpact(s){blip('thud',s);if(fare&&fare.phase==='ride'){fare.hits++;if(Dlg.q.length<2)dlgPush([['p',pick(HIT_L)]],fare.pax);}}
 let nearMsgT=0,stopHint=0;
 function updateFares(dt){interactions(dt);spotMat.opacity=spotMatM.opacity=.7+.3*Math.sin(clock*3.2);if(isVan){updateLine(dt);return;}spawnMission(dt);for(let i=0;i<3&&waiting.length<MAXW;i++)spawnWaiting();
@@ -1125,7 +1166,7 @@ function updateHUD(dt){const sp=Math.round(Math.abs(car.v)*3.6);if(sp!==lastSpd)
   const nav=$('nav');
   if(tx!==null){if(navTarget!==name){navTarget=name;gpsRoute=null;}const g=gpsUpdate(dt,tx,tz);const dx=g.nx-car.x,dz=g.nz-car.z;
     updateChev(tx);
-    hudT-=dt;if(hudT<=0){hudT=.2;nav.hidden=false;$('navName').textContent=name;$('navDist').textContent=(g.rem/1000).toFixed(1)+' كم';
+    hudT-=dt;if(hudT<=0){hudT=.2;nav.hidden=false;$('navName').textContent=name;$('navDist').textContent=(g.rem/1000).toFixed(1)+' كم'+(fare&&fare.mission&&(missionById(fare.mission)||{}).urgent&&fare.phase==='ride'?' · ⏱ '+Math.max(0,Math.round(fare.budget-fare.t))+' ث':'');
       const nt=$('navTime');if(showTime){const left=fare.budget-fare.t;nt.hidden=false;nt.textContent=Math.max(0,Math.round(left))+'s';nt.classList.toggle('late',left<0);}else nt.hidden=true;
       const rel=Math.atan2(-dx,-dz)-car.h;$('navArrow').style.transform='rotate('+(-rel*180/Math.PI)+'deg)';drawGPS();}}
   else{updateChev(null);nav.hidden=true;gpsRoute=null;hudT-=dt;if(hudT<=0){hudT=.2;drawGPS();}}}
@@ -1185,7 +1226,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='p
 
 /* ============ menus / state ============ */
 let state='loading';
-function menuWallet(){$('menuWallet').textContent=Math.round(save.wallet)+' ج.م · '+save.trips+' مشوار';const st=$('btnStartLbl');if(st)st.textContent=save.trips>0?'كمّل الوردية':'ابدأ الوردية';}
+function menuWallet(){$('menuWallet').textContent=Math.round(save.wallet)+' ج.م · '+save.trips+' مشوار · ⭐ '+repProgress((save.rep&&save.rep.xp)||0).name;const st=$('btnStartLbl');if(st)st.textContent=save.trips>0?'كمّل الوردية':'ابدأ الوردية';}
 function startGame(){closeGarageView();$('garage').hidden=true;initAudio();if(A.ctx){if(A.ctx.state==='suspended')A.ctx.resume();try{const b=A.ctx.createBuffer(1,1,22050),src=A.ctx.createBufferSource();src.buffer=b;src.connect(A.ctx.destination);src.start(0);}catch(e){}}
   if(Speech.ok){try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}}pickVoices();$('menu').hidden=true;$('hud').hidden=false;state='play';snapCam=true;gpsSize();updateMoney();
   if(!startGame.done){startGame.done=true;radioPower(true);toast(isVan?'روح المحطة اللي عليها العمود المنوّر، الركاب مستنيينك':'دوّر على الزباين… العمود المنوّر',"good");}else radioUI();canvas.focus({preventScroll:true});}
@@ -1210,6 +1251,7 @@ function renderGarage(){vehUI();$('garWallet').textContent='محفظتك: '+Math
   PAINTS.forEach(p=>{const owned=save.owned.includes(p.id);const b=document.createElement('button');b.className='paint'+(save.paint===p.id?' sel':'')+(owned?'':' locked');
     b.innerHTML='<i style="background:'+p.c+'"></i><span>'+p.n+'<small>'+(owned?(save.paint===p.id?'متركّب':'اضغط للتركيب'):p.p+' ج.م')+'</small></span>';
     b.addEventListener('click',()=>{if(!owned){if(save.wallet<p.p){$('garWallet').textContent='محتاج '+Math.round(p.p-save.wallet)+' ج.م كمان';return;}save.wallet-=p.p;save.owned.push(p.id);}save.paint=p.id;setPaint(p.id);persist();renderGarage();menuWallet();});box.appendChild(b);});
+  renderMods();
   const sb=$('slogans');sb.innerHTML='';SLOGANS.forEach(t=>{const b=document.createElement('button');b.className='paint'+(save.slogan===t?' sel':'');b.style.justifyContent='center';b.textContent=t;b.addEventListener('click',()=>{save.slogan=t;setSlogan(t);persist();renderGarage();});sb.appendChild(b);});}
 /* --- garage workshop set (Phase 2 E): one closed room built on first open, world hidden while inside (fewer draw calls, not more) --- */
 const GAR={open:false,room:null,yaw:.6,hidden:[]};
@@ -1240,7 +1282,7 @@ function openGarageView(){if(!car)return;if(!GAR.room){GAR.room=buildGarageRoom(
   GAR.hidden.length=0;for(const o of scene.children){if(o===tuk||o.isLight||o===GAR.room||!o.visible)continue;o.visible=false;GAR.hidden.push(o);}
   GAR.room.position.set(car.x,2.6+.01,car.z);if(!GAR.room.parent)scene.add(GAR.room);GAR.room.visible=true;GAR.open=true;document.body.classList.add('in-garage');}
 function closeGarageView(){if(!GAR.open)return;GAR.open=false;for(const o of GAR.hidden)o.visible=true;GAR.hidden.length=0;if(GAR.room)GAR.room.visible=false;document.body.classList.remove('in-garage');}
-$('btnGarage').addEventListener('click',()=>{renderGarage();$('garage').hidden=false;openGarageView();});$('garClose').addEventListener('click',()=>{$('garage').hidden=true;closeGarageView();});
+$('btnGarage').addEventListener('click',()=>{renderGarage();$('garage').hidden=false;openGarageView();});$('garClose').addEventListener('click',()=>{$('garage').hidden=true;for(const k in MODP)MODP[k]=null;applyMods();closeGarageView();});
 addEventListener('resize',()=>{if(state==='play')gpsSize();});
 
 /* ============ loop ============ */
@@ -1269,11 +1311,11 @@ $('btnImportMain').addEventListener('click',()=>{if(!confirm('هتتجاب نس�
 
 /* ============ menu extras: progress, radio from the menu ============ */
 /* ---- missions list (real state from the save) ---- */
-const MISSION_LIST=[{id:'wardian',n:'مشوار الورديان',d:'الحاجة أم سمير مستنياك عند سوق السمك، وديها ساحة الورديان.',bonus:20}];
-function openMissions(){const box=$('msList');box.innerHTML='';
-  MISSION_LIST.forEach(m=>{const done=!!(save.missions&&save.missions[m.id]);const el=document.createElement('div');el.className='msn'+(done?' done':'');
-    el.innerHTML='<div class="mst"><b></b><span class="pill"></span></div><p></p><small></small>';el.querySelector('b').textContent=m.n;el.querySelector('.pill').textContent=done?'خلصت ✓':'متاحة';
-    el.querySelector('p').textContent=m.d;el.querySelector('small').textContent='المكافأة: الأجرة + '+arNum(m.bonus)+' ج.م'+(isVan?' · محتاج التوكتوك':'');box.appendChild(el);});
+function openMissions(){const box=$('msList');box.innerHTML='';const rp=repProgress((save.rep&&save.rep.xp)||0);
+  MISSIONS.forEach(m=>{const st=missionState(m);const el=document.createElement('div');el.className='msn st-'+st;
+    el.innerHTML='<div class="mst"><b></b><span class="pill"></span></div><p></p><small></small>';el.querySelector('b').textContent=m.n;
+    el.querySelector('.pill').textContent={done:'خلصت ✓',open:'متاحة',locked:'تتفتح في «'+(REP_LEVELS[m.lvl]||{}).n+'»',soon:'قريبًا'}[st];
+    el.querySelector('p').textContent=m.d;el.querySelector('small').textContent=m.soon?'':('المكافأة: الأجرة + '+arNum(m.bonus)+' ج.م + سمعة'+(m.urgent?' · بوقت محدد':'')+(isVan&&st==='open'?' · محتاج التوكتوك':''));box.appendChild(el);});
   $('missions').hidden=false;}
 /* ---- full map (drawn on demand, no per-frame cost) ---- */
 /* ---- full map: fits the world, pinch/drag to zoom and pan, labels never overlap (more appear as you zoom in) ---- */
@@ -1314,7 +1356,7 @@ function drawMap(){const cv=$('mapCv'),r=cv.getBoundingClientRect(),dpr=Math.min
 $('btnMissions').addEventListener('click',openMissions);$('msClose').addEventListener('click',()=>{$('missions').hidden=true;});
 $('btnMap').addEventListener('click',openMap);$('mapClose').addEventListener('click',()=>{$('mapView').hidden=true;});
 addEventListener('resize',()=>{if(!$('mapView').hidden)drawMap();});
-function openProgress(){$('pgWallet').textContent=Math.round(save.wallet);$('pgTotal').textContent=Math.round(save.total);$('pgTrips').textContent=save.trips;$('pgPaints').textContent=save.owned.length;$('progress').hidden=false;}
+function openProgress(){const rp=repProgress((save.rep&&save.rep.xp)||0);$('pgRepName').textContent='⭐ '+rp.name;$('pgRepNext').textContent=rp.next?('باقي '+arNum(rp.need-rp.into)+' نقطة لـ «'+rp.next+'»'):'وصلت لأعلى مستوى';$('pgRepBar').style.width=Math.round(rp.frac*100)+'%';$('pgWallet').textContent=Math.round(save.wallet);$('pgTotal').textContent=Math.round(save.total);$('pgTrips').textContent=save.trips;$('pgPaints').textContent=save.owned.length;$('progress').hidden=false;}
 $('btnProgress').addEventListener('click',openProgress);$('pgClose').addEventListener('click',()=>{$('progress').hidden=true;});
 $('progress').addEventListener('click',e=>{if(e.target.id==='progress')$('progress').hidden=true;});
 /* the radio panel lives at the top level so it can open over the menu too */
@@ -1355,7 +1397,7 @@ VO.register('الدفع والباقي',[PAY_GIVE,PAY_OK,PAY_SHORT,PAY_OVER_HONE
 VO.register('السواقة',[HIT_L,FAST_L,RADIO_L,WALK_L],'p');VO.register('البوابات',[GUARD_IN,GUARD_OUT,CAMPUS_IN]);
 VO.register('كلام الركاب',[PT.map(t=>t.ride),AREA_C],'p');
 VO.register('السوزوكي',[L_BOARD,L_PASS,L_DOWN],'p');VO.register('السوزوكي',[L_YES,L_FULL,'مع السلامة يا جماعة','مع السلامة يا باشا'],'d');VO.register('الدفع والباقي',['اتفضل يا اسطى، الأجرة مظبوطة'],'p');
-VO.register('المهام',['يا اسطى، وديني {d} الله يخليك، بنتي ساكنة هناك',MISSION.pax.ride],'p');VO.register('مذيع الراديو',RST.map(r=>r.idents),'r');
+VO.register('المهام',MISSIONS.filter(m=>!m.soon).map(m=>[m.intro,m.pax.ride]),'p');VO.register('مذيع الراديو',RST.map(r=>r.idents),'r');
 VO.loadMine();VO.loadPack();
 const studio={i:0,rec:null,chunks:[],stream:null};
 function studioList(){const g=$('stGroup').value;return VO.templates.filter(t=>!g||t.group===g);}

@@ -526,6 +526,20 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
 .arrRing .arr.on{transform:none;box-shadow:none;background:radial-gradient(circle at 50% 50%,rgba(245,185,40,.95),rgba(201,141,0,.85));color:#241a00}
 .arrHub{position:absolute;left:50%;top:50%;width:26%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle at 40% 35%,#F5B928,#a86f00);border:3px solid #101B2D;pointer-events:none}
 @media (max-height:500px){.arrRing{width:136px}}
+
+/* ===== reputation + garage customisations (Phase 6) ===== */
+.repbox{padding:4px 16px 14px;display:grid;gap:8px}
+.repline{display:flex;align-items:baseline;gap:10px}.repline b{font:24px var(--f-game);color:var(--tuk)}.repline span{margin-inline-start:auto;font:600 12px var(--f-body);color:var(--text-muted)}
+.repbar{height:10px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden}.repbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--copper),var(--tuk));transition:width .5s}
+.mods{display:grid;gap:12px}
+.mod{display:grid;gap:8px}.mod h3{margin:0;font:600 14px var(--f-body);color:var(--cream);display:flex;gap:8px;align-items:center}.mod h3 small{color:var(--text-muted);font-weight:500}
+.mopts{display:flex;flex-wrap:wrap;gap:8px}
+.mopt{min-height:44px;padding:6px 12px;border-radius:12px;border:1.5px solid var(--line);background:rgba(255,255,255,.05);color:var(--cream);font:600 13px var(--f-body);display:flex;align-items:center;gap:8px}
+.mopt i{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.5);flex:none}
+.mopt small{color:var(--text-muted);font-weight:500}.mopt.sel{border-color:var(--tuk);background:rgba(var(--tuk-rgb),.16)}.mopt.prev{border-color:#7fd1ff;border-style:dashed}
+.mopt.lock{opacity:.5}
+.mbuy{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.mbuy[hidden]{display:none}
+.mbuy .ui-btn{min-height:44px;padding:0 16px}
 </style>
 </head>
 <body>
@@ -607,7 +621,8 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
       <div class="pg"><i>🧑‍🤝‍🧑</i><b id="pgTrips">0</b><span>مشاوير اتوصّلت</span></div>
       <div class="pg"><i>🎨</i><b id="pgPaints">0</b><span>ألوان عندك</span></div>
     </div>
-    <p class="pgnote">مستويات السمعة والمكافآت جاية مع نظام المهام في مرحلة قادمة.</p>
+    <div class="repbox"><div class="repline"><b id="pgRepName">اسطى جديد</b><span id="pgRepNext"></span></div><div class="repbar"><i id="pgRepBar"></i></div>
+      <p class="pgnote">السمعة بتزيد مع كل مشوار: الوصول بأمان، الفكة المظبوطة، من غير خبطات، والمهام. كل مستوى جديد بيديك فلوس ويفتح مهام وتطويرات.</p></div>
   </div>
 </div>
 
@@ -654,6 +669,8 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
     <div class="paints" id="vehicles"></div>
     <h2 style="font-size:22px">الكتابة على الضهر</h2>
     <div class="paints" id="slogans"></div>
+    <h2 style="font-size:22px">التطويرات</h2>
+    <div id="mods" class="mods"></div>
     <button class="pb go" id="garClose">تمام</button>
   </div>
 </div>

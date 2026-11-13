@@ -39,13 +39,16 @@ jobs:
             sleep 30; adb exec-out screencap -p > out/s45.png
             adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' > out/focus.txt || true
             sleep 45; adb exec-out screencap -p > out/s90.png
-            adb shell input tap 540 1200; sleep 20; adb exec-out screencap -p > out/s110_tap.png
+            adb shell wm size > out/size.txt
+            W=$(adb shell wm size | grep -o '[0-9]*x[0-9]*' | tail -1); X=$(( ${W%x*} / 2 )); Y=$(( ${W#*x} * 3 / 4 ))
+            adb shell input touchscreen tap $X $Y; sleep 4; adb exec-out screencap -p > out/s95_tap.png
+            sleep 25; adb exec-out screencap -p > out/s120_after.png
             adb logcat -d > out/logcat.txt || true
             adb logcat -d -s chromium:* Capacitor:* Capacitor/Console:* AndroidRuntime:* > out/webview.txt || true
       - name: Show the result in the log
         if: always()
         run: |
-          echo "=== focus ==="; cat out/focus.txt || true; echo "=== webview ==="; cat out/webview_version.txt || true; echo "=== app log ==="; grep -iE "capacitor|chromium|console|AndroidRuntime|FATAL|toktok" out/logcat.txt | tail -150 || true
+          echo "=== focus ==="; cat out/focus.txt || true; echo "=== webview ==="; cat out/webview_version.txt out/size.txt || true; echo "=== app log ==="; grep -iE "capacitor|chromium|console|AndroidRuntime|FATAL|toktok" out/logcat.txt | tail -150 || true
           python3 -m pip install -q pillow
           for f in out/*.png; do python3 -c "import sys,base64,io;from PIL import Image;im=Image.open(sys.argv[1]).convert('RGB');im.thumbnail((420,900));b=io.BytesIO();im.save(b,'JPEG',quality=60);print('IMG',sys.argv[1],base64.b64encode(b.getvalue()).decode())" "$f"; done
       - uses: actions/upload-artifact@v4

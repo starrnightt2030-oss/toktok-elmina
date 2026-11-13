@@ -34,7 +34,7 @@ const BASE = process.argv[2];
   ok(d2.d < 6, 'drive out: cross street joins the city street, no invisible wall (reached x ' + d2.x + ')');
   // ---- collisions: buildings and the west edge stop the tuk
   const ram = (x, z, h, sec) => p.evaluate(async ([x, z, h, sec]) => { const s = window.portSim; s.teleport(x, z, h); s.input.up = 1; await new Promise(r => setTimeout(r, sec * 1000)); s.input.up = 0; return { x: s.car.x, z: s.car.z, y: s.car.y }; }, [x, z, h, sec]);
-  const c1 = await ram(-376, 60, Math.PI / 2, 25);
+  const c1 = await ram(-376, 36, Math.PI / 2, 25);   // away from the سوق الورديان stop so no rider boards here
   ok(c1.x > -384.6 && c1.y < .6, 'collision: shop fronts stop the tuk (x ' + c1.x.toFixed(1) + ', building face at -384.2)');
   const c2 = await ram(-440, 60, Math.PI / 2, 25);
   ok(c2.x > -451 && c2.y < .6, 'world edge: cannot leave the map on the west (x ' + c2.x.toFixed(1) + ')');

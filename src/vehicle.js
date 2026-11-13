@@ -59,8 +59,11 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
   function common(dt, input, st, fuelOk, speedAbs) {
     // smooth steering, tighter at speed
     // the touch wheel is already analogue and hand-smoothed: follow it closely; keys/joystick get eased in
-    car.steer += (st - car.steer) * Math.min(1, dt * (input.wheel ? 14 : (st ? 4.5 : 6.5)));
     const t = clamp(speedAbs / TN.vmaxTurbo, 0, 1);
+    // gentle expo curve: fine control near the centre, full lock still reachable
+    const se = Math.sign(st) * Math.pow(Math.abs(st), 1.3);
+    // keys/joystick turn in a little slower at speed and centre back faster; the touch wheel is followed closely
+    car.steer += (se - car.steer) * Math.min(1, dt * (input.wheel ? 12 : (st ? lerp(5.5, 3.2, t) : 7.5)));
     // cap the lateral grip demand so a three-wheeler doesn't tip in fast corners
     const grip = Math.atan(S.base * TN.latMax / Math.max(1, speedAbs * speedAbs));
     car.steerAng = car.steer * Math.min(lerp(TN.steerMax, TN.steerMin, t), Math.max(0.07, grip));
@@ -144,12 +147,14 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
             F = f * Math.pow(clamp(1 - vF / vmax, 0, 1), 0.55);
           }
         }
+        // progressive brake: bites at 45% and builds to full over ~0.35 s, eases off just before the stop (no jerk)
+        car.brakeHold = input.down && vF > 0.6 ? Math.min(1, (car.brakeHold || 0) + STEP / 0.35) : 0;
         if (input.down) {
-          if (vF > 0.6) brake = TN.brake;          // brake while rolling forward
+          if (vF > 0.6) brake = TN.brake * (0.45 + 0.55 * car.brakeHold) * (vF < 2 ? 0.6 + 0.2 * vF : 1);   // brake while rolling forward
           else F = -TN.force * 0.55 * clamp(1 - (-vF) / TN.vmaxRev, 0, 1);
         }
         if (!thr && !input.down) brake = TN.coastBrake;
-        car.braking = brake >= TN.brake;
+        car.braking = !!input.down && vF > 0.6;
         // engine drives the rear axle; our forward is -Z so the force is negated
         S.drive.forEach(i => veh.setWheelEngineForce(i, -F / S.drive.length));
         S.wheels.forEach((w, i) => { if (w.front) veh.setWheelSteering(i, car.steerAng); });
@@ -214,7 +219,8 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
       const MAXF = boost ? TN.vmaxTurbo : TN.vmax;
       let a = 0;
       if (thr) a = vl < -0.3 ? 11 : (boost ? 6 : 3.6) * Math.max(0, 1 - vl / MAXF) + 0.2;
-      if (input.down) a = vl > 0.6 ? -11 : -3 * (1 + vl / TN.vmaxRev);
+      car.brakeHold = input.down && vl > 0.6 ? Math.min(1, (car.brakeHold || 0) + dt / 0.35) : 0; car.braking = !!input.down && vl > 0.6;
+      if (input.down) a = vl > 0.6 ? -11 * (0.45 + 0.55 * car.brakeHold) * (vl < 2 ? 0.6 + 0.2 * vl : 1) : -3 * (1 + vl / TN.vmaxRev);
       const drag = (0.5 + 0.012 * vl * vl) * Math.sign(vl); a -= (thr || input.down) ? drag * 0.45 : drag * 1.5;
       let nv = vl + a * dt; if (!thr && !input.down && vl !== 0 && Math.sign(nv) !== Math.sign(vl)) nv = 0;
       vl = clamp(nv, -TN.vmaxRev, MAXF + 1);

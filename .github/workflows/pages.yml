@@ -3,6 +3,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # after a new Android app is built, publish it next to the game (same site, plain download link)
+  workflow_run:
+    workflows: ["Android APK"]
+    types: [completed]
 permissions:
   contents: read
   pages: write
@@ -21,6 +25,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Android app next to the game
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download apk-latest -R ${{ github.repository }} -p toktok-elmina.apk -D dist || echo "no APK yet"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

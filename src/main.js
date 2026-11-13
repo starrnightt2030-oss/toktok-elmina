@@ -30,8 +30,8 @@ const canvas=$('game');let renderer;
 try{renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});}catch(e){loadingText.textContent='الجهاز ده مش بيدعم WebGL.';return;}
 renderer.outputEncoding=T.sRGBEncoding;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
-let quality=isTouch?'med':'high';
-function applyPR(){renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,quality==='high'?2:1.3));}
+let quality=(()=>{try{const q=localStorage.getItem((IS_BETA?'beta_':'')+'aps_quality');if(q==='low'||q==='med'||q==='high')return q;}catch(_){}return isTouch?'med':'high';})();
+function applyPR(){renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,quality==='high'?2:(quality==='med'?1.3:1)));}
 applyPR();
 const scene=new T.Scene();const camera=new T.PerspectiveCamera(62,1,.1,2600);let baseFov=62;
 function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;baseFov=w<h?76:60;camera.fov=baseFov;camera.updateProjectionMatrix();}
@@ -45,16 +45,25 @@ function speckle(g,w,h,n,cols,s){for(let i=0;i<n;i++){g.fillStyle=cols[(Math.ran
 function blot(g,w,h,n,cols,a,r0,r1){g.globalAlpha=a;for(let i=0;i<n;i++){g.fillStyle=cols[(Math.random()*cols.length)|0];g.beginPath();g.ellipse(Math.random()*w,Math.random()*h,rand(r0,r1),rand(r0*.5,r1*.5),Math.random()*3,0,7);g.fill();}g.globalAlpha=1;}
 const AR='"IBM Plex Sans Arabic","Noto Naskh Arabic",Tahoma,sans-serif',GAMEF='Lalezar,'+AR;
 
-const texAsph=ctex(256,256,(g,w,h)=>{g.fillStyle='#4a4a55';g.fillRect(0,0,w,h);speckle(g,w,h,6000,['#3e3e48','#575763','#50505b','#34343c'],2);blot(g,w,h,14,['#222','#777'],.07,12,44);});
+/* asphalt (Phase 6 F): finer aggregate, old patches, hairline cracks and oil stains — same single texture, more life */
+const texAsph=ctex(512,512,(g,w,h)=>{g.fillStyle='#484852';g.fillRect(0,0,w,h);speckle(g,w,h,22000,['#3d3d47','#55555f','#4f4f59','#33333b','#5e5e66'],2);
+  blot(g,w,h,18,['#2a2a30','#6a6a72'],.08,14,60);
+  for(let i=0;i<5;i++){const x=Math.random()*w,y=Math.random()*h,pw=40+Math.random()*90,ph=30+Math.random()*70;g.fillStyle=Math.random()<.5?'rgba(30,30,36,.45)':'rgba(95,95,104,.25)';g.fillRect(x,y,pw,ph);g.strokeStyle='rgba(20,20,24,.5)';g.lineWidth=1.5;g.strokeRect(x,y,pw,ph);}
+  g.strokeStyle='rgba(18,18,22,.55)';g.lineCap='round';for(let i=0;i<14;i++){let x=Math.random()*w,y=Math.random()*h;g.lineWidth=.8+Math.random()*1.2;g.beginPath();g.moveTo(x,y);for(let k=0;k<6;k++){x+=(Math.random()-.5)*40;y+=(Math.random()-.5)*40;g.lineTo(x,y);}g.stroke();}
+  for(let i=0;i<6;i++){const x=Math.random()*w,y=Math.random()*h,r=8+Math.random()*22;const gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,'rgba(15,15,20,.45)');gr.addColorStop(1,'rgba(15,15,20,0)');g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2);}});
 /* 8m carriageway, 2 lanes: solid edges, dashed centre */
 const texCarr=ctex(512,256,(g,w,h)=>{g.drawImage(texAsph.image,0,0);g.drawImage(texAsph.image,256,0);g.fillStyle='rgba(20,20,24,.22)';[.25,.75].forEach(v=>g.fillRect(0,v*h-10,w,20));
   g.fillStyle='#f0ebdc';g.fillRect(0,6,w,7);g.fillRect(0,h-13,w,7);g.fillRect(0,h/2-4,w*.4,8);});
 /* 10m street, one lane each way: yellow edges, white dashes */
-const texStreet=ctex(512,256,(g,w,h)=>{g.drawImage(texAsph.image,0,0);g.drawImage(texAsph.image,256,0);g.fillStyle='rgba(20,20,24,.2)';[.27,.73].forEach(v=>g.fillRect(0,v*h-9,w,18));
+const texStreet=ctex(512,256,(g,w,h)=>{g.drawImage(texAsph.image,0,0,512,256,0,0,512,256);g.fillStyle='rgba(20,20,24,.2)';[.27,.73].forEach(v=>g.fillRect(0,v*h-9,w,18));
   g.fillStyle='#e7c23a';g.fillRect(0,8,w,5);g.fillRect(0,h-13,w,5);g.fillStyle='#f0ebdc';g.fillRect(0,h/2-3,w*.45,6);});
 const texConc=ctex(512,512,(g,w,h)=>{g.fillStyle='#b4aa9b';g.fillRect(0,0,w,h);speckle(g,w,h,9000,['#a69d8f','#c1b8a8','#9a9285','#bbb2a2'],2.2);blot(g,w,h,30,['#3b3226','#fff','#5a4a32'],.07,20,90);
   g.strokeStyle='rgba(60,52,40,.3)';g.lineWidth=2;for(let i=0;i<=4;i++){g.beginPath();g.moveTo(i*128,0);g.lineTo(i*128,h);g.stroke();g.beginPath();g.moveTo(0,i*128);g.lineTo(w,i*128);g.stroke();}});
-const texPave=ctex(256,256,(g,w,h)=>{g.fillStyle='#5f5552';g.fillRect(0,0,w,h);for(let y=0;y<8;y++)for(let x=0;x<8;x++){g.fillStyle=(x+y)%2?'#a1574a':'#8f8781';g.fillRect(x*32+1,y*32+1,30,30);}speckle(g,w,h,1400,['rgba(0,0,0,.15)','rgba(255,255,255,.07)'],2);});
+/* sidewalk tiles: the red/grey Alexandrian checker, with worn, cracked and missing tiles */
+const texPave=ctex(256,256,(g,w,h)=>{g.fillStyle='#5f5552';g.fillRect(0,0,w,h);for(let y=0;y<8;y++)for(let x=0;x<8;x++){const r=Math.random();
+    g.fillStyle=r<.05?'#6b625c':((x+y)%2?(r<.5?'#a1574a':'#99503f'):(r<.5?'#8f8781':'#857d77'));g.fillRect(x*32+1,y*32+1,30,30);
+    if(r>.93){g.strokeStyle='rgba(40,30,25,.6)';g.lineWidth=1.2;g.beginPath();g.moveTo(x*32+4,y*32+6+Math.random()*20);g.lineTo(x*32+28,y*32+4+Math.random()*24);g.stroke();}}
+  speckle(g,w,h,2400,['rgba(0,0,0,.16)','rgba(255,255,255,.07)','rgba(60,40,20,.12)'],2);blot(g,w,h,6,['#3b3028'],.08,10,30);});
 const texCurb=ctex(128,16,(g,w,h)=>{for(let i=0;i<4;i++){g.fillStyle=i%2?'#f2c218':'#1c1c20';g.fillRect(i*32,0,32,h);}});
 const texCorr=ctex(256,256,(g,w,h)=>{for(let x=0;x<w;x++){const v=Math.round(255*(.8+.2*Math.sin(x/w*Math.PI*32)));g.fillStyle='rgb('+v+','+v+','+v+')';g.fillRect(x,0,1,h);}const gr=g.createLinearGradient(0,h*.55,0,h);gr.addColorStop(0,'rgba(90,60,30,0)');gr.addColorStop(1,'rgba(90,60,30,.32)');g.fillStyle=gr;g.fillRect(0,0,w,h);});
 const texCont=ctex(256,64,(g,w,h)=>{for(let x=0;x<w;x++){const v=Math.round(255*(.74+.26*Math.abs(Math.sin(x/w*Math.PI*22))));g.fillStyle='rgb('+v+','+v+','+v+')';g.fillRect(x,0,1,h);}g.fillStyle='rgba(0,0,0,.28)';g.fillRect(0,0,w,3);g.fillRect(0,h-3,w,3);speckle(g,w,h,300,['rgba(110,60,20,.32)'],3);});
@@ -299,6 +308,10 @@ function buildTrees(){const pts=[];ST_X.forEach(x=>{[[18,110],[132,226]].forEach
   const cr=new T.InstancedMesh(M.geo(),new T.MeshStandardMaterial({vertexColors:true,roughness:.85,flatShading:true}),pts.length);tr.castShadow=cr.castShadow=true;const cc=new T.Color();
   pts.forEach((p,i)=>{const h=rand(3.2,4.4);_dum.position.set(p[0],h/2,p[1]);_dum.rotation.set(0,0,0);_dum.scale.set(1,h,1);_dum.updateMatrix();tr.setMatrixAt(i,_dum.matrix);_dum.position.set(p[0],h+.9,p[1]);_dum.rotation.set(0,rand(0,6),0);const s=rand(.85,1.2);_dum.scale.set(s,s,s);_dum.updateMatrix();cr.setMatrixAt(i,_dum.matrix);cc.set(pick(['#4f8a3a','#5f9a41','#3f7a35','#6aa04a','#7a9a3a']));cr.setColorAt(i,cc);col(p[0]-.3,p[0]+.3,p[1]-.3,p[1]+.3,5);});
   scene.add(tr,cr);}
+/* quality profiles change the real rendering cost: resolution, shadow pass and its size, view distance */
+const QUAL={low:{n:'خفيفة',shadow:0,box:55,fog:[55,300],far:700},med:{n:'متوسطة',shadow:1024,box:55,fog:[70,520],far:2600},high:{n:'عالية',shadow:2048,box:75,fog:[80,700],far:2600}};
+function setQuality(q){quality=q;ls.set('aps_quality',q);applyPR();const Q=QUAL[q];if(sun){sun.castShadow=!!Q.shadow;setShadowQ();const sc=sun.shadow.camera;sc.left=sc.bottom=-Q.box;sc.right=sc.top=Q.box;sc.updateProjectionMatrix();}
+  if(scene.fog){scene.fog.near=Q.fog[0];scene.fog.far=Q.fog[1];}camera.far=Q.far;camera.updateProjectionMatrix();const b=$('btnQuality');if(b)b.textContent='الرسوم: '+Q.n;resize();}
 function setShadowQ(){if(!sun)return;const s=quality==='high'?2048:1024;sun.shadow.mapSize.set(s,s);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
 function segs(a,b,gaps){const out=[];let x=a;gaps.slice().sort((p,q)=>p[0]-q[0]).forEach(g=>{if(g[0]>x)out.push([x,g[0]]);x=Math.max(x,g[1]);});if(b>x)out.push([x,b]);return out;}
 const curbMats={};
@@ -1244,7 +1257,7 @@ $('btnVoiceTest').addEventListener('click',()=>{const n=$('voiceNote');n.hidden=
   if(!Speech.ok){n.textContent='المتصفح ده مفيهوش خاصية النطق. افتح اللعبة في Chrome.';return;}
   if(!Speech.voice){say('أهلاً يا اسطى، الوردية بدأت',{});n.textContent='لو مسمعتش الجملة: مفيش صوت عربي متسطّب. على أندرويد: الإعدادات ← تحويل النص إلى كلام ← محرك Google ← تثبيت بيانات الصوت ← العربية. وعلى الكمبيوتر استخدم Edge.';return;}
   const ok=say('أهلاً يا اسطى، الوردية بدأت. على مركز التدريب لو سمحت',{pitch:1,rate:1,onend:()=>{}});n.textContent=ok?'لو سمعت الجملة يبقى صوت الحوار شغال: '+Speech.voice.name:'الصوت مقفول من الإعداد.';});
-$('btnQuality').addEventListener('click',e=>{quality=quality==='high'?'med':'high';e.currentTarget.textContent='الرسوم: '+(quality==='high'?'عالية':'خفيفة');applyPR();setShadowQ();resize();});
+$('btnQuality').addEventListener('click',()=>{setQuality(quality==='low'?'med':(quality==='med'?'high':'low'));});
 const VMODES={game:'أصوات اللعبة',browser:'صوت المتصفح',off:'مقفول'};function voiceUI(){$('btnVoice').textContent='صوت الحوار: '+VMODES[Speech.mode];}
 $('btnVoice').addEventListener('click',()=>{Speech.mode=Speech.mode==='game'?'browser':(Speech.mode==='browser'?'off':'game');Speech.enabled=Speech.mode!=='off';try{ls.set('aps_voice',Speech.mode);}catch(_){}VO.stop();if(Speech.ok)try{speechSynthesis.cancel();}catch(_){}voiceUI();});voiceUI();
 function renderGarage(){vehUI();$('garWallet').textContent='محفظتك: '+Math.round(save.wallet)+' ج.م';const box=$('paints');box.innerHTML='';
@@ -1384,7 +1397,7 @@ segDraw.push(seg('segCtl',[['touch','الدركسيون'],['arrows','الأسه�
 segDraw.push(seg('segSens',[[0.7,'تقيل'],[1,'عادي'],[1.35,'خفيف']],()=>ctl.sens,v=>{ctl.sens=v;saveCtl();ctlUI();}));
 segDraw.push(seg('segVoice',[['game','أصوات اللعبة'],['browser','المتصفح'],['off','مقفول']],()=>Speech.mode,v=>{while(Speech.mode!==v)$('btnVoice').click();}));
 segDraw.push(seg('segIntro',[['play','شغّلها'],['skip','اتخطاها']],()=>skipIntro()?'skip':'play',v=>{ls.set('aps_skipIntro',v==='skip'?'1':'0');}));
-segDraw.push(seg('segQ',[['high','عالية'],['med','خفيفة']],()=>quality,v=>{$('btnQuality').click();}));
+segDraw.push(seg('segQ',[['low','خفيفة'],['med','متوسطة'],['high','عالية']],()=>quality,v=>setQuality(v)));
 $('btnSettings').addEventListener('click',()=>{segDraw.forEach(f=>f());$('verNote').textContent='النسخة '+APP_VERSION;$('settings').hidden=false;});
 $('setClose').addEventListener('click',()=>{$('settings').hidden=true;});
 $('settings').addEventListener('click',e=>{if(e.target.id==='settings')$('settings').hidden=true;});
@@ -1542,7 +1555,7 @@ const perf=new URLSearchParams(location.search).get('debug')==='1'?(()=>{
     snap:snap,report:report};})():null;
 
 /* ============ boot ============ */
-async function boot(){try{ldStep('بنفتح بوابة الميناء…');await nextPaint();buildWorld();ldStep('الرصيف جاهز، بنركّب الأوناش…');await nextPaint();
+async function boot(){try{ldStep('بنفتح بوابة الميناء…');await nextPaint();buildWorld();setQuality(quality);ldStep('الرصيف جاهز، بنركّب الأوناش…');await nextPaint();
   const step=(pr,msg)=>pr.then(v=>{ldStep(msg);return v;});
   const [gltf,vanG,carsG,R]=await Promise.all([
     step(new GLTFLoader().loadAsync(window.TUK_MODEL||'./models/tuk.glb'),'التوكتوك وصل الجراج 🛺'),

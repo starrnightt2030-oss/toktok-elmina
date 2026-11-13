@@ -31,7 +31,8 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+      - name: Android SDK (preinstalled on the runner)
+        run: echo "ANDROID_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" && ls $ANDROID_HOME/build-tools | tail -3
       - name: Version name
         run: echo "VERSION_NAME=$(date -u +%Y.%m.%d)-${{ github.run_number }}" >> $GITHUB_ENV
       - name: Capacitor project

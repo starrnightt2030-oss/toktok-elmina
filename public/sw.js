@@ -16,6 +16,8 @@ self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;
   if (url.pathname.endsWith('version.json')) return;
+  // intro films stream with Range requests (206), which the Cache API cannot store: leave them to the browser's HTTP cache
+  if (req.headers.has('range') || /\.(mp4|webm)$/.test(url.pathname)) return;
   const isPage = req.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('.html');
   if (isPage) {
     e.respondWith(fetch(req, { cache: 'no-store' }).then(r => { const c = r.clone(); caches.open(CACHE).then(x => x.put(req, c)); return r; })

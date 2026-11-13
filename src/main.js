@@ -302,7 +302,7 @@ function buildWorld(){
   buildLamps();buildPalms();buildTrees();
   /* gulls */
   for(let i=0;i<10;i++){const g=new T.Group();const m=new T.MeshStandardMaterial({color:'#f2eef0'});const body=new T.Mesh(new T.BoxGeometry(.24,.16,.75),m);g.add(body);const l=new T.Group(),r=new T.Group();const wg=new T.BoxGeometry(.9,.04,.3);wg.translate(-.45,0,0);const wl=new T.Mesh(wg,m);l.add(wl);const wg2=wg.clone();wg2.translate(.9,0,0);r.add(new T.Mesh(wg2,m));g.add(l,r);scene.add(g);gulls.push({g:g,l:l,r:r,cx:rand(-250,150),cz:rand(-200,-130),rad:rand(18,45),y:rand(14,30),sp:rand(.15,.3)*(Math.random()<.5?-1:1),ph:rand(0,6.28)});}
-  streetSigns();
+  streetSigns();introProps();
   S.mesh(VC);SM.mesh(VCm);
   /* the merged meshes now own their typed arrays: drop the big JS build arrays so they can be garbage-collected */
   for(const M of [S,SM]){M.p=[];M.n=[];M.c=[];M.u=[];}
@@ -375,6 +375,16 @@ function school(x,z){const tex=rep(texFacade,3,1.6);S.box(x,x+38,0,2.6,z,z+.6,'#
 function cafe(x,z){S.box(x,x+34,2.6,2.8,z,z+6,'#7a2f2a');for(let i=0;i<6;i++){const tx=x+3+i*5.5;S.cyl(.5,.08,tx,.8,z+3,'#ddd');S.cyl(.05,.8,tx,.4,z+3,'#888');S.box(tx-1.1,tx-.7,0,.5,z+2.7,z+3.3,'#c9302a');S.box(tx+.7,tx+1.1,0,.5,z+2.7,z+3.3,'#c9302a');}
   plainSign('قهوة البحّارة',9,1.4,x+17,3.6,z-.02,Math.PI,{bg:'#5b2a1c',glow:true});
   [[x+6,z+3.4],[x+17,z+3.2]].forEach(p=>person({shirt:'#e9e2d0',pants:'#e9e2d0',skin:'#8a5a3b',galabeya:true},p[0],p[1],Math.PI));}
+/* intro props (also part of the world): a rusty bollard with coiled rope at the quay edge, wet patches by the hero spot */
+function introProps(){const M=new Merger(),bx=-264.6,bz=-124.55,rust='#5b3524',rust2='#7a4a33',rope='#8d6a45';
+  M.xf(NI.cyl12,bx,.28,bz,.62,.56,.62,0,rust);M.xf(NI.cyl12,bx,.6,bz,.9,.1,.9,0,rust2);M.xf(NI.cyl12,bx,.66,bz,.7,.06,.7,0,rust);
+  M.xf(NI.cyl12,bx,.06,bz,1.2,.12,1.2,0,'#4a3a30');
+  const tor=new T.TorusGeometry(.5,.055,6,20);[[.07,.52],[.18,.6],[.29,.47]].forEach(([y,r],i)=>{const m=new T.Matrix4().compose(V(bx+.06*i,y,bz-.02*i),new T.Quaternion().setFromEuler(new T.Euler(Math.PI/2,0,0)),V(r/.5,r/.5,1));M.add(tor,m,rope);});
+  const tor2=new T.TorusGeometry(.36,.05,6,18);const m2=new T.Matrix4().compose(V(bx,.34,bz),new T.Quaternion().setFromEuler(new T.Euler(Math.PI/2,0,0)),V(1,1,1));M.add(tor2,m2,rope);
+  for(let k=0;k<6;k++){const t=k/5;M.xf(NI.cyl8,bx+.3+t*1.7,.12-.02*k,bz+.4+t*.7,.1,.1,.42,Math.atan2(1.7,.7),rope,Math.PI/2,0);}
+  const mesh=new T.Mesh(M.geo(),new T.MeshStandardMaterial({vertexColors:true,roughness:.75,metalness:.25}));mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);col(bx-.5,bx+.5,bz-.5,bz+.5,.7);
+  const wet=new T.MeshStandardMaterial({color:'#20232c',roughness:.05,metalness:.85,transparent:true,opacity:.82,polygonOffset:true,polygonOffsetFactor:-2,depthWrite:false});
+  [[-284,-115.6,5.2,3.1,.3],[-280.4,-114,3.4,1.9,-.4],[-287.4,-118.8,3,2.2,.8],[-282.5,-119.2,2.2,1.4,0]].forEach(([x,z,a,b,r])=>{const g=new T.CircleGeometry(1,28);g.rotateX(-Math.PI/2);const m=new T.Mesh(g,wet);m.scale.set(a,1,b);m.rotation.y=r;m.position.set(x,.018,z);m.receiveShadow=true;m.renderOrder=1;scene.add(m);});}
 /* ============ street names (Phase 8) ============
    Real names the player asked for, placed on the game's streets in the real west-to-east order (Wardian → Qabbari → port /
    shipyard). The game's street layout is a simplified version of the area, so a name sits on the street that plays its part,
@@ -1322,7 +1332,8 @@ function animWorld(dt){clock+=dt;water.material.map.offset.x=clock*.004;water.ma
       S2.vel[j+1]-=9.8*dt;S2.pos[j]+=S2.vel[j]*dt;S2.pos[j+1]+=S2.vel[j+1]*dt;S2.pos[j+2]+=S2.vel[j+2]*dt;if(S2.pos[j+1]<.03){S2.pos[j+1]=.03;S2.vel[j+1]*=-.3;}}S2.pts.geometry.attributes.position.needsUpdate=true;}
   for(const b of boats){const a=clock*b.sp+b.ph;b.g.position.set(b.cx+Math.cos(a)*b.r,0,b.cz+Math.sin(a)*b.r);b.g.rotation.y=-a+(b.sp>0?-Math.PI/2:Math.PI/2);b.g.rotation.z=Math.sin(clock*1.3+b.ph)*.03;}
   const pulse=1+Math.sin(clock*4)*.06;if(destRing)destRing.scale.set(pulse,pulse,pulse);RMK.forEach(m=>{if(m.r.visible)m.r.scale.set(pulse,pulse,pulse);});beamMat.opacity=.18+Math.sin(clock*3)*.05;}
-function placeSun(){const ci=state==='intro'&&CINE.fx!=null;const fx=ci?CINE.fx:(state==='play'?car.x:-120),fz=ci?CINE.fz:(state==='play'?car.z:-30);sun.position.set(fx-110,55,fz+45);sun.target.position.set(fx,0,fz);sun.target.updateMatrixWorld();
+function placeSun(){const ci=state==='intro'&&CINE.fx!=null;const fx=ci?CINE.fx:(state==='play'?car.x:-120),fz=ci?CINE.fz:(state==='play'?car.z:-30);
+  if(ci){sun.position.set(fx+INTRO_SUN.x*160,30,fz+INTRO_SUN.z*160);sun.target.position.set(fx,0,fz);sun.target.updateMatrixWorld();return;}sun.position.set(fx-110,55,fz+45);sun.target.position.set(fx,0,fz);sun.target.updateMatrixWorld();
   sky.position.copy(camera.position);const ss=sky.userData.sun;ss.position.copy(camera.position).addScaledVector(ss.userData.dir,900);}
 
 /* ============ input ============ */
@@ -1428,11 +1439,12 @@ let last=performance.now(),mA=0;
 function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000||0);last=now;
   PEOPLE.update(dt,camera.position,peopleFrame++);
   if(state==='play'){animWorld(dt);updateTraffic(dt);updateCar(dt);updateWalkers(dt);syncTuk();updateFares(dt);dlgUpdate(dt);radioUpdate(dt);updateHUD(dt);updateCam(dt);audioTick();}
-  else if(state==='intro'){animWorld(dt);updateTraffic(dt);updateWalkers(dt);cineTick(dt);}
+  else if(state==='intro'){if(CINE.film){cineTick(dt);}else{animWorld(dt);updateTraffic(dt);updateWalkers(dt);cineTick(dt);}}
   else if(state==='menu'||state==='loading'){animWorld(dt);updateTraffic(dt);updateWalkers(dt);syncTuk();mA+=dt*.04;
     if(car&&state==='menu'&&GAR.open){if(!dragging)GAR.yaw+=dt*.18;const port=innerWidth<innerHeight,r=port?6.4:4.8,k=port?0:-1.25,sy=Math.sin(GAR.yaw),cy=Math.cos(GAR.yaw);camera.position.set(car.x+sy*r,port?2.6:1.85,car.z+cy*r);camera.lookAt(car.x+cy*k,port?-.55:.9,car.z-sy*k);}
     else if(car&&state==='menu'){const a=Math.sin(mA*2.2)*.55,port=innerWidth<innerHeight?0:-2.2;camera.position.set(car.x+Math.sin(a)*7.2+port,2.3+Math.sin(mA*1.3)*.25,car.z+Math.cos(a)*7.2);camera.lookAt(car.x+port*.6,1.35,car.z-3.5);}
     else{camera.position.set(-140+Math.cos(mA)*70,22+Math.sin(mA*.7)*5,10+Math.sin(mA)*45);camera.lookAt(-120,4,-20);}}
+  if(CINE.film&&CINE.on){if(perf)perf.tick(now);return;}
   placeSun();renderer.render(scene,camera);if(perf)perf.tick(now);}
 
 
@@ -1605,37 +1617,77 @@ function skipIntro(){return ls.get('aps_skipIntro')==='1';}
 /* ============ cinematic intro (Phase 4): the real game world, the same renderer and the same frame loop ============
    six shots ≈14 s: sea → port flyover → Wardian street → tuk passes → hero stop → logo. Tap/any key skips.
    If the first 1.5 s run slowly (avg frame > 45 ms) the port flyover is dropped (light version). */
+/* ============ intro film (optional, swappable): public/intro/intro.json ============
+   If intro.json lists playable files, the intro is a pre-rendered film instead of the realtime one. The film carries NO sound:
+   it plays muted (allowed everywhere without a tap) and the game's own sound effects are fired from the film's clock,
+   after the player's tap has unlocked audio. The official logo and captions stay HTML on top, sharp at any size.
+   Swapping in a professional 4K film = new files + new intro.json; nothing in the code changes (see public/intro/README.md).
+   Any failure (missing file, unsupported codec, stall at start) falls back to the realtime intro. */
+const FILM={cfg:null,v:null,ready:false,bad:false,src:null};
+function filmPick(cfg){const conn=navigator.connection||{},slow=conn.saveData||/(^|-)2g$/.test(conn.effectiveType||'');
+  const probe=document.createElement('video');const list=(cfg.sources||[]).filter(x=>x&&x.url&&(!x.type||probe.canPlayType(x.type)!=='')).sort((a,b)=>a.height-b.height);
+  if(!list.length)return null;if(slow)return list[0];
+  const want=Math.min(Math.max(innerWidth,innerHeight)*Math.min(devicePixelRatio||1,2)*9/16,cfg.maxHeight||2160);
+  let pick=list[0];for(const x of list)if(x.height<=want*1.15)pick=x;return pick;}
+function filmPrep(){if(FILM.v||FILM.bad)return;fetch('./intro/intro.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(c=>{
+    if(!c||c.enabled===false||!c.sources||!c.shots)return;const src=filmPick(c);if(!src){FILM.bad=true;return;}FILM.cfg=c;FILM.src=src;
+    const v=document.createElement('video');v.className='cfilm';v.muted=true;v.defaultMuted=true;v.playsInline=true;v.disablePictureInPicture=true;
+    v.setAttribute('muted','');v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');v.preload='auto';if(c.poster)v.poster=c.poster;
+    v.addEventListener('canplaythrough',()=>{FILM.ready=true;});v.addEventListener('loadeddata',()=>{FILM.ready=true;});
+    v.addEventListener('error',()=>{FILM.bad=true;if(CINE.film&&CINE.on)filmFallback();});
+    v.src=src.url;FILM.v=v;const el=$('cine');el.insertBefore(v,el.firstChild);}).catch(()=>{});}
+function filmStart(el){if(!FILM.v||FILM.bad)return false;const v=FILM.v,c=FILM.cfg;
+  let t=0;CINE.shots=c.shots.map(s=>{const o={id:s.id,dur:s.dur,t0:t};t+=s.dur;o.t1=t;return o;});CINE.len=Math.min(t,c.duration||t);
+  CINE.film=true;CINE.stall=0;CINE.vt=-1;el.classList.add('film');el.hidden=false;el.className='film';void el.offsetWidth;el.classList.add('run');
+  state='intro';CINE.cues=filmCues().map(q=>({c:q,done:false}));
+  try{v.currentTime=0;}catch(_){}const p=v.play();if(p&&p.catch)p.catch(()=>{FILM.bad=true;filmFallback();});
+  el.onpointerdown=()=>finishCine();CINE.key=e=>{finishCine();};addEventListener('keydown',CINE.key);return true;}
+/* the same sound design as the realtime intro, timed to the film's three shots */
+function filmCues(){return [[0,sfxWaves],[.3,sfxShipHorn],[1.0,sfxGull],[2.6,sfxGull],['hero',-.25,()=>sfxWhoosh(.7,.3)],['hero',.15,introEngine],['hero',.9,sfxBoom],['hero',1.05,()=>sfxChime(0)],['hero',1.35,()=>sfxChime(2)],['hero',2.9,sfxHorn],['flash',.15,()=>sfxWhoosh(1.1,.45)],['flash',1.6,()=>sfxChime(1)],['flash',1.65,sfxBoom]];}
+function filmTick(dt){const v=FILM.v,el=$('cine');if(!v)return;
+  const vt=v.currentTime||0;if(vt===CINE.vt&&!v.ended){CINE.stall+=dt;if(CINE.stall>(CINE.t<.05?3:2.5)){if(CINE.t<.05)filmFallback();else finishCine();return;}}else{CINE.stall=0;CINE.vt=vt;}
+  CINE.t=vt;const t=vt;
+  for(const q of CINE.cues){if(q.done)continue;const ct=cueTime(q.c);if(ct===null){q.done=true;continue;}if(t>=ct){q.done=true;if(t-ct<.6)try{q.c[q.c.length-1]();}catch(_){}}}
+  if(v.ended||t>=CINE.len-.02){finishCine();return;}
+  const s=CINE.shots.find(x=>t>=x.t0&&t<x.t1)||CINE.shots[CINE.shots.length-1],u=Math.min(1,(t-s.t0)/s.dur);
+  if(el.dataset.shot!==s.id)el.dataset.shot=s.id;
+  $('cineFade').style.opacity=Math.max(0,1-t/.9);
+  $('cineFlash').style.opacity=s.id===CINE.shots[CINE.shots.length-1].id?Math.max(0,Math.min(1,(u-.62)/.36)):0;}
+/* the film could not play: run the realtime intro instead, from the start */
+function filmFallback(){if(!CINE.film)return;CINE.film=false;const v=FILM.v;if(v){try{v.pause();}catch(_){}v.style.display='none';}FILM.bad=true;
+  if(!CINE.on)return;removeEventListener('keydown',CINE.key);const end=CINE.end;CINE.on=false;startCine(end);}
+function filmStop(){if(!CINE.film)return;CINE.film=false;const v=FILM.v;if(v){try{v.pause();}catch(_){}
+  setTimeout(()=>{try{v.removeAttribute('src');v.load();v.remove();}catch(_){}FILM.v=null;},500);}$('cine').classList.remove('film');}
+filmPrep();   /* start fetching the film while the world loads */
 const V3=(x,y,z)=>[x,y,z];
-/* Phase 8 intro: a drone over the city and the sea, the port, the shipyard, the training centre (outside then the students'
-   corridor), the driver walking to his tuk and getting in, the tuk on the avenue, then the hero shot and the logo. */
-const GM=TC.gateMain,TKZ=6.2;
+/* ============ Intro v2 (Beta): ≈11 s, golden-hour harbour → hero tuk on a wet quay → flash into the main menu ============
+   Visual identity taken from the reference film (sunset over the water, cranes, gulls, a rusty bollard with rope, wet reflective
+   ground, logo reveal), built from the game's own scene, the project's tuk and the official logo — no extra download.
+   The reference is a mood board only: none of its places are claimed to be real positions in the port.
+   A professional film can replace it later: see public/intro/README.md (intro.json + 720/1080/2160 files). */
+const HERO={x:-284,z:-116.8},HCAM=[-277.4,-113.6];
 const CINE_SHOTS=[
-  {id:'drone',dur:3.4,cam:[V3(-520,150,-300),V3(-240,105,-170)],look:[V3(-40,0,-20),V3(60,0,30)],cap:['الإسكندرية','غرب المدينة — الورديان والقباري والمينا']},
-  {id:'port',dur:3.2,cam:[V3(-215,9,-28),V3(-160,13,-40)],look:[V3(-140,12,-110),V3(-100,16,-112)],cap:['ميناء الإسكندرية','الأرصفة والأوناش والحاويات']},
-  {id:'yard',dur:2.8,cam:[V3(158,16,-22),V3(186,11,-38)],look:[V3(226,6,-98),V3(234,8,-102)],cap:['ترسانة الإسكندرية','الحوض الجاف والأوناش']},
-  {id:'tc',dur:3,cam:[V3(GM+5,4.2,-7),V3(GM-.5,3.4,9)],look:[V3(GM-4,5.5,40),V3(GM-5,6.5,34)],cap:['مركز تدريب الترسانة','الإدارة والفصول والورش']},
-  {id:'tcin',dur:2.6,cam:[V3(232,2.3,57.85),V3(206,2.1,57.85)],look:[V3(200,2,57.85),V3(176,1.8,57.85)],cap:['ممر دخول وخروج الطلبة','ورش النجارة وتصنيع الآلات']},
-  {id:'board',dur:3.6,cam:[V3(GM+13,1.75,14.8),V3(GM+11.5,1.6,12.6)],look:[V3(GM+8,1.1,TKZ),V3(GM+8,1.1,TKZ)],tuk:()=>[GM+8,TKZ,Math.PI/2],speed:0,driver:true,cap:['الوردية بتبدأ','الأسطى راكب التوكتوك']},
-  {id:'drive',dur:3.2,follow:u=>[-7+3*u,1.0+.4*u,-3.2],tuk:u=>[GM+8-52*u,TKZ,Math.PI/2],speed:16},
-  {id:'hero',dur:2.2,cam:[V3(GM-51,.95,3.2),V3(GM-52.2,.75,4.6)],look:null,tuk:()=>[GM-46,TKZ,Math.PI/2],speed:0,lights:true},
-  {id:'logo',dur:2.6,cam:[V3(GM-52.2,.75,4.6),V3(GM-52.8,.9,5.2)],look:null,tuk:()=>[GM-46,TKZ,Math.PI/2],speed:0,lights:true}];
+  {id:'harbor',dur:3.8,cam:[V3(-262.6,1.3,-121.9),V3(-264.8,1.55,-122.8)],look:[V3(-424,9,-232),V3(-426,10,-230)],cap:null},
+  {id:'hero',dur:4.2,cam:[V3(HCAM[0]+.9,.85,HCAM[1]+.5),V3(HCAM[0]-.6,1.0,HCAM[1]-.3)],look:null,tuk:()=>[HERO.x,HERO.z,Math.atan2(-(HCAM[0]-HERO.x),-(HCAM[1]-HERO.z))],speed:0,lights:true},
+  {id:'flash',dur:2.2,cam:[V3(HCAM[0]-.6,1.0,HCAM[1]-.3),V3(HCAM[0]-2.6,1.7,HCAM[1]-1.4)],look:null,tuk:()=>[HERO.x,HERO.z,Math.atan2(-(HCAM[0]-HERO.x),-(HCAM[1]-HERO.z))],speed:0,lights:true}];
+const INTRO_SUN=V(-.74,.075,-.67).normalize();   /* low over the sea, west-north-west */
 const CINE={on:false,t:0,shots:null,end:null,slow:0,frames:0,cues:null,hg:true};
 /* the intro is always shown at the best settings, with the sun's shadows centred on what the camera looks at */
 function cineQuality(on){if(on){CINE.q0=quality;if(quality!=='high'){quality='high';applyPR();if(sun){sun.castShadow=true;setShadowQ();}}
     if(sun){const sc=sun.shadow.camera;sc.left=sc.bottom=-95;sc.right=sc.top=95;sc.updateProjectionMatrix();}if(scene.fog){scene.fog.near=90;scene.fog.far=900;}}
   else if(CINE.q0){const q=CINE.q0;CINE.q0=null;setQuality(q);}}
 const easeIO=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
-function cineBuild(light){let t=0;CINE.shots=CINE_SHOTS.filter(s=>!(light&&(s.id==='port'||s.id==='yard'))).map(s=>{const o=Object.assign({},s,{t0:t});t+=s.dur;o.t1=t;return o;});CINE.len=t;}
+function cineBuild(light){let t=0;CINE.shots=CINE_SHOTS.map(s=>{const o=Object.assign({},s,{t0:t});t+=s.dur;o.t1=t;return o;});CINE.len=t;}
 function startCine(onEnd){const el=$('cine');$('hud').hidden=true;$('toast').hidden=true;CINE.on=true;CINE.t=0;CINE.end=onEnd;CINE.slow=0;CINE.frames=0;CINE.light=false;cineBuild(false);
+  if(filmStart(el))return;
   CINE.hg=headGlow?headGlow.visible:true;if(headGlow)headGlow.visible=false;
   el.hidden=false;el.className='';void el.offsetWidth;el.classList.add('run');
-  state='intro';camera.fov=48;camera.updateProjectionMatrix();cineQuality(true);
+  state='intro';camera.fov=42;camera.updateProjectionMatrix();cineQuality(true);introLook(true);
   /* sound cues, fired from the frame clock so a skip stops them all */
-  CINE.cues=[[0,sfxWaves],[.3,sfxShipHorn],['port',.4,sfxGull],['port',1.7,sfxGull],['tc',.2,()=>sfxWhoosh(.5,.25)],['board',2.9,()=>blip('ok')],['drive',.05,introEngine],['drive',1.6,sfxHorn],['logo',0,()=>sfxWhoosh(.8,.4)],['logo',.35,sfxBoom],['logo',.55,()=>sfxChime(0)],['logo',.8,()=>sfxChime(2)]].map(c=>({c:c,done:false}));
+  CINE.cues=[[0,sfxWaves],[.25,sfxShipHorn],[.9,sfxGull],[2.3,sfxGull],['hero',-.25,()=>sfxWhoosh(.7,.3)],['hero',.1,introEngine],['hero',1.25,sfxBoom],['hero',1.4,()=>sfxChime(0)],['hero',1.7,()=>sfxChime(2)],['hero',2.9,sfxHorn],['flash',.2,()=>sfxWhoosh(1.1,.45)],['flash',1.45,()=>sfxChime(1)],['flash',1.5,sfxBoom]].map(c=>({c:c,done:false}));
   el.onpointerdown=()=>finishCine();CINE.key=e=>{finishCine();};addEventListener('keydown',CINE.key);}
 function cueTime(c){if(typeof c[0]==='number')return c[0];const s=CINE.shots.find(x=>x.id===c[0]);return s?s.t0+c[1]:null;}
-function cineTick(dt){CINE.t+=dt;const t=CINE.t;
-  if(t<1.5){CINE.frames++;CINE.slow+=dt;}else if(!CINE.light&&CINE.frames&&t<2.2&&CINE.slow/CINE.frames>.045){CINE.light=true;const sea=CINE.shots[0];cineBuild(true);}
+function cineTick(dt){if(CINE.film){filmTick(dt);return;}CINE.t+=dt;const t=CINE.t;
   for(const q of CINE.cues){if(q.done)continue;const ct=cueTime(q.c);if(ct===null){q.done=true;continue;}if(t>=ct){q.done=true;try{q.c[q.c.length-1]();}catch(_){}}}
   if(t>=CINE.len){finishCine();return;}
   const s=CINE.shots.find(x=>t>=x.t0&&t<x.t1)||CINE.shots[CINE.shots.length-1];const u=Math.min(1,(t-s.t0)/s.dur),e=easeIO(u);
@@ -1646,9 +1698,22 @@ function cineTick(dt){CINE.t+=dt;const t=CINE.t;
   if(s.follow){const [ox,oy,oz]=s.follow(u);camera.position.set(car.x+ox,oy,car.z+oz);}
   else{const c0=s.cam[0],c1=s.cam[1];camera.position.set(c0[0]+(c1[0]-c0[0])*e,c0[1]+(c1[1]-c0[1])*e,c0[2]+(c1[2]-c0[2])*e);}
   if(s.look){const l0=s.look[0],l1=s.look[1];const lx=l0[0]+(l1[0]-l0[0])*e,lz=l0[2]+(l1[2]-l0[2])*e;camera.lookAt(lx,l0[1]+(l1[1]-l0[1])*e,lz);CINE.fx=(camera.position.x+lx)/2;CINE.fz=(camera.position.z+lz)/2;}else{camera.lookAt(car.x,car.y+1.15,car.z);CINE.fx=car.x;CINE.fz=car.z;}
-  if(headGlow&&s.lights){const on=s.id==='logo'||u>.35;if(headGlow.visible!==on){headGlow.visible=on;if(on)blip('ok');}}
+  if(headGlow&&s.lights){const on=s.id==='flash'||u>.12;if(headGlow.visible!==on){headGlow.visible=on;if(on)blip('ok');}}
+  cineFlare();
   /* dips to black between shots */
-  const edge=Math.min(t-s.t0,s.t1-t);$('cineFade').style.opacity=s.id==='sea'?Math.max(0,1-t/1.6):(edge<.18&&s.id!=='logo'?(1-edge/.18)*.85:0);}
+  /* fade in from black, a short dip at the cut, a warm flash into the menu at the end */
+  const edge=Math.min(t-s.t0,s.t1-t);$('cineFade').style.opacity=s.id==='harbor'?Math.max(0,1-t/1.3)+(s.t1-t<.16?(1-(s.t1-t)/.16)*.8:0):(s.id==='hero'&&t-s.t0<.16?(1-(t-s.t0)/.16)*.8:0);
+  $('cineFlash').style.opacity=s.id==='flash'?Math.max(0,Math.min(1,(u-.55)/.4)):0;}
+/* screen-space sun glare + ghosts, placed where the low sun is on screen */
+const _fl=new T.Vector3();
+function cineFlare(){const f=$('cineFlare');if(!f)return;_fl.copy(camera.position).addScaledVector(INTRO_SUN,800).project(camera);
+  const on=_fl.z<1&&Math.abs(_fl.x)<1.4&&Math.abs(_fl.y)<1.4;f.style.opacity=on?'1':'0';if(!on)return;
+  const x=(_fl.x*.5+.5)*innerWidth,y=(-_fl.y*.5+.5)*innerHeight;f.style.setProperty('--fx',x+'px');f.style.setProperty('--fy',y+'px');
+  f.style.setProperty('--gx',(innerWidth-x)+'px');f.style.setProperty('--gy',(innerHeight-y)+'px');}
+/* sunset look for the intro: sun low over the sea, warmer haze and light, restored afterwards */
+function introLook(on){const sp=sky&&sky.userData.sun;if(on){CINE.look0={dir:sp&&sp.userData.dir.clone(),fog:scene.fog.color.getHex(),sc:sun.color.getHex(),si:sun.intensity,ex:renderer.toneMappingExposure};
+    if(sp)sp.userData.dir.copy(INTRO_SUN);scene.fog.color.set('#d8916f');sun.color.set('#ffb46a');sun.intensity=1.9;renderer.toneMappingExposure=1.12;}
+  else if(CINE.look0){const L=CINE.look0;if(sp&&L.dir)sp.userData.dir.copy(L.dir);scene.fog.color.setHex(L.fog);sun.color.setHex(L.sc);sun.intensity=L.si;renderer.toneMappingExposure=L.ex;CINE.look0=null;}}
 /* the driver walks from the pavement to the tuk and gets in (the seated driver is shown once he is in) */
 function cineDriver(s,u){const dh=tukNodes.driverH;
   if(s.driver){if(!CINE.dv){CINE.dv=person({variant:'Man',shirt:'#3f6587',pants:'#2a3550',skin:'#8f6446'},car.x+3.2,12.4,Math.PI);}
@@ -1656,7 +1721,7 @@ function cineDriver(s,u){const dh=tukNodes.driverH;
     if(u<.78){const k=Math.min(1,u/.7);d.visible=true;const sx=car.x+3.2,sz=12.4;d.position.set(sx+(tx-sx)*k,0,sz+(tz-sz)*k);d.rotation.y=Math.atan2(tx-sx,tz-sz);PEOPLE.play(d,'Walk',.15);if(dh)dh.visible=false;}
     else{d.visible=false;if(dh)dh.visible=true;}}
   else{if(CINE.dv)CINE.dv.visible=false;if(dh)dh.visible=true;}}
-function finishCine(){if(!CINE.on)return;CINE.on=false;cineQuality(false);CINE.fx=null;if(CINE.dv){scene.remove(CINE.dv);CINE.dv=null;}if(tukNodes.driverH)tukNodes.driverH.visible=true;$('cineCap').classList.remove('on');removeEventListener('keydown',CINE.key);if(introAmb)try{introAmb.stop();}catch(_){}
+function finishCine(){if(!CINE.on)return;CINE.on=false;filmStop();cineQuality(false);introLook(false);CINE.fx=null;$('cineFlash').style.opacity=0;document.body.classList.add('menu-cine');setTimeout(()=>document.body.classList.remove('menu-cine'),1600);if(CINE.dv){scene.remove(CINE.dv);CINE.dv=null;}if(tukNodes.driverH)tukNodes.driverH.visible=true;$('cineCap').classList.remove('on');removeEventListener('keydown',CINE.key);if(introAmb)try{introAmb.stop();}catch(_){}
   const el=$('cine');el.classList.add('out');setTimeout(()=>{el.hidden=true;el.classList.remove('run','out');el.onpointerdown=null;},450);
   if(headGlow)headGlow.visible=CINE.hg;camera.fov=baseFov;camera.updateProjectionMatrix();veh.teleport(-160,7,-Math.PI/2);car.v=0;syncTuk();
   state='menu';const cb=CINE.end;CINE.end=null;if(cb)cb();}
@@ -1727,7 +1792,7 @@ async function boot(){try{ldStep('بنفتح بوابة الميناء…');awai
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);
   destRing=new T.Mesh(new T.TorusGeometry(3,.15,8,40),new T.MeshBasicMaterial({color:'#4cff5e'}));destRing.rotation.x=Math.PI/2;destRing.visible=false;scene.add(destRing);
   buildRadioUI();radioUI();syncTuk();menuWallet();updateMoney();
-  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get training(){return TRAINING;},voices:VO,get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,cineSeek:t=>{if(CINE.on)CINE.t=t;},get cineShots(){return CINE.shots&&CINE.shots.map(x=>[x.id,x.t0,x.t1]);},get fare(){return fare;},get riders(){return riders;},get boarding(){return boarding;},get people(){return PEOPLE;},get line(){return line;},get perf(){return perf;},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
+  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get training(){return TRAINING;},voices:VO,get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,cineSeek:t=>{if(CINE.on){if(CINE.film&&FILM.v)FILM.v.currentTime=t;else CINE.t=t;}},get film(){return {on:!!CINE.film,ready:FILM.ready,bad:FILM.bad,src:FILM.src&&FILM.src.url,t:FILM.v&&FILM.v.currentTime};},get cineShots(){return CINE.shots&&CINE.shots.map(x=>[x.id,x.t0,x.t1]);},get fare(){return fare;},get riders(){return riders;},get boarding(){return boarding;},get people(){return PEOPLE;},get line(){return line;},get perf(){return perf;},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
   state='menu';ldStep('كله تمام، الوردية مستنياك!');requestAnimationFrame(frame);introReady();}
   catch(err){console.error(err);loadingText.textContent='حصلت مشكلة: '+err.message;}}
 const fr0=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();

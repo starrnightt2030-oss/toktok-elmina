@@ -36,6 +36,7 @@ jobs:
             adb shell monkey -p io.github.starrnightt.toktokelmina -c android.intent.category.LAUNCHER 1
             sleep 15; adb exec-out screencap -p > out/s15.png
             sleep 30; adb exec-out screencap -p > out/s45.png
+            adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' > out/focus.txt || true
             sleep 45; adb exec-out screencap -p > out/s90.png
             adb shell input tap 540 1200; sleep 20; adb exec-out screencap -p > out/s110_tap.png
             adb logcat -d > out/logcat.txt || true
@@ -43,7 +44,7 @@ jobs:
       - name: Show the result in the log
         if: always()
         run: |
-          echo "=== app log ==="; grep -iE "capacitor|chromium|console|AndroidRuntime|FATAL|toktok" out/logcat.txt | tail -150 || true
+          echo "=== focus ==="; cat out/focus.txt || true; echo "=== app log ==="; grep -iE "capacitor|chromium|console|AndroidRuntime|FATAL|toktok" out/logcat.txt | tail -150 || true
           python3 -m pip install -q pillow
           for f in out/*.png; do python3 -c "import sys,base64,io;from PIL import Image;im=Image.open(sys.argv[1]).convert('RGB');im.thumbnail((240,520));b=io.BytesIO();im.save(b,'JPEG',quality=60);print('IMG',sys.argv[1],base64.b64encode(b.getvalue()).decode())" "$f"; done
       - uses: actions/upload-artifact@v4

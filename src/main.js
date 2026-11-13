@@ -575,7 +575,7 @@ function personGeo(lk,seated){const k=JSON.stringify(lk)+(seated?'s':'');if(pers
   return personCache[k]=M.geo();}
 /* people (Phase 8): rigged, animated figures; person() places one in the world, human() makes one to place yourself */
 /* inside the Android app the download section is not needed */
-try{if(/[?&]app=android\b/.test(location.search))localStorage.setItem('aps_app','android');if(localStorage.getItem('aps_app')==='android'){document.documentElement.classList.add('in-app');const e=document.getElementById('apkSec');if(e)e.hidden=true;}}catch(_){}
+try{if(/[?&]app=android\b/.test(location.search)||/ToktokElminaApp/.test(navigator.userAgent))localStorage.setItem('aps_app','android');if(localStorage.getItem('aps_app')==='android'){document.documentElement.classList.add('in-app');const e=document.getElementById('apkSec');if(e)e.hidden=true;}}catch(_){}
 const PEOPLE=createPeople(T);let peopleFrame=0;
 function human(lk,clip){return PEOPLE.make(lk||{},clip||'Idle');}
 function person(lk,x,z,ry,seated){const m=human(lk,seated?'Sit':'Idle');m.position.set(x,0,z);m.rotation.y=ry||0;scene.add(m);return m;}

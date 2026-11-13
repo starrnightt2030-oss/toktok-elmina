@@ -3,12 +3,16 @@
   "appName": "توكتوك في المينا",
   "webDir": "app/www",
   "server": {
-    "url": "https://starrnightt2030-oss.github.io/toktok-elmina/?app=android",
+    "url": "https://starrnightt2030-oss.github.io/toktok-elmina/",
     "androidScheme": "https",
-    "errorPath": "offline.html"
+    "errorPath": "offline.html",
+    "allowNavigation": [
+      "starrnightt2030-oss.github.io"
+    ]
   },
   "android": {
     "backgroundColor": "#101B2D",
-    "allowMixedContent": false
+    "allowMixedContent": false,
+    "appendUserAgent": "ToktokElminaApp"
   }
 }

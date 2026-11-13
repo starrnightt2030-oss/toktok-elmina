@@ -23,7 +23,7 @@ jobs:
         run: gh release download apk-latest -R ${{ github.repository }} -p toktok-elmina.apk -D .
       - uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
+          api-level: 34
           arch: x86_64
           target: google_apis
           force-avd-creation: false
@@ -32,6 +32,7 @@ jobs:
           script: |
             mkdir -p out
             adb install -r toktok-elmina.apk
+            adb shell dumpsys package com.google.android.webview | grep -m2 versionName > out/webview_version.txt || true
             adb logcat -c
             adb shell monkey -p io.github.starrnightt.toktokelmina -c android.intent.category.LAUNCHER 1
             sleep 15; adb exec-out screencap -p > out/s15.png
@@ -44,9 +45,9 @@ jobs:
       - name: Show the result in the log
         if: always()
         run: |
-          echo "=== focus ==="; cat out/focus.txt || true; echo "=== app log ==="; grep -iE "capacitor|chromium|console|AndroidRuntime|FATAL|toktok" out/logcat.txt | tail -150 || true
+          echo "=== focus ==="; cat out/focus.txt || true; echo "=== webview ==="; cat out/webview_version.txt || true; echo "=== app log ==="; grep -iE "capacitor|chromium|console|AndroidRuntime|FATAL|toktok" out/logcat.txt | tail -150 || true
           python3 -m pip install -q pillow
-          for f in out/*.png; do python3 -c "import sys,base64,io;from PIL import Image;im=Image.open(sys.argv[1]).convert('RGB');im.thumbnail((240,520));b=io.BytesIO();im.save(b,'JPEG',quality=60);print('IMG',sys.argv[1],base64.b64encode(b.getvalue()).decode())" "$f"; done
+          for f in out/*.png; do python3 -c "import sys,base64,io;from PIL import Image;im=Image.open(sys.argv[1]).convert('RGB');im.thumbnail((420,900));b=io.BytesIO();im.save(b,'JPEG',quality=60);print('IMG',sys.argv[1],base64.b64encode(b.getvalue()).decode())" "$f"; done
       - uses: actions/upload-artifact@v4
         if: always()
         with:

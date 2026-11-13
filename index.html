@@ -515,6 +515,17 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
 .mapbtns button{width:48px;height:48px;border-radius:12px;border:1.5px solid var(--line-strong);background:rgba(var(--navy-rgb),.9);color:var(--tuk);font:700 22px var(--f-body);display:grid;place-items:center}
 .mapbtns button:active{transform:scale(.93)}
 .mapcard .pgnote{margin:8px 12px 10px;font-size:12px}
+
+/* ===== round steering pad for arrow control (Phase 6) ===== */
+.arrows{gap:0}
+.arrRing{position:relative;width:clamp(150px,40vw,184px);aspect-ratio:1;border-radius:50%;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;
+  background:radial-gradient(circle at 50% 40%,#2c3f5e,#121d30 70%);border:3px solid rgba(245,185,40,.75);box-shadow:0 8px 18px rgba(0,0,0,.55),inset 0 2px 0 rgba(255,255,255,.15)}
+.arrRing .arr{width:100%;height:100%;border:0;border-radius:0;background:transparent;box-shadow:none;color:#F5F1E8;display:grid;place-items:center;transition:background .06s,color .06s}
+.arrRing .arr svg{width:46%;height:46%;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5))}
+.arrRing #arrL{border-right:1.5px solid rgba(245,241,232,.18);padding-left:8%}.arrRing #arrR{padding-right:8%}
+.arrRing .arr.on{transform:none;box-shadow:none;background:radial-gradient(circle at 50% 50%,rgba(245,185,40,.95),rgba(201,141,0,.85));color:#241a00}
+.arrHub{position:absolute;left:50%;top:50%;width:26%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle at 40% 35%,#F5B928,#a86f00);border:3px solid #101B2D;pointer-events:none}
+@media (max-height:500px){.arrRing{width:136px}}
 </style>
 </head>
 <body>
@@ -718,7 +729,7 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
         <text x="100" y="108" text-anchor="middle" font-family="Lalezar,Tahoma" font-size="22" fill="#3a2a00">توكتوك</text>
       </svg>
     </div>
-    <div class="arrows"><button class="arr pe" id="arrL" aria-label="شمال">◀</button><button class="arr pe" id="arrR" aria-label="يمين">▶</button></div>
+    <div class="arrows"><div class="arrRing"><button class="arr pe" id="arrL" aria-label="شمال"><svg viewBox="0 0 24 24"><path d="M15 4.5 7.5 12l7.5 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="arrHub" aria-hidden="true"></span><button class="arr pe" id="arrR" aria-label="يمين"><svg viewBox="0 0 24 24"><path d="M9 4.5 16.5 12 9 19.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>
     <div class="pads">
       <button class="cbtn horn pe" id="tHorn" data-in="horn" aria-label="سرينة"><svg viewBox="0 0 48 48"><path d="M6 20h7l15-9v26l-15-9H6z" fill="#fff"/><path d="M33 15q6 9 0 18M38 11q9 13 0 26" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round"/></svg><span>سرينة</span></button>
       <button class="cbtn turbo pe" data-in="turbo" aria-label="تيربو"><svg viewBox="0 0 48 48"><path d="M26 4 10 27h12l-3 17 18-25H25z" fill="#fff"/></svg><span>تيربو</span></button>

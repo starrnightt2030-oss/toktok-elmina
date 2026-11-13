@@ -134,25 +134,28 @@ function col(x0,x1,z0,z1,h){colliders.push({x0:x0,x1:x1,z0:z0,z1:z1,h:h===undefi
 /* ============ world layout ============
    x: west→east (-300..300). z: sea (north, negative) → city (south, positive).
    Avenue (طريق الميناء) along z=0. Port wall z=-16 with three gates. Port west of x=115, shipyard east. City grid south. */
-const ST_X=[-250,-150,-50,50,150,250];const ST_Z=[120,235];
+/* Phase 7: the map runs further east (to x 420). The street at x 250 moved to x 286 so the training centre sits at near-real size
+   across from the shipyard gate; a new street at x 370 opens the eastern blocks. EX = east edge of the drivable city. */
+const ST_X=[-250,-150,-50,50,150,286,370];const ST_Z=[120,235];const EX=420;
 const GATES=[{x:-230,ar:'بوابة ١',en:'PORT GATE 1',c:'#173f6b'},{x:40,ar:'بوابة ٥٠',en:'PORT GATE 50',c:'#173f6b'},{x:170,ar:'ترسانة الإسكندرية',en:'ALEXANDRIA SHIPYARD',c:'#8a1f1a'}];
 const RESERVE=[];
 /* new training centre from the user's site plan, across from the shipyard gate (Phase 6 C). Preview with ?tc=new until the map is approved. */
-const TC_NEW=/[?&]tc=new\b/.test(location.search)||ls.get('aps_tc')==='new';
-if(TC_NEW)RESERVE.push([TC.X0-1,TC.X1+1,12,112],[58,92,13,32]);
+const TC_NEW=true;   /* approved: the new training centre is the one in the game */
+RESERVE.push([TC.X0-1,TC.X1+1,12,TC.Z1+1.5],[58,92,13,32]);
 function reserved(x0,x1,z0,z1){for(const r of RESERVE)if(x1>r[0]&&x0<r[1]&&z1>r[2]&&z0<r[3])return true;return false;}
 
 /* road graph (for GPS + roads) */
 const NODES={};const EDGES=[];
 function node(x,z){const k=x+','+z;if(!NODES[k])NODES[k]={x:x,z:z,k:k,adj:[]};return NODES[k];}
 function edge(a,b,kind){const A=node(a[0],a[1]),B=node(b[0],b[1]);const d=Math.hypot(A.x-B.x,A.z-B.z);A.adj.push([B,d]);B.adj.push([A,d]);EDGES.push({a:A,b:B,kind:kind});}
-(function(){const AX=[-290,-250,-230,-150,-50,40,50,150,170,250,290];for(let i=0;i<AX.length-1;i++)edge([AX[i],0],[AX[i+1],0],'ave');
+(function(){const AX=[-290,-250,-230,-150,-50,40,50,150,170,TC.gateMain,286,370,410];for(let i=0;i<AX.length-1;i++)edge([AX[i],0],[AX[i+1],0],'ave');
   ST_X.forEach(x=>{edge([x,0],[x,120],'st');edge([x,120],[x,235],'st');});
   ST_Z.forEach(z=>{for(let i=0;i<ST_X.length-1;i++)edge([ST_X[i],z],[ST_X[i+1],z],'st');});
   const PX=[-280,-230,-120,-20,40,100];for(let i=0;i<PX.length-1;i++){edge([PX[i],-30],[PX[i+1],-30],'port');edge([PX[i],-112],[PX[i+1],-112],'port');}
   edge([-230,0],[-230,-30],'gate');edge([40,0],[40,-30],'gate');
   [-280,-120,-20,100].forEach(x=>edge([x,-30],[x,-112],'port'));
-  edge([170,0],[170,-38],'gate');edge([170,-38],[170,-45],'port');edge([125,-45],[170,-45],'port');edge([170,-45],[170,-108],'port');edge([170,-38],[185,-38],'campus');edge([185,-38],[280,-38],'campus');})();
+  edge([170,0],[170,-38],'gate');edge([170,-38],[170,-45],'port');edge([125,-45],[170,-45],'port');edge([170,-45],[170,-108],'port');edge([170,-38],[185,-38],'campus');edge([185,-38],[280,-38],'campus');
+  TC.graph(edge);})();
 wardianGraph(edge);   /* Wardian district streets join the graph (GPS, minimap, safe points) */
 
 /* points of interest (stop spots on the kerb side of a lane) */
@@ -166,23 +169,18 @@ const POI={
   gateS:{n:'بوابة الترسانة',x:180,z:-6.5,sx:0,sz:-5,area:'yard'},
   ws:{n:'ورشة الهياكل',x:166.5,z:-63,sx:-4,sz:0,area:'yard'},
   dock:{n:'الحوض الجاف',x:173.5,z:-100,sx:4.5,sz:0,area:'yard'},
-  elec:{n:'ورشة الكهرباء بمركز التدريب',x:200,z:-40.5,sx:0,sz:-4.5,area:'yard'},
-  theory:{n:'مبنى النظري بمركز التدريب',x:214,z:-35.5,sx:0,sz:4,area:'yard'},
-  weld:{n:'ورشة اللحام بمركز التدريب',x:232,z:-40.5,sx:0,sz:-4.5,area:'yard'},
-  lathe:{n:'ورشة الخراطة بمركز التدريب',x:264,z:-40.5,sx:0,sz:-4.5,area:'yard'},
-  tcadmin:{n:'إدارة مركز التدريب',x:274,z:-35.5,sx:0,sz:4.6,area:'yard'},
   admin:{n:'هيئة الميناء',x:70,z:-32.5,sx:0,sz:-6,area:'port'},
   fish:{n:'سوق السمك',x:-215,z:6.5,sx:0,sz:5.5,area:'city'},
   cafe:{n:'قهوة البحّارة',x:175,z:6.5,sx:0,sz:5.5,area:'city'},
   mosque:{n:'الجامع',x:-215,z:122.5,sx:0,sz:5,area:'city'},
   school:{n:'المدرسة الصناعية',x:22,z:122.5,sx:0,sz:5,area:'city'},
   bakery:{n:'فرن العيش',x:147.5,z:70,sx:-4.5,sz:0,area:'city'},
-  micro:{n:'موقف الميكروباص',x:247.5,z:180,sx:-4.5,sz:0,area:'city'},
+  micro:{n:'موقف الميكروباص',x:281.5,z:180,sx:-4.5,sz:0,area:'city'},
   market:{n:'سوق الخضار',x:-52.5,z:60,sx:4.5,sz:0,area:'city'},
-  clinic:{n:'المستوصف',x:-147.5,z:190,sx:-4.5,sz:0,area:'city'}};
+  clinic:{n:'المستوصف',x:-147.5,z:190,sx:-4.5,sz:0,area:'city'},
+  qstop:{n:'موقف القباري',x:-200,z:232.5,sx:0,sz:-5,area:'qabbari'}};
 Object.assign(POI,WARDIAN_POI);
-if(TC_NEW){['elec','theory','weld','lathe','tcadmin'].forEach(k=>delete POI[k]);POI.cafe.x=75;
-  POI.tcmain={n:'مركز تدريب الترسانة — المدخل',x:219.4,z:6.5,sx:0,sz:5.5,area:'campus'};POI.tcexit={n:'بوابة خروج مركز التدريب',x:164.4,z:6.5,sx:0,sz:5.5,area:'campus'};}
+POI.cafe.x=75;Object.assign(POI,TC.POI);
 const STATIONS_F=[{n:'بنزينة الميناء',x:-121,z:26,sx:-122,sz:26},{n:'بنزينة الحي',x:79,z:138,sx:79,sz:138}];
 
 let sky,sun,water,flags=[],trolleys=[],glowPts,gulls=[],headGlow,coneGlow;
@@ -217,7 +215,7 @@ function buildWorld(){
   const carrM=len=>new T.MeshStandardMaterial({map:rep(texCarr,len/16,1),roughness:.9});
   plane(900,8,carrM(900),0,.03,5);plane(900,8,carrM(900),0,.03,-5);
   /* median: grass strip with gaps */
-  const gaps=[-250,-230,-150,-50,45,150,170,250].concat(WARDIAN_GAPS.map(g=>(g[0]+g[1])/2));
+  const gaps=[-250,-230,-150,-50,45,150,170,TC.gateMain,286,370].concat(WARDIAN_GAPS.map(g=>(g[0]+g[1])/2));
   let mx=-450;const medSeg=(a,b)=>{if(b-a<2)return;S.box(a,b,0,.28,-1,1,'#3f6a3a');curb(a,b,-1.15,-1);curb(a,b,1,1.15);};
   gaps.slice().sort((a,b)=>a-b).forEach(g=>{const half=g===45?12:7;medSeg(mx,g-half);mx=g+half;});medSeg(mx,450);
   for(let x=-280;x<=280;x+=22){if(gaps.some(g=>Math.abs(x-g)<12))continue;palmsList.push([x,0,rand(7,9)]);col(x-.4,x+.4,-.4,.4,9);}
@@ -242,34 +240,37 @@ function buildWorld(){
   [-230,40,170].forEach(x=>plane(10,8,pAsph,x,.039,-12.5));
 
   /* ===== port wall + gates ===== */
-  segs(-300,300,GATES.map(g=>[g.x-7,g.x+7])).forEach(s=>{S.box(s[0],s[1],0,3.4,-16.5,-15.5,'#e7ddc8');S.box(s[0],s[1],3.4,3.7,-16.7,-15.3,'#3b6e8c');S.box(s[0],s[1],0,.6,-16.6,-15.4,'#4c6a6a');col(s[0],s[1],-16.5,-15.5,3.7);});
+  segs(-300,EX,GATES.map(g=>[g.x-7,g.x+7])).forEach(s=>{S.box(s[0],s[1],0,3.4,-16.5,-15.5,'#e7ddc8');S.box(s[0],s[1],3.4,3.7,-16.7,-15.3,'#3b6e8c');S.box(s[0],s[1],0,.6,-16.6,-15.4,'#4c6a6a');col(s[0],s[1],-16.5,-15.5,3.7);});
   S.box(114.5,115.5,0,3.4,-125,-16.5,'#e7ddc8');col(114.5,115.5,-125,-16.5,3.4);
   GATES.forEach(g=>g.x===-230?mainGate(g):gate(g));
   /* boundaries */
-  wardianBounds(col);col(298,900,-900,900,0);col(-900,900,244,900,0);
+  wardianBounds(col);col(EX-2,900,-900,900,0);col(-900,900,244,900,0);
 
   /* ===== city blocks ===== */
-  RESERVE.push([-139,-102,13,50],[58,100,126,162],[-242,-200,13,40],[-244,-221,127,150],[4,44,127,172],[156,196,13,32],[226,243,166,196],[140,146,62,78]);
-  const BX=[-300].concat(ST_X).concat([300]);
+  RESERVE.push([-139,-102,13,50],[58,100,126,162],[-242,-200,13,40],[-244,-221,127,150],[4,44,127,172],[262,279,166,196],[140,146,62,78]);
+  const BX=[-300].concat(ST_X).concat([EX]);
   const facM=new T.MeshStandardMaterial({map:texFacade,emissiveMap:texFacadeLit,emissive:'#ffffff',emissiveIntensity:.95,vertexColors:true,roughness:.85});
   const shopM=new T.MeshStandardMaterial({map:texShops,emissiveMap:texShopsLit,emissive:'#ffffff',emissiveIntensity:.8,vertexColors:true,roughness:.8});
   const FAC=new Merger(),SHP=new Merger(),ROOF=new Merger();
+  const QAB_TINTS=['#f0d9b5','#e8c9a0','#f5e6c8','#d9b48a','#ecd2b0','#c9d8c0'];   /* القباري: older, lower houses in warm plaster */
   const tints=['#ffffff','#ffd9a8','#ffe9c9','#ffc8b4','#d6e6f2','#fff0b0','#ead6ff','#d4ecd4','#f6c99a','#ffffff'];
   const zBands=[[15,111],[129,226],[244,300]];
   for(let i=0;i<BX.length-1;i++){const xa=BX[i]+(i===0?0:9),xb=BX[i+1]-(i===BX.length-2?0:9);
     zBands.forEach((zb,bi)=>{let x=xa;while(x<xb-6){let w=rand(16,26);if(xb-(x+w)<10)w=xb-x;let z=zb[0];
         while(z<zb[1]-6){let d=rand(20,30);if(zb[1]-(z+d)<12)d=zb[1]-z;
           const x0=x+.6,x1=x+w-.6,z0=z+.6,z1=z+d-.6;
-          if(!reserved(x0,x1,z0,z1)){const fl=3+((sr()*8)|0)+(bi===2?3:0),h=4.5+fl*3;building(FAC,SHP,ROOF,x0,x1,z0,z1,h,pick(tints),bi===2,{n:z===zb[0],s:z+d>=zb[1]-.01,w:x===xa,e:x+w>=xb-.01});if(bi<2)col(x0,x1,z0,z1,h);}
+          if(!reserved(x0,x1,z0,z1)){const qab=x1<-150&&bi<2;const fl=qab?2+((sr()*4)|0):3+((sr()*8)|0)+(bi===2?3:0),h=4.5+fl*3;building(FAC,SHP,ROOF,x0,x1,z0,z1,h,qab?pick(QAB_TINTS):pick(tints),bi===2,{n:z===zb[0],s:z+d>=zb[1]-.01,w:x===xa,e:x+w>=xb-.01});if(bi<2)col(x0,x1,z0,z1,h);}
           z+=d;}
         x+=w;}});}
   FAC.mesh(facM);SHP.mesh(shopM);ROOF.mesh(VC);
   RESERVE.length=0;
   /* ===== landmarks in the city ===== */
   fuelStation(-139,-103,14,48,'بنزينة الميناء',1);fuelStation(60,98,128,160,'بنزينة الحي',-1);
-  fishMarket();mosque(-243,129);school(5,128);cafe(TC_NEW?58:158,14);microStand();
-  if(TC_NEW)TRAINING=buildTraining({T,scene,S,Merger,NI,col,ctex,rep,texPave,texConc,AR,GAMEF,plainSign,person,palmsList});
-  signBoard('فرن العيش',143,6,72,Math.PI/2);signBoard('سوق الخضار',-46,6,62,-Math.PI/2);signBoard('المستوصف',-141,6,192,Math.PI/2);
+  fishMarket();mosque(-243,129);school(5,128);cafe(58,14);microStand(36);
+  TRAINING=buildTraining({T,scene,S,SM,Merger,NI,VC,col,ctex,rep,texPave,texConc,AR,GAMEF,plainSign,person,palmsList,lampsList,flag});
+  signBoard('فرن العيش',143,6,72,Math.PI/2);signBoard('موقف القباري',-200,4.6,226.15,0);S.box(-206,-194,3.2,3.4,226,229.2,'#2a6fb0');[-205.6,-194.4].forEach(x=>S.box(x-.08,x+.08,0,3.2,228.9,229.1,'#888'));
+  /* القباري: district signs where you drive in */
+  [[-200,13.2,Math.PI],[-156.2,112,Math.PI/2],[-296,125,-Math.PI/2]].forEach(([x,z,ry])=>{S.cyl(.08,4.2,x,2.1,z,'#5a6066');plainSign('حي القباري',3.2,.8,x+Math.sin(ry)*.1,4,z+Math.cos(ry)*.1,ry,{bg:'#1e4d7a',border:'#ffffff',glow:true});});signBoard('سوق الخضار',-46,6,62,-Math.PI/2);signBoard('المستوصف',-141,6,192,Math.PI/2);
   billboards();trafficLights();
 
   /* ===== port ===== */
@@ -293,7 +294,7 @@ function buildWorld(){
   contData.forEach((c,i)=>{_dum.position.set(c[0],c[1],c[2]);_dum.rotation.set(0,0,0);_dum.scale.set(12.2,2.6,2.44);_dum.updateMatrix();inst.setMatrixAt(i,_dum.matrix);cc.set(c[3]);inst.setColorAt(i,cc);});scene.add(inst);
 
   /* lamps along avenue + streets */
-  for(let x=-290;x<=290;x+=26){if(GATES.some(g=>Math.abs(x-g.x)<10)||ST_X.some(s=>Math.abs(x-s)<8))continue;lampsList.push([x,10.2,Math.PI]);lampsList.push([x+13,-10.2,0]);}
+  for(let x=-290;x<=EX-10;x+=26){if(Math.abs(x-TC.gateMain)<8||Math.abs(x-TC.gateExit)<8)continue;if(GATES.some(g=>Math.abs(x-g.x)<10)||ST_X.some(s=>Math.abs(x-s)<8))continue;lampsList.push([x,10.2,Math.PI]);lampsList.push([x+13,-10.2,0]);}
   ST_X.forEach(x=>{for(let z=30;z<230;z+=34){if(Math.abs(z-120)<10)continue;lampsList.push([x+5.8,z,-Math.PI/2]);}});
   WARDIAN=buildWardian({T,scene,S,Merger,NI,VC,col,ctex,rep,texStreet,texAsph,texPave,AR,GAMEF,lampsList,plainSign});
   {const g=WARDIAN&&WARDIAN.shops.find(q=>q.kind==='ورشة توكتوك');if(g&&Math.abs(g.nx)>.5)POI.wgarage={n:g.name,x:g.x+g.nx*6.3,z:g.z,sx:-g.nx*4.6,sz:0,area:'wardian'};}
@@ -372,9 +373,9 @@ function school(x,z){const tex=rep(texFacade,3,1.6);S.box(x,x+38,0,2.6,z,z+.6,'#
 function cafe(x,z){S.box(x,x+34,2.6,2.8,z,z+6,'#7a2f2a');for(let i=0;i<6;i++){const tx=x+3+i*5.5;S.cyl(.5,.08,tx,.8,z+3,'#ddd');S.cyl(.05,.8,tx,.4,z+3,'#888');S.box(tx-1.1,tx-.7,0,.5,z+2.7,z+3.3,'#c9302a');S.box(tx+.7,tx+1.1,0,.5,z+2.7,z+3.3,'#c9302a');}
   plainSign('قهوة البحّارة',9,1.4,x+17,3.6,z-.02,Math.PI,{bg:'#5b2a1c',glow:true});
   [[x+6,z+3.4],[x+17,z+3.2]].forEach(p=>person({shirt:'#e9e2d0',pants:'#e9e2d0',skin:'#8a5a3b',galabeya:true},p[0],p[1],Math.PI));}
-function microStand(){S.box(229,241,3.4,3.6,172,192,'#2a6fb0');[[229.2,172.2],[240.8,172.2],[229.2,191.8],[240.8,191.8]].forEach(p=>S.box(p[0]-.1,p[0]+.1,0,3.4,p[1]-.1,p[1]+.1,'#888'));
-  [176,183,189].forEach(z=>{const g=vehicleGeo('micro','#f2f2f2');const m=new T.Mesh(g,VC);m.position.set(235,0,z);m.rotation.y=Math.PI/2;m.castShadow=true;scene.add(m);col(231.5,238.5,z-1.2,z+1.2,2.5);});
-  plainSign('موقف الميكروباص',8,1.3,241.3,4.4,182,-Math.PI/2,{bg:'#2a6fb0',glow:true});}
+function microStand(o){S.box(229+o,241+o,3.4,3.6,172,192,'#2a6fb0');[[229.2,172.2],[240.8,172.2],[229.2,191.8],[240.8,191.8]].forEach(p=>S.box(p[0]+o-.1,p[0]+o+.1,0,3.4,p[1]-.1,p[1]+.1,'#888'));
+  [176,183,189].forEach(z=>{const g=vehicleGeo('micro','#f2f2f2');const m=new T.Mesh(g,VC);m.position.set(235+o,0,z);m.rotation.y=Math.PI/2;m.castShadow=true;scene.add(m);col(231.5+o,238.5+o,z-1.2,z+1.2,2.5);});
+  plainSign('موقف الميكروباص',8,1.3,241.3+o,4.4,182,-Math.PI/2,{bg:'#2a6fb0',glow:true});}
 function billboards(){const ads=[['حلواني البحر','كنافة وبسبوسة من ١٩٦٠','#7a2f2a'],['زيت المحرّك','غيّر كل ٥٠٠٠ كم','#1f4e8c'],['مكتبة الطلبة','كل كتب الصنايع','#2f6b4f'],['سيراميك المتوسط','لمسة بحرية لبيتك','#6a3f8a'],['فول وطعمية الإسكندراني','من الفجر للضهر','#a0522d'],['شحن سريع','موبايلات وإكسسوارات','#c9302a']];
   ads.forEach((a,i)=>{const x=-270+i*100+rand(-10,10),z=i%2?-13.5:13.6,ry=i%2?0:Math.PI;S.box(x-.15,x+.15,0,4.5,z-.15,z+.15,'#3a3a3a');
     const tex=ctex(512,768,g=>{g.fillStyle=a[2];g.fillRect(0,0,512,768);g.fillStyle='rgba(255,255,255,.12)';g.beginPath();g.arc(256,300,200,0,7);g.fill();g.fillStyle='#fff';g.textAlign='center';g.direction='rtl';g.font='96px '+GAMEF;let s=96;while(g.measureText(a[0]).width>460){s-=6;g.font=s+'px '+GAMEF;}g.fillText(a[0],256,300);g.font='700 44px '+AR;g.fillStyle='#ffe9b0';g.fillText(a[1],256,560);g.strokeStyle='#fff';g.lineWidth=14;g.strokeRect(14,14,484,740);});
@@ -424,9 +425,9 @@ function shipyard(){
   [[126,142,-36,-24]].forEach(b=>{S.box(b[0],b[1],0,6,b[2],b[3],'#c4602b');S.box(b[0]+.4,b[1]-.4,6,6.4,b[2]+.4,b[3]-.4,'#7a858c');col(b[0],b[1],b[2],b[3],6);});
   for(let i=0;i<8;i++)S.cyl(.22,1.6,125+i*.55,.8,-36,i%2?'#2f6b4f':'#c9302a');
   person({shirt:'#e86a1c',pants:'#2b3a52',skin:'#9a6b4a',helmet:'#f2c230'},178,-103,0);
-  if(TC_NEW)yardSheds();else campus();}
+  yardSheds();}
 /* with the training centre moved out, its old plot inside the shipyard holds plain shipyard sheds */
-function yardSheds(){[[186,226,-58,-24],[234,292,-58,-36]].forEach(([x0,x1,z0,z1],i)=>{S.box(x0,x1,0,9,z0,z1,i?'#9aa5ae':'#a9b2ba');S.box(x0-.3,x1+.3,9,9.6,z0-.3,z1+.3,'#6f7880');for(let x=x0+3;x<x1-3;x+=9)S.box(x,x+5,0,6,z1,z1+.15,'#5c656d');col(x0,x1,z0,z1,9.6);});}
+function yardSheds(){[[188,228,-60,-45],[236,292,-60,-45],[188,228,-31,-19],[236,292,-31,-19]].forEach(([x0,x1,z0,z1],i)=>{S.box(x0,x1,0,9,z0,z1,i?'#9aa5ae':'#a9b2ba');S.box(x0-.3,x1+.3,9,9.6,z0-.3,z1+.3,'#6f7880');for(let x=x0+3;x<x1-3;x+=9)S.box(x,x+5,0,6,z1,z1+.15,'#5c656d');col(x0,x1,z0,z1,9.6);});}
 /* ============ landmarks modelled on the Alexandria Port / Shipyard photos ============ */
 function mainGate(g){const x=g.x,z0=-21,z1=-13.5,gl='#4f8f95',st='#e7e1d2',gold='#c9a23a';
   [-1,1].forEach(s=>{const a=x+s*9,b=x+s*17;const xa=Math.min(a,b),xb=Math.max(a,b);
@@ -477,87 +478,11 @@ const bobbers=[];
 function lighthouse(x,z){for(let k=0;k<8;k++){const r=3-k*.18;S.cyl(r,3,x,1.6+k*3+1.5,z,k%2?'#c9302a':'#f4f1ea',12);}S.cyl(2.2,.6,x,26.4,z,'#2a2a2a',12);S.cyl(1.4,2.2,x,27.8,z,'#fff3c4',12);S.xf(NI.cone,x,30,z,3.2,1.8,3.2,0,'#c9302a');
   const l=new T.PointLight('#fff1c0',2.2,120,1.4);l.position.set(x,28,z);scene.add(l);}
 
-/* ===== training campus: theory building, workshops, admin ===== */
-const texBoard=(title,lines,bg)=>ctex(1024,320,g=>{g.fillStyle=bg||'#1f4a36';g.fillRect(0,0,1024,320);g.strokeStyle='#8a6a3a';g.lineWidth=18;g.strokeRect(9,9,1006,302);g.fillStyle='#f4f1e6';g.textAlign='center';g.direction='rtl';g.font='62px '+GAMEF;g.fillText(title,512,82);g.font='700 40px '+AR;lines.forEach((l,i)=>g.fillText(l,512,156+i*58));});
-const texGlassF=ctex(256,256,g=>{const gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#6f9cc4');gr.addColorStop(1,'#2d4f72');g.fillStyle=gr;g.fillRect(0,0,256,256);g.fillStyle='#e9eef2';for(let i=0;i<=4;i++){g.fillRect(i*64-3,0,6,256);g.fillRect(0,i*64-4,256,8);}g.fillStyle='rgba(255,255,255,.12)';g.beginPath();g.moveTo(0,256);g.lineTo(256,0);g.lineTo(256,60);g.lineTo(60,256);g.fill();});
-const texGlassFLit=ctex(256,256,g=>{g.fillStyle='#000';g.fillRect(0,0,256,256);for(let r=0;r<4;r++)for(let c=0;c<4;c++)if(Math.random()<.45){g.fillStyle=Math.random()<.7?'#ffd59a':'#cfe6ff';g.fillRect(c*64+4,r*64+5,56,54);}});
-function campus(){const X0=180,X1=296,Z0=-61,Z1=-16;
-  const pv=new T.Mesh(new T.PlaneGeometry(X1-X0,Z1-Z0),new T.MeshStandardMaterial({map:rep(texPave,29,11),roughness:.9}));pv.rotation.x=-Math.PI/2;pv.position.set((X0+X1)/2,.02,(Z0+Z1)/2);pv.receiveShadow=true;scene.add(pv);
-  const wallC='#e9dfca';
-  segs(Z0,Z1,[[-45,-31]]).forEach(s=>{S.box(X0-.5,X0+.5,0,3,s[0],s[1],wallC);S.box(X0-.6,X0+.6,3,3.25,s[0],s[1],'#0f4a3a');col(X0-.5,X0+.5,s[0],s[1],3.2);});
-  S.box(X1-.5,X1+.5,0,3,Z0,Z1,wallC);col(X1-.5,X1+.5,Z0,Z1,3);S.box(X0,X1,0,3,Z0-.5,Z0+.5,wallC);col(X0,X1,Z0-.5,Z0+.5,3);
-  /* entrance arch */
-  [[-46.5,-45],[-31,-29.5]].forEach(z=>{S.box(X0-.9,X0+.9,0,7.2,z[0],z[1],'#efe7d6');col(X0-.9,X0+.9,z[0],z[1],7.2);});S.box(X0-1.1,X0+1.1,7.2,8.6,-46.5,-29.5,'#0f4a3a');
-  plainSign('مركز تدريب ترسانة الإسكندرية',15,1.25,X0-1.12,7.9,-38,-Math.PI/2,{bg:'#0f4a3a',border:'#e8c35a',glow:true});plainSign('أهلاً بكم في مركز التدريب',15,1.25,X0+1.12,7.9,-38,Math.PI/2,{bg:'#0f4a3a',border:'#e8c35a'});
-  S.box(X0+2,X0+5,0,2.8,-29.4,-26,'#efe7d6');S.box(X0+1.8,X0+5.2,2.8,3.1,-29.6,-25.8,'#0f4a3a');col(X0+2,X0+5,-29.4,-26,3);person({shirt:'#2d3b4f',pants:'#2d3b4f',skin:'#8f6446',cap:'#24303f'},X0+3.5,-30.2,0);
-
-  /* ---- theory building (glass ground floor, arcade, classrooms you can see into) ---- */
-  const tx0=186,tx1=250,tz0=-33,tzg=-28,tz1=-17,gh=4.2,H=12.5;
-  const up=new T.Mesh(new T.BoxGeometry(tx1-tx0,H-gh,tz1-tz0),new T.MeshStandardMaterial({map:rep(texFacade,(tx1-tx0)/12,(H-gh)/9),emissiveMap:rep(texFacadeLit,(tx1-tx0)/12,(H-gh)/9),emissive:'#ffffff',emissiveIntensity:.85,color:'#f3e6cf',roughness:.85}));
-  up.position.set((tx0+tx1)/2,(gh+H)/2,(tz0+tz1)/2);up.castShadow=up.receiveShadow=true;scene.add(up);S.box(tx0-.3,tx1+.3,H,H+.6,tz0-.3,tz1+.3,'#cdb894');S.box(tx0,tx1,gh-.05,gh+.35,tz0-.6,tz0,'#d9cbb0');
-  for(let x=tx0+1;x<=tx1-1;x+=7){S.box(x-.35,x+.35,0,gh,tz0+.2,tz0+.9,'#efe7d6');col(x-.4,x+.4,tz0+.15,tz0+.95,gh);}
-  S.box(tx0,tx1,0,gh,tz1-.6,tz1,'#e8dcc4');S.box(tx0,tx0+.6,0,gh,tzg,tz1,'#e8dcc4');S.box(tx1-.6,tx1,0,gh,tzg,tz1,'#e8dcc4');S.box(217.7,218.3,0,gh,tzg,tz1,'#e8dcc4');
-  col(tx0,tx1,tzg,tz1,H);
-  const fl=new T.Mesh(new T.PlaneGeometry(tx1-tx0,tz1-tzg),new T.MeshStandardMaterial({color:'#cfc8bb',roughness:.6}));fl.rotation.x=-Math.PI/2;fl.position.set((tx0+tx1)/2,.04,(tzg+tz1)/2);scene.add(fl);
-  const gl=new T.Mesh(new T.PlaneGeometry(tx1-tx0,gh-.3),new T.MeshStandardMaterial({color:'#bfe0f0',transparent:true,opacity:.2,roughness:.05,metalness:.5,depthWrite:false}));gl.position.set((tx0+tx1)/2,gh/2-.1,tzg);gl.rotation.y=Math.PI;scene.add(gl);
-  for(let x=tx0;x<=tx1;x+=4)S.box(x-.06,x+.06,0,gh,tzg-.06,tzg+.06,'#5a6066');S.box(tx0,tx1,0,.35,tzg-.08,tzg+.08,'#5a6066');S.box(tx0,tx1,gh-.4,gh-.1,tzg-.08,tzg+.08,'#5a6066');
-  const ce=new T.Mesh(new T.PlaneGeometry(tx1-tx0,tz1-tz0),new T.MeshStandardMaterial({color:'#efe9df',roughness:.9}));ce.rotation.x=Math.PI/2;ce.position.set((tx0+tx1)/2,gh-.03,(tz0+tz1)/2);scene.add(ce);
-  for(let x=tx0+3;x<tx1-2;x+=6){const lp=new T.Mesh(NI.box,new T.MeshBasicMaterial({color:'#fffaf0'}));lp.scale.set(3.2,.05,.5);lp.position.set(x,gh-.07,(tzg+tz1)/2);scene.add(lp);}
-  /* classroom 1: theory lesson */
-  const brd1=new T.Mesh(new T.PlaneGeometry(9,2.6),new T.MeshBasicMaterial({map:texBoard('الكهرباء: قانون أوم',['الجهد = التيار × المقاومة','V = I × R'])}));brd1.position.set(202,2.3,tz1-.65);brd1.rotation.y=Math.PI;scene.add(brd1);
-  for(let r=0;r<3;r++)for(let c=0;c<4;c++){const x=191+c*6.6,z=-25.8+r*2.4;S.box(x-1.3,x+1.3,.72,.8,z-.3,z+.3,'#b98b5a');S.box(x-1.25,x-1.15,0,.72,z-.25,z+.25,'#555');S.box(x+1.15,x+1.25,0,.72,z-.25,z+.25,'#555');
-    [-.6,.6].forEach(o=>{S.box(x+o-.22,x+o+.22,.42,.48,z-.75,z-.35,'#2e5e8c');person(pick([{shirt:'#2e5e8c',pants:'#2e5e8c',skin:'#b07a55'},{shirt:'#1f6f5c',pants:'#2a3550',skin:'#9c6b48'},{shirt:'#e9e2d0',pants:'#384a63',skin:'#8f6446'},{shirt:'#7a3b5a',pants:'#2a3550',skin:'#c69472',hijab:'#2f4f7a'}]),x+o,z-.55,Math.PI,true).position.y=.48;});}
-  person({shirt:'#f4f1ea',pants:'#3b4a63',skin:'#9a6b4a'},211,-19.4,0);
-  /* classroom 2: drawing & computer lab */
-  const brd2=new T.Mesh(new T.PlaneGeometry(9,2.6),new T.MeshBasicMaterial({map:texBoard('معمل الرسم الفني',['قراءة الرسومات الهندسية','المساقط والقطاعات'],'#1d3550')}));brd2.position.set(234,2.3,tz1-.65);brd2.rotation.y=Math.PI;scene.add(brd2);
-  const scr=new T.MeshBasicMaterial({color:'#6fc2ff'});
-  for(let r=0;r<3;r++)for(let c=0;c<4;c++){const x=223+c*6.6,z=-25.8+r*2.4;S.box(x-1.3,x+1.3,.72,.8,z-.3,z+.3,'#d9d9d4');S.box(x-1.25,x-1.15,0,.72,z-.25,z+.25,'#555');S.box(x+1.15,x+1.25,0,.72,z-.25,z+.25,'#555');
-    [-.6,.6].forEach(o=>{const s=new T.Mesh(NI.box,scr);s.scale.set(.5,.32,.03);s.position.set(x+o,1.0,z+.1);s.rotation.y=Math.PI;scene.add(s);S.box(x+o-.25,x+o+.25,.8,.84,z,z+.25,'#222');});}
-  [[227,-23],[240,-20.6]].forEach(p=>person({shirt:'#1f6f5c',pants:'#2a3550',skin:'#b07a55'},p[0],p[1],Math.PI));
-  plainSign('مبنى الدراسة النظرية',18,2,218,9.2,tz0-.32,Math.PI,{bg:'#0f4a3a',border:'#e8c35a',glow:true});
-  plainSign('قاعة ١',3,.7,202,3.5,tzg-.12,Math.PI,{bg:'#f1ead8',fg:'#0f4a3a',border:false});plainSign('معمل ٢',3,.7,234,3.5,tzg-.12,Math.PI,{bg:'#f1ead8',fg:'#0f4a3a',border:false});
-  /* ---- admin & trainee affairs ---- */
-  const am=new T.Mesh(new T.BoxGeometry(36,9,13),new T.MeshStandardMaterial({map:rep(texFacade,3,1),emissiveMap:rep(texFacadeLit,3,1),emissive:'#ffffff',emissiveIntensity:.85,color:'#f6efe0',roughness:.85}));am.position.set(274,4.5,-23.5);am.castShadow=am.receiveShadow=true;scene.add(am);col(256,292,-30,-17,9);
-  S.box(255.6,292.4,9,9.5,-30.4,-16.6,'#cdb894');S.box(268,280,3.6,4,-33,-30,'#0f4a3a');[268.5,279.5].forEach(x=>{S.cyl(.18,3.6,x,1.8,-32.6,'#efe7d6');col(x-.25,x+.25,-32.9,-32.3,3.6);});S.box(271,277,0,3,-30.06,-30,'#24394a');
-  plainSign('الإدارة وشؤون المتدربين',12,1.4,274,7.6,-30.06,Math.PI,{bg:'#0f4a3a',border:'#e8c35a',glow:true});flag(262,-32,10);
-  /* ---- workshops (open fronts) ---- */
-  shed(186,214,'ورشة الكهرباء','elec');shed(218,246,'ورشة اللحام','weld');shed(250,278,'ورشة الخراطة والتشغيل','lathe');
-  plainSign('السلامة أولاً – البس مهمات الوقاية',10,1.6,288,4.4,-44.5,0,{bg:'#f2b705',fg:'#1b1b1b',border:'#1b1b1b',glow:true});S.box(287.8,288.2,0,3.6,-44.7,-44.3,'#444');col(287.6,288.4,-44.8,-44.2,4);
-  /* parked staff bus */
-  const bus=new T.Mesh(vehicleGeo('bus','#f2f2f2'),VC);bus.position.set(287,0,-38.5);bus.rotation.y=Math.PI/2;bus.castShadow=true;scene.add(bus);col(281.5,292.5,-40,-37,3);
-  [[190,-44.6],[284,-31.5]].forEach(p=>palmsList.push([p[0],p[1],7.5]));}
-function shed(x0,x1,label,kind){const zf=-46,zb=-60,h=7.5,t=.5;const wm=new T.MeshStandardMaterial({map:rep(texCorr,(x1-x0)/5,1),color:'#a9bcc4',metalness:.25,roughness:.6});const wz=new T.MeshStandardMaterial({map:rep(texCorr,(zf-zb)/5,1),color:'#a9bcc4',metalness:.25,roughness:.6});
-  const w=(a,b,c,d,e,f,m)=>{const o=new T.Mesh(NI.box,m);o.position.set((a+b)/2,(c+d)/2,(e+f)/2);o.scale.set(b-a,d-c,f-e);o.castShadow=o.receiveShadow=true;scene.add(o);};
-  w(x0,x1,0,h,zb,zb+t,wm);w(x0,x0+t,0,h,zb,zf,wz);w(x1-t,x1,0,h,zb,zf,wz);w(x0,x1,5.6,h,zf-t,zf,wm);col(x0,x1,zb,zb+t,h);col(x0,x0+t,zb,zf,h);col(x1-t,x1,zb,zf,h);
-  S.box(x0+t,x0+t+.5,0,5.6,zf-.6,zf,'#f2b705');S.box(x1-t-.5,x1-t,0,5.6,zf-.6,zf,'#f2b705');
-  const D=x1-x0;const s=new T.Shape();s.moveTo(-(zb-zf)/2,0);s.lineTo(0,0);s.closePath();
-  const rs=new T.Shape();rs.moveTo(-D/2-.6,0);rs.lineTo(D/2+.6,0);rs.lineTo(0,3.2);rs.closePath();const rg=new T.ExtrudeGeometry(rs,{depth:zf-zb+1.2,bevelEnabled:false});
-  const r=new T.Mesh(rg,new T.MeshStandardMaterial({map:rep(texCorr,D/4,1),color:'#7b8a92',metalness:.35,roughness:.5}));r.position.set((x0+x1)/2,h,zb-.6);r.castShadow=r.receiveShadow=true;scene.add(r);
-  const fl=new T.Mesh(new T.PlaneGeometry(D-1,zf-zb-.6),new T.MeshStandardMaterial({map:rep(texConc,2,1),color:'#9a958c',roughness:.7}));fl.rotation.x=-Math.PI/2;fl.position.set((x0+x1)/2,.03,(zf+zb)/2);fl.receiveShadow=true;scene.add(fl);
-  const cx=(x0+x1)/2;S.box(cx-3.2,cx-3.05,.035,.04,zb+1,zf,'#f2c218');S.box(cx+3.05,cx+3.2,.035,.04,zb+1,zf,'#f2c218');
-  for(let x=x0+3;x<x1-2;x+=5)S.box(x-1.2,x+1.2,h-.3,h-.22,zb+2,zf-1,'#ffffff');
-  plainSign(label,14,1.5,cx,6.6,zf+.02,0,{bg:'#0f4a3a',border:'#e8c35a',glow:true});
-  const L=x0+1.2,R=x1-1.2;
-  if(kind==='elec'){for(let x=x0+2;x<x1-2;x+=3.2){S.box(x,x+2.6,.2,2.4,zb+.5,zb+1.1,'#9aa3aa');S.box(x+.3,x+2.3,1.2,2.1,zb+1.1,zb+1.12,'#2b3a46');for(let k=0;k<4;k++)S.box(x+.5+k*.45,x+.62+k*.45,1.9,2.0,zb+1.12,zb+1.16,['#ff3b2a','#38ff6a','#ffd23a','#3ec6ff'][k]);}
-    col(x0,x1,zb,zb+1.2,2.4);
-    [L,R-2.4].forEach(bx=>{S.box(bx,bx+2.4,.85,.95,zb+3,zf-2,'#8a6a4a');S.box(bx+.1,bx+.2,0,.85,zb+3,zf-2,'#555');S.box(bx+2.2,bx+2.3,0,.85,zb+3,zf-2,'#555');
-      for(let z=zb+3.6;z<zf-2.5;z+=2.4)S.box(bx+(bx===L?.1:2.2),bx+(bx===L?.2:2.3),.95,2.2,z-.9,z+.9,'#e8e8e2');col(bx,bx+2.4,zb+3,zf-2,2.2);});
-    S.box(x0+1,x1-1,5.2,5.3,zb+6,zb+6.6,'#7a7f86');
-    plainSign('خطر – كهرباء',2.4,.8,x0+5,3,zb+1.15,0,{bg:'#f2b705',fg:'#1b1b1b',border:'#1b1b1b'});
-    [[L+3,zb+6],[R-3,zb+8],[L+3,zb+10]].forEach((p,i)=>person({shirt:'#1f4e8c',pants:'#1f4e8c',skin:['#b07a55','#9c6b48','#8f6446'][i],helmet:'#ffffff'},p[0],p[1],p[0]<cx?-Math.PI/2:Math.PI/2));}
-  if(kind==='weld'){for(let i=0;i<4;i++){const bx=x0+2+i*6.2;S.box(bx,bx+.12,0,2.4,zb+.5,zb+4.5,'#3a3d42');S.box(bx+4.8,bx+4.92,0,2.4,zb+.5,zb+4.5,'#3a3d42');S.box(bx+1.4,bx+3.4,.85,.95,zb+1.2,zb+2.4,'#5c6870');
-      const cu=new T.Mesh(new T.PlaneGeometry(4.6,2.1),new T.MeshStandardMaterial({color:'#e8641c',transparent:true,opacity:.55,side:T.DoubleSide}));cu.position.set(bx+2.46,1.25,zb+4.5);scene.add(cu);
-      if(i===1||i===3)sparksAt(bx+2.4,1.0,zb+1.8,0);person({shirt:'#2e3a4a',pants:'#2e3a4a',skin:'#8a5a3b',helmet:'#1b1b1b'},bx+2.4,zb+3,Math.PI);}
-    col(x0+1.8,x1-1.8,zb,zb+4.6,2.4);
-    for(let i=0;i<6;i++)S.cyl(.2,1.5,R-.4,.75,zb+6+i*.55,i%2?'#2f6b4f':'#c9302a');col(R-.7,R,zb+5.6,zb+9.2,1.5);
-    S.box(L,L+2.2,.8,.9,zb+7,zb+11,'#5c6870');col(L,L+2.2,zb+7,zb+11,1);}
-  if(kind==='lathe'){const lathe=(x,z)=>{S.box(x-1.3,x+1.3,.8,1.15,z-.32,z+.32,'#4f6b5a');S.box(x-1.2,x-1.0,0,.8,z-.25,z+.25,'#3b4f44');S.box(x+1.0,x+1.2,0,.8,z-.25,z+.25,'#3b4f44');S.box(x-1.3,x-.6,1.15,1.65,z-.36,z+.36,'#4f6b5a');S.xf(NI.cyl12,x-.45,1.38,z,.32,.2,.32,0,'#b9bec4',0,Math.PI/2);S.box(x+.7,x+1.1,1.15,1.45,z-.18,z+.18,'#4f6b5a');col(x-1.4,x+1.4,z-.5,z+.5,1.7);};
-    [zb+3,zb+6.5,zb+10].forEach(z=>{lathe(L+1.6,z);lathe(R-1.6,z);});
-    for(let i=0;i<3;i++)S.box(cx-4+i*2.8,cx-2+i*2.8,0,1.6,zb+.5,zb+1.2,'#c9302a');col(cx-4,cx+4.4,zb+.5,zb+1.2,1.6);
-    [[L+1.6,zb+4.2],[R-1.6,zb+7.7],[R-1.6,zb+4.2]].forEach((p,i)=>person({shirt:'#2e5e8c',pants:'#2e5e8c',skin:['#9a6b4a','#b07a55','#7f5538'][i],helmet:'#f2c230'},p[0],p[1],Math.PI));}}
 /* ===== port extras ===== */
 function rtg(x,z0,z1){const w='#e9e7e1',b='#2c6ea6';[[x-6,z0],[x+6,z0],[x-6,z1],[x+6,z1]].forEach(p=>{SM.box(p[0]-.45,p[0]+.45,1,18,p[1]-.45,p[1]+.45,w);SM.box(p[0]-.6,p[0]+.6,0,1.2,p[1]-1.1,p[1]+1.1,'#30343a');});
   [z0,z1].forEach(z=>SM.box(x-6.5,x+6.5,16.5,18,z-.55,z+.55,w));[x-6,x+6].forEach(xx=>SM.box(xx-.6,xx+.6,18,19.4,z0-.6,z1+.6,b));SM.box(x-1.6,x+1.6,19.4,21.2,(z0+z1)/2-1.8,(z0+z1)/2+1.8,w);SM.box(x-6.2,x-4.4,10,12,z1-1.6,z1,'#1f3340');SM.box(x-.06,x+.06,8,19.4,(z0+z1)/2-.06,(z0+z1)/2+.06,'#222');SM.box(x-1.3,x+1.3,7.4,8,(z0+z1)/2-6.1,(z0+z1)/2+6.1,'#e2a21c');}
+const texGlassF=ctex(256,256,g=>{const gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#6f9cc4');gr.addColorStop(1,'#2d4f72');g.fillStyle=gr;g.fillRect(0,0,256,256);g.fillStyle='#e9eef2';for(let i=0;i<=4;i++){g.fillRect(i*64-3,0,6,256);g.fillRect(0,i*64-4,256,8);}g.fillStyle='rgba(255,255,255,.12)';g.beginPath();g.moveTo(0,256);g.lineTo(256,0);g.lineTo(256,60);g.lineTo(60,256);g.fill();});
+const texGlassFLit=ctex(256,256,g=>{g.fillStyle='#000';g.fillRect(0,0,256,256);for(let r=0;r<4;r++)for(let c=0;c<4;c++)if(Math.random()<.45){g.fillStyle=Math.random()<.7?'#ffd59a':'#cfe6ff';g.fillRect(c*64+4,r*64+5,56,54);}});
 function portAdmin(){const x0=48,x1=92,z0=-68,z1=-42,h=18;const m=new T.Mesh(new T.BoxGeometry(x1-x0,h,z1-z0),new T.MeshStandardMaterial({map:rep(texGlassF,(x1-x0)/11,h/9),emissiveMap:rep(texGlassFLit,(x1-x0)/11,h/9),emissive:'#ffffff',emissiveIntensity:.7,roughness:.2,metalness:.45,color:'#e6eef5'}));
   m.position.set((x0+x1)/2,h/2,(z0+z1)/2);m.castShadow=m.receiveShadow=true;scene.add(m);col(x0,x1,z0,z1,h);S.box(x0-.4,x1+.4,h,h+.8,z0-.4,z1+.4,'#d9d4c8');S.box(x0-.2,x1+.2,0,1.2,z0-.2,z1+.2,'#8c8478');
   S.box(62,78,4,4.5,z1,z1+4,'#173f6b');[62.5,77.5].forEach(x=>{S.cyl(.2,4,x,2,z1+3.6,'#e9e9e9');col(x-.3,x+.3,z1+3.3,z1+3.9,4);});
@@ -797,10 +722,11 @@ function initTraffic(){
     {p:mkPath([[-444,7],[292,7],[292,-7],[-444,-7]]),n:8,sp:11},
     {p:mkPath([[-434,3],[282,3],[282,-3],[-434,-3]]),n:7,sp:12.5},
     {p:mkPath(laneLoop([[-50,0],[50,0],[50,120],[-50,120]],3)),n:2,sp:8.5},
-    {p:mkPath(laneLoop([[150,0],[250,0],[250,120],[150,120]],3)),n:2,sp:8.5},
+    {p:mkPath(laneLoop([[150,0],[286,0],[286,120],[150,120]],3)),n:2,sp:8.5},
     {p:mkPath(laneLoop([[-250,0],[-150,0],[-150,120],[-250,120]],3)),n:2,sp:8.5},
     {p:mkPath(laneLoop([[-250,120],[-50,120],[-50,235],[-250,235]],2.5)),n:3,sp:8.5},
-    {p:mkPath(laneLoop([[50,120],[250,120],[250,235],[50,235]],2.5)),n:3,sp:8.5},
+    {p:mkPath(laneLoop([[50,120],[286,120],[286,235],[50,235]],2.5)),n:3,sp:8.5},
+    {p:mkPath(laneLoop([[286,0],[370,0],[370,235],[286,235]],3)),n:2,sp:8.5},
     {p:mkPath(laneLoop([[-150,120],[150,120],[150,235],[-150,235]],2.5)),n:2,sp:8.5},
     {p:mkPath(laneLoop([[-230,-30],[40,-30],[40,0],[-230,0]],2.5)),n:3,sp:7,truck:true},
     {p:mkPath(laneLoop([[-120,-30],[-20,-30],[-20,-112],[-120,-112]],2.5)),n:2,sp:6.5,truck:true}];
@@ -826,6 +752,9 @@ function initWalkers(){const looks=[{shirt:'#c9302a',pants:'#2a3550',skin:'#9c6b
     if(r<.45){alongX=true;fixed=rand(10.6,14.2);a=rand(-280,200);b=a+rand(30,80);}else if(r<.6){alongX=true;fixed=-rand(10.6,15);a=rand(-280,200);b=a+rand(30,70);}
     else{alongX=false;const sx=pick(ST_X);fixed=sx+(Math.random()<.5?-1:1)*rand(6,8);a=rand(20,90);b=a+rand(20,90);}
     const m=new T.Mesh(personGeo(pick(looks),false),VC);m.castShadow=true;scene.add(m);walkers.push({m:m,a:a,b:b,f:fixed,ax:alongX,t:Math.random(),dir:1,sp:rand(.9,1.4)/(b-a)});}}
+/* trainees and staff walking inside the training centre */
+function trainingWalkers(){if(!TRAINING)return;const looks=[{shirt:'#1f4f86',pants:'#1f4f86',skin:'#9a6b4a',cap:'#f2c218'},{shirt:'#1f4f86',pants:'#1f4f86',skin:'#c69472'},{shirt:'#f4f1ea',pants:'#3b4a63',skin:'#8a5a3b'},{shirt:'#2f5f8c',pants:'#2f5f8c',skin:'#b07a55',helmet:'#f2c230'}];
+  TRAINING.walks.forEach(([ax,f,a,b],i)=>{for(let k=0;k<2;k++){const lo=Math.min(a,b),hi=Math.max(a,b);const m=new T.Mesh(personGeo(looks[(i+k)%looks.length],false),VC);m.castShadow=true;scene.add(m);walkers.push({m:m,a:lo,b:hi,f:f+(k?.8:0),ax:ax==='x',t:Math.random(),dir:k?-1:1,sp:rand(.9,1.3)/(hi-lo)});}});}
 function updateWalkers(dt){for(const w of walkers){w.t+=w.dir*w.sp*dt;if(w.t>1){w.t=1;w.dir=-1;}if(w.t<0){w.t=0;w.dir=1;}const p=w.a+(w.b-w.a)*w.t;
   if(w.ax){w.m.position.set(p,Math.abs(Math.sin(clock*7+w.a))*.05,w.f);w.m.rotation.y=w.dir>0?-Math.PI/2:Math.PI/2;}else{w.m.position.set(w.f,Math.abs(Math.sin(clock*7+w.a))*.05,p);w.m.rotation.y=w.dir>0?Math.PI:0;}}}
 
@@ -1054,15 +983,15 @@ const GUARD_OUT=[[['p','مع السلامة يا اسطى']],[['p','في رعا�
 const CAMPUS_IN=[[['p','أهلاً يا اسطى، المتدربين كتير جوه، هدّي السرعة'],['d','حاضر يا باشمهندس']],[['p','اتفضل، بس متقرّبش من الورش وهي شغالة'],['d','تحت أمرك']]];
 const WALK_L=['حاسب يا اسطى!','براحة يا عم، كنت هتخبطني!','يا جدع بص قدامك!'];
 const HAIL_L=['يا توكتوك! يا اسطى!','اسطى! استنى عندك!','يا اسطى، فاضي؟'];
-const AREA_C={wardian:WARDIAN_AREA_TALK,campus:['مركز التدريب ده خرّج أجيال من أشطر الفنيين','الورش هنا فيها مكن حديث، والمدربين على أعلى مستوى'],yard:['الترسانة دي تاريخ، ياما بنت وصلّحت مراكب','شايف الونش الأحمر ده؟ بيرفع بلوكات المراكب كلها'],port:['الميناء النهارده زحمة حاويات','المراكب دي جاية من آخر الدنيا'],city:['الحمد لله طلعنا من الزحمة','الشارع ده كان كله جناين زمان']};
-function areaOf(x,z){if(z<-16){if(x>180&&z>-61)return TC_NEW?'yard':'campus';if(x>115)return 'yard';return 'port';}if(TC_NEW&&x>TC.X0&&x<TC.X1&&z<TC.Z1)return 'campus';return WD.contains(x,z)?'wardian':'city';}
+const AREA_C={wardian:WARDIAN_AREA_TALK,campus:['مركز التدريب ده خرّج أجيال من أشطر الفنيين','الورش هنا فيها مكن حديث، والمدربين على أعلى مستوى'],yard:['الترسانة دي تاريخ، ياما بنت وصلّحت مراكب','شايف الونش الأحمر ده؟ بيرفع بلوكات المراكب كلها'],port:['الميناء النهارده زحمة حاويات','المراكب دي جاية من آخر الدنيا'],city:['الحمد لله طلعنا من الزحمة','الشارع ده كان كله جناين زمان'],qabbari:['دخلنا القباري، الحتة دي كلها ناس طيبين','القباري زحمة الصبح، بس بعد الضهر بتروق']};
+function areaOf(x,z){if(z<-16){if(x>115)return 'yard';return 'port';}if(x>TC.X0&&x<TC.X1&&z<TC.Z1)return 'campus';if(x>-300&&x<-150&&z>-16)return 'qabbari';return WD.contains(x,z)?'wardian':'city';}
 const guardCd={};let walkCd=0,hailCd=0;
 function interactions(dt){walkCd-=dt;hailCd-=dt;const quiet=!Dlg.cur&&!Dlg.q.length;
   for(const g of GATES){if(Math.abs(car.x-g.x)<6&&car.z>-21&&car.z<-11&&(guardCd[g.x]||0)<clock&&quiet){if(car.vz<-1.2){dlgPush(pick(GUARD_IN),GUARD);guardCd[g.x]=clock+45;}else if(car.vz>1.2){dlgPush(pick(GUARD_OUT),GUARD);guardCd[g.x]=clock+45;}}}
-  if(Math.abs(car.z+38)<6&&car.x>176&&car.x<186&&car.vx>1.2&&(guardCd.c||0)<clock&&quiet){dlgPush(pick(CAMPUS_IN),GUARD);guardCd.c=clock+45;}
+  if(Math.abs(car.x-TC.gateMain)<5&&car.z>TC.Z0-1&&car.z<TC.Z0+6&&car.vz>1.2&&(guardCd.c||0)<clock&&quiet){dlgPush(pick(CAMPUS_IN),GUARD);guardCd.c=clock+45;}
   if(walkCd<=0&&Math.abs(car.v)>5&&Dlg.q.length<2){for(const w of walkers){if(Math.hypot(w.m.position.x-car.x,w.m.position.z-car.z)<2.6){dlgPush([['p',pick(WALK_L)]],WALKER);walkCd=10;break;}}}
   if(!fare&&hailCd<=0&&quiet){for(const w of waiting){const p=POI[w.poi],d=Math.hypot(p.x-car.x,p.z-car.z);if(!w.hailed&&d>12&&d<35){w.hailed=true;dlgPush([['p',pick(HAIL_L)]],{name:w.name,pitch:w.type.pitch,female:w.type.female});hailCd=12;break;}}}
-  if(fare&&fare.phase==='ride'){const a=areaOf(car.x,car.z);if(a!==fare.area){fare.area=a;if(Math.random()<.6&&quiet)dlgPush([['p',pick(AREA_C[a])]],fare.pax);}}}
+  if(fare&&fare.phase==='ride'){const a=areaOf(car.x,car.z);if(a!==fare.area){fare.area=a;if(AREA_C[a]&&Math.random()<.6&&quiet)dlgPush([['p',pick(AREA_C[a])]],fare.pax);}}}
 const PICK_R=12;const waiting=[];let fare=null;const MAXW=6;
 const beamMat=new T.MeshBasicMaterial({color:'#fff1c8',transparent:true,opacity:.22,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide});
 const beamGeo=new T.CylinderGeometry(1.6,1.6,60,20,1,true);beamGeo.translate(0,30,0);
@@ -1167,7 +1096,7 @@ function boardTick(dt){const W=fare.walker;W.t+=dt;const [tx,tz]=doorPoint(W.m.p
   if(moving&&stopHint<=0){toast('استنى الزبون لما يركب');stopHint=3;}
   if(d<.3||W.t>7){scene.remove(W.m);fare.walker=null;const s=new T.Mesh(personGeo(W.look,true),VC);s.castShadow=true;paxSeat.add(s);blip('ok');fare.wait=.5;}}
 const leavers=[];
-function alight(f){if(!f||isVan)return;const lk=f.pax.look;if(!lk)return;paxSeat.getWorldPosition(_sp);const p=POI[f.to];const [dx,dz]=doorPoint(p.x+p.sx,p.z+p.sz);
+function alight(f){if(f&&f.walker){scene.remove(f.walker.m);f.walker=null;}if(!f||isVan)return;const lk=f.pax.look;if(!lk)return;paxSeat.getWorldPosition(_sp);const p=POI[f.to];const [dx,dz]=doorPoint(p.x+p.sx,p.z+p.sz);
   const m=person(lk,dx,dz,0);leavers.push({m:m,t:0,tx:p.x+p.sx*1.15,tz:p.z+p.sz*1.15});}
 function leaversTick(dt){for(let i=leavers.length-1;i>=0;i--){const L=leavers[i];L.t+=dt;const d=stepWalk(L.m,L.tx,L.tz,1.5,dt,L.t);
   if(d<.15){L.m.position.y=0;L.m.rotation.z=0;}if(L.t>9){scene.remove(L.m);leavers.splice(i,1);}}}
@@ -1196,13 +1125,13 @@ function updateMoney(){$('wallet').textContent=Math.round(save.wallet);$('total'
 /* ============ HUD ============ */
 const gps=$('gps'),gg=gps.getContext('2d');let gpsDpr=1;
 function gpsSize(){const r=gps.getBoundingClientRect();gpsDpr=Math.min(2,devicePixelRatio||1);gps.width=Math.max(1,Math.round(r.width*gpsDpr));gps.height=Math.max(1,Math.round(r.height*gpsDpr));}
-const ROADSEG=[];EDGES.forEach(e=>ROADSEG.push([e.a.x,e.a.z,e.b.x,e.b.z,e.kind==='ave'?22:10]));ROADSEG.push([-300,0,-290,0,22],[290,0,300,0,22]);
+const ROADSEG=[];EDGES.forEach(e=>ROADSEG.push([e.a.x,e.a.z,e.b.x,e.b.z,e.kind==='ave'?22:10]));ROADSEG.push([-300,0,-290,0,22],[410,0,EX,0,22]);
 let navTarget=null,hudT=0,lastSpd=-1;
 function drawGPS(){const W=gps.width,H=gps.height;if(!W)return;const sc=W/2/95;gg.save();gg.clearRect(0,0,W,H);gg.beginPath();gg.arc(W/2,H/2,W/2,0,7);gg.clip();gg.fillStyle='#0f2433';gg.fillRect(0,0,W,H);
   gg.translate(W/2,H/2+W*.12);const fx=-Math.sin(car.h),fz=-Math.cos(car.h);gg.rotate(-Math.PI/2-Math.atan2(fz,fx));gg.scale(sc,sc);gg.translate(-car.x,-car.z);
   gg.fillStyle='#2b4f7a';gg.fillRect(-900,-900,1800,775);
   gg.lineCap='round';gg.strokeStyle='#5c7184';for(const r of ROADSEG){gg.lineWidth=r[4];gg.beginPath();gg.moveTo(r[0],r[1]);gg.lineTo(r[2],r[3]);gg.stroke();}
-  gg.strokeStyle='#e7c23a';gg.lineWidth=4;gg.beginPath();gg.moveTo(-300,0);gg.lineTo(300,0);gg.stroke();
+  gg.strokeStyle='#e7c23a';gg.lineWidth=4;gg.beginPath();gg.moveTo(-300,0);gg.lineTo(EX,0);gg.stroke();
   if(gpsRoute){gg.strokeStyle=fare?'#3ec6ff':'#ffb347';gg.lineWidth=5;gg.beginPath();gg.moveTo(car.x,car.z);for(let i=gpsIdx;i<gpsRoute.pts.length;i++)gg.lineTo(gpsRoute.pts[i][0],gpsRoute.pts[i][1]);gg.stroke();}
   for(const w of waiting){const p=POI[w.poi];gg.fillStyle='#ff4a4a';gg.beginPath();gg.arc(p.x,p.z,6,0,7);gg.fill();}
   for(const s of STATIONS_F){gg.fillStyle='#f2b705';gg.fillRect(s.sx-6,s.sz-6,12,12);}
@@ -1381,21 +1310,22 @@ function openMissions(){const box=$('msList');box.innerHTML='';const rp=repProgr
 /* ---- full map (drawn on demand, no per-frame cost) ---- */
 /* ---- full map: fits the world, pinch/drag to zoom and pan, labels never overlap (more appear as you zoom in) ---- */
 const MV={x:-80,z:55,s:0,init:false,ptrs:new Map(),d0:0,s0:0};
-const MAP_W={x0:-470,x1:310,z0:-140,z1:250};
+const MAP_W={x0:-470,x1:EX+10,z0:-140,z1:250};
 function mapFit(){const cv=$('mapCv'),r=cv.getBoundingClientRect();const s=Math.min(r.width/(MAP_W.x1-MAP_W.x0),r.height/(MAP_W.z1-MAP_W.z0));MV.s=s*(r.width<r.height?1.05:1);MV.x=(MAP_W.x0+MAP_W.x1)/2;MV.z=(MAP_W.z0+MAP_W.z1)/2;}
 function openMap(){$('mapView').hidden=false;requestAnimationFrame(()=>{if(!MV.init){mapFit();MV.init=true;if(car){const port=innerWidth<innerHeight;MV.x=port?car.x:clamp(car.x,-250,150);MV.z=car.z;MV.s*=port?2.6:1.5;}}drawMap();});}
 function drawMap(){const cv=$('mapCv'),r=cv.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1);const W=Math.round(r.width*dpr),H=Math.round(r.height*dpr);if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;}const g=cv.getContext('2d');
   const sc=MV.s*dpr,P=(x,z)=>[W/2+(x-MV.x)*sc,H/2+(z-MV.z)*sc];
   g.fillStyle='#14304d';g.fillRect(0,0,W,H);
   const zone=(x0,x1,z0,z1,c)=>{const [a,b]=P(x0,z0),[c2,d]=P(x1,z1);g.fillStyle=c;g.fillRect(a,b,c2-a,d-b);};
-  zone(-300,115,-124,-16,'#2c4157');zone(115,300,-124,-16,'#3a3a4f');zone(-300,300,-16,244,'#34404f');zone(-450,-300,-16,215,'#453c47');
+  zone(-300,115,-124,-16,'#2c4157');zone(115,300,-124,-16,'#3a3a4f');zone(-300,EX,-16,244,'#34404f');zone(-300,-155,9,244,'#3b3f52');zone(-450,-300,-16,215,'#453c47');zone(TC.X0,TC.X1,TC.Z0,TC.Z1,'#2f4a44');
+  if(TRAINING)for(const q of TRAINING.buildings)zone(q.x0,q.x1,q.z0,q.z1,q.map||'#566a74');
   g.lineCap='round';g.lineJoin='round';
   for(const s2 of ROADSEG){const [a,b]=P(s2[0],s2[1]),[c2,d]=P(s2[2],s2[3]);g.strokeStyle='#5d6c80';g.lineWidth=Math.max(3*dpr,(s2[4]+3)*sc);g.beginPath();g.moveTo(a,b);g.lineTo(c2,d);g.stroke();}
   for(const s2 of ROADSEG){const [a,b]=P(s2[0],s2[1]),[c2,d]=P(s2[2],s2[3]);g.strokeStyle='#c9d2dc';g.lineWidth=Math.max(2*dpr,s2[4]*sc*.8);g.beginPath();g.moveTo(a,b);g.lineTo(c2,d);g.stroke();}
   if(fare&&POI[fare.to]){try{const p=POI[fare.to],rt=route(car.x,car.z,p.x,p.z);g.strokeStyle='#4cff5e';g.lineWidth=Math.max(3*dpr,4*sc);g.beginPath();rt.pts.forEach((q,i)=>{const [a,b]=P(q[0],q[1]);i?g.lineTo(a,b):g.moveTo(a,b);});g.stroke();}catch(_){}}
   const placed=[],fit=(x,y,w,h)=>{for(const q of placed)if(x<q[0]+q[2]&&x+w>q[0]&&y<q[1]+q[3]&&y+h>q[1])return false;placed.push([x,y,w,h]);return true;};
   g.textAlign='center';g.textBaseline='middle';g.direction='rtl';
-  [['الميناء',-90,-70],['الترسانة',205,-70],['الحي',0,130],['الورديان',-375,40]].concat(TC_NEW?[['مركز التدريب',200,62]]:[]).forEach(([n,x,z])=>{const [a,b]=P(x,z);const fs=Math.max(18*dpr,Math.min(40*dpr,sc*14));g.font=fs+'px '+GAMEF;g.fillStyle='rgba(245,241,232,.28)';g.fillText(n,a,b);});
+  [['الميناء',-90,-70],['الترسانة',205,-70],['الحي',60,180],['القباري',-225,70],['الورديان',-375,40],['مركز التدريب',(TC.X0+TC.X1)/2,(TC.Z0+TC.Z1)/2]].forEach(([n,x,z])=>{const [a,b]=P(x,z);const fs=Math.max(18*dpr,Math.min(40*dpr,sc*14));g.font=fs+'px '+GAMEF;g.fillStyle='rgba(245,241,232,.28)';g.fillText(n,a,b);});
   const fs=Math.round(13*dpr);g.font='700 '+fs+'px '+AR;
   if(car){const [a,b]=P(car.x,car.z);placed.push([a-14*dpr,b-14*dpr,28*dpr,28*dpr]);}
   const order=Object.keys(POI).sort((a,b)=>((fare&&fare.to===b)-(fare&&fare.to===a))||(waiting.some(w=>w.poi===b)-waiting.some(w=>w.poi===a)));
@@ -1610,7 +1540,7 @@ async function boot(){try{ldStep('بنفتح بوابة الميناء…');awai
     save.vehicle==='van'?new GLTFLoader().loadAsync('./models/van.glb').catch(e=>{console.warn('van',e);return null;}):Promise.resolve(null),
     step(new GLTFLoader().loadAsync(window.CARS_MODEL||'./models/cars.glb').catch(e=>{console.warn('cars model',e);return null;}),'العربيات نزلت الشارع…'),
     step(RAPIER.init().then(()=>RAPIER).catch(e=>{console.warn('physics unavailable, arcade mode',e);return null;}),'ظبطنا الفرامل والعجل…')]);
-  TUK_TRAFFIC=vanG?gltf.scene:null;loadTuk(vanG||gltf);if(!TUK_TRAFFIC)TUK_TRAFFIC=tuk;CARS=carsG&&carsG.scene;initTraffic();initWalkers();buildWardianLate({T,scene,col,makeTraffic,walkers,personGeo,VC},WARDIAN);ldStep('الزباين واقفين على الرصيف…');await nextPaint();
+  TUK_TRAFFIC=vanG?gltf.scene:null;loadTuk(vanG||gltf);if(!TUK_TRAFFIC)TUK_TRAFFIC=tuk;CARS=carsG&&carsG.scene;initTraffic();initWalkers();trainingWalkers();buildWardianLate({T,scene,col,makeTraffic,walkers,personGeo,VC},WARDIAN);ldStep('الزباين واقفين على الرصيف…');await nextPaint();
   veh=await createVehicle({RAPIER:R,colliders,traffic,spawn:{x:-160,z:7,h:-Math.PI/2},kind:isVan?'van':'tuk'});car=veh.car;
   veh.onImpact(s=>{shake=Math.min(1,s/9);onImpact(s);});
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);

@@ -29,6 +29,16 @@ const BASE = process.argv[2], SLOW = +(process.env.SLOW || 1);
   ok(L.rQ > 0 && L.rQ < 600, 'GPS: Wardian square → موقف القباري (' + L.rQ + ' m)');
   ok(L.rE > 0 && L.edgeX > 410, 'map: the city runs east to x ' + L.edgeX + ' with new streets (route to x 360: ' + L.rE + ' m)');
 
+  // ---- riders: card over the head, stop bay, walk to the door and board
+  const w = await p.evaluate(() => { const s = window.portSim; const w = s.waiting.find(q => !q.mission); const P = s.POI[w.poi]; return { poi: w.poi, to: w.to, price: w.price, tag: !!(w.tag && w.tag.material.map), bay: w.b.children.length, P: [P.x, P.z, P.sx, P.sz], m0: [w.m.position.x, w.m.position.z] }; });
+  ok(w.tag && w.to && w.price > 0 && w.bay >= 2, 'riders: card shows destination (' + w.to + ') and fare (' + w.price + '), square round them and a stop bay on the road');
+  await p.evaluate(P => { const n = Math.hypot(P[2], P[3]); window.portSim.teleport(P[0], P[1], Math.atan2(P[3] / n, -P[2] / n)); }, w.P);
+  const b1 = await p.evaluate(async T => { const s = window.portSim, t0 = performance.now(); while (performance.now() - t0 < T) { const f = s.fare; if (f) return { ph: f.phase, walking: !!f.walker, to: f.to }; await new Promise(r => setTimeout(r, 30)); } return null; }, SLOW * 30000);
+  ok(b1 && b1.walking && b1.to === w.to, 'boarding: after stopping the rider walks to the vehicle (phase ' + (b1 && b1.ph) + '), going where the card said');
+  await p.waitForFunction(() => window.portSim.fare && !window.portSim.fare.walker, null, { timeout: SLOW * 60000 }).catch(() => {});
+  ok(await p.evaluate(() => window.portSim.fare && !window.portSim.fare.walker), 'boarding: the rider reaches the door and sits in the vehicle');
+
+
   // ---- driving through the centre with real physics
   const drive = (pts, maxS, R) => p.evaluate(async ([pts, maxS, R]) => { const s = window.portSim, t0 = performance.now(); let i = 0, maxY = 0;
     while (performance.now() - t0 < maxS * 1000 && i < pts.length) { const [tx, tz] = pts[i]; const d = Math.hypot(tx - s.car.x, tz - s.car.z); maxY = Math.max(maxY, s.car.y); if (d < (R || 3)) { i++; continue; }
@@ -51,16 +61,6 @@ const BASE = process.argv[2], SLOW = +(process.env.SLOW || 1);
   // walls hold
   const ram = await p.evaluate(async () => { const s = window.portSim; s.teleport(230, 40, Math.PI / 2); s.input.up = 1; await new Promise(r => setTimeout(r, 12000)); s.input.up = 0; return s.car.x; });
   ok(ram > 226.0, 'collision: the workshop block wall stops the tuk (x ' + ram.toFixed(1) + ', wall at 226.1)');
-
-  // ---- riders: card over the head, stop bay, walk to the door and board
-  const w = await p.evaluate(() => { const s = window.portSim; const w = s.waiting.find(q => !q.mission); const P = s.POI[w.poi]; return { poi: w.poi, to: w.to, price: w.price, tag: !!(w.tag && w.tag.material.map), bay: w.b.children.length, P: [P.x, P.z, P.sx, P.sz], m0: [w.m.position.x, w.m.position.z] }; });
-  ok(w.tag && w.to && w.price > 0 && w.bay >= 2, 'riders: card shows destination (' + w.to + ') and fare (' + w.price + '), square round them and a stop bay on the road');
-  await p.evaluate(P => { const n = Math.hypot(P[2], P[3]); window.portSim.teleport(P[0], P[1], Math.atan2(P[3] / n, -P[2] / n)); }, w.P);
-  await p.waitForFunction(() => window.portSim.fare, null, { timeout: SLOW * 30000 }).catch(() => {});
-  const b1 = await p.evaluate(() => { const f = window.portSim.fare; return f && { ph: f.phase, walking: !!f.walker, to: f.to }; });
-  ok(b1 && b1.walking && b1.to === w.to, 'boarding: after stopping the rider walks to the vehicle (phase ' + (b1 && b1.ph) + '), going where the card said');
-  await p.waitForFunction(() => window.portSim.fare && !window.portSim.fare.walker, null, { timeout: SLOW * 60000 }).catch(() => {});
-  ok(await p.evaluate(() => window.portSim.fare && !window.portSim.fare.walker), 'boarding: the rider reaches the door and sits in the vehicle');
 
   console.log('page errors:', errs.length ? errs : 'none'); await b.close();
   process.exit(res.every(Boolean) && !errs.length ? 0 : 1);

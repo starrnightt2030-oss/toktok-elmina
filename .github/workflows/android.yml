@@ -43,7 +43,6 @@ jobs:
           npm i --no-audit --no-fund @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/assets@3
           npx cap add android
           npx capacitor-assets generate --android --assetPath app/assets \
-            --iconBackgroundColor '#101B2D' --iconBackgroundColorDark '#101B2D' \
             --splashBackgroundColor '#101B2D' --splashBackgroundColorDark '#101B2D'
           bash $GITHUB_WORKSPACE/app/customize.sh
           npx cap sync android

@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 const BASE = process.argv[2];
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
-  const c = await b.newContext({ viewport: { width: 860, height: 412 }, isMobile: true, hasTouch: true });
+  const c = await b.newContext({ viewport: { width: +(process.env.VW || 480), height: +(process.env.VH || 240) }, isMobile: true, hasTouch: true });   // small viewport: the software renderer runs faster, the logic is the same
   const p = await c.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
   const res = []; const ok = (cond, msg) => { res.push((cond ? 'PASS ' : 'FAIL ') + msg); console.log((cond ? 'PASS ' : 'FAIL ') + msg); };
   const ready = () => p.waitForFunction(() => window.portSim && window.portSim.car, null, { timeout: 150000 });
@@ -27,10 +27,10 @@ const BASE = process.argv[2];
       s.input.joy = Math.max(-1, Math.min(1, e * 2)); s.input.up = Math.abs(s.car.v) < 7 ? 1 : 0; await new Promise(r => setTimeout(r, 80)); }
     s.input.up = 0; s.input.joy = 0; return { x: Math.round(s.car.x), z: Math.round(s.car.z), d: Math.round(Math.hypot(tx - s.car.x, tz - s.car.z)), maxY: +maxY.toFixed(2) }; }, [tx, tz, maxS]);
   await p.evaluate(() => window.portSim.teleport(-360, 3.5, Math.PI / 2)); await p.waitForTimeout(800);
-  const d1 = await drive(-376, 30, 150);
+  const d1 = await drive(-376, 30, +(process.env.SLOW || 1) * 150);
   ok(d1.d < 6 && d1.maxY < .6, 'drive in: from the avenue into the main street (ended ' + d1.d + ' m from target, max height ' + d1.maxY + ')');
   await p.evaluate(() => window.portSim.teleport(-306, 122, -Math.PI / 2)); await p.waitForTimeout(800);
-  const d2 = await drive(-252, 121, 240);
+  const d2 = await drive(-252, 121, +(process.env.SLOW || 1) * 240);
   ok(d2.d < 6, 'drive out: cross street joins the city street, no invisible wall (reached x ' + d2.x + ')');
   // ---- collisions: buildings and the west edge stop the tuk
   const ram = (x, z, h, sec) => p.evaluate(async ([x, z, h, sec]) => { const s = window.portSim; s.teleport(x, z, h); s.input.up = 1; await new Promise(r => setTimeout(r, sec * 1000)); s.input.up = 0; return { x: s.car.x, z: s.car.z, y: s.car.y }; }, [x, z, h, sec]);
@@ -40,19 +40,19 @@ const BASE = process.argv[2];
   ok(c2.x > -451 && c2.y < .6, 'world edge: cannot leave the map on the west (x ' + c2.x.toFixed(1) + ')');
   // ---- mission «مشوار الورديان»
   await p.evaluate(() => window.portSim.teleport(-160, 7, -Math.PI / 2));
-  await p.waitForFunction(() => window.portSim.waiting.some(w => w.mission), null, { timeout: 120000 }).catch(() => {});
+  await p.waitForFunction(() => window.portSim.waiting.some(w => w.mission), null, { timeout: +(process.env.SLOW || 1) * 120000 }).catch(() => {});
   const mw = await p.evaluate(() => { const w = window.portSim.waiting.find(w => w.mission); return w ? { poi: w.poi, name: w.name } : null; });
   ok(mw && mw.poi === 'fish', 'mission: rider waits at the fish market in the existing world (' + (mw && mw.name) + ')');
   await p.evaluate(() => { const s = window.portSim, P = s.POI.fish; s.teleport(P.x + 1, P.z + .5, -Math.PI / 2); });
-  await p.waitForFunction(() => window.portSim.fare && window.portSim.fare.mission, null, { timeout: 90000 }).catch(() => {});
+  await p.waitForFunction(() => window.portSim.fare && window.portSim.fare.mission, null, { timeout: +(process.env.SLOW || 1) * 90000 }).catch(() => {});
   const mf = await p.evaluate(() => { const f = window.portSim.fare; return f ? { to: f.to, mission: f.mission, price: f.price } : null; });
   ok(mf && mf.to === 'wplaza', 'mission: she boards and asks for ساحة الورديان (price ' + (mf && mf.price) + ')');
   await p.waitForFunction(() => /الورديان/.test(document.getElementById('navName').textContent), null, { timeout: 60000 }).catch(() => {});
   ok(await p.evaluate(() => /الورديان/.test(document.getElementById('navName').textContent)), 'mission: navigation points to the new street (' + await p.evaluate(() => document.getElementById('navName').textContent) + ')');
-  await p.waitForFunction(() => window.portSim.fare && window.portSim.fare.phase === 'ride', null, { timeout: 240000 }).catch(() => {});
+  await p.waitForFunction(() => window.portSim.fare && window.portSim.fare.phase === 'ride', null, { timeout: +(process.env.SLOW || 1) * 240000 }).catch(() => {});
   const w0 = await p.evaluate(() => window.portSim.save.wallet);
   await p.evaluate(() => { const s = window.portSim, P = s.POI.wplaza; s.teleport(P.x + 1.5, P.z - .5, Math.PI); });
-  await p.waitForFunction(() => !document.getElementById('pay').hidden, null, { timeout: 120000 }).catch(() => {});
+  await p.waitForFunction(() => !document.getElementById('pay').hidden, null, { timeout: +(process.env.SLOW || 1) * 120000 }).catch(() => {});
   const f = await p.evaluate(() => ({ open: !document.getElementById('pay').hidden, price: window.portSim.fare && window.portSim.fare.price, change: window.portSim.fare && window.portSim.fare.change }));
   ok(f.open, 'mission: arriving at the square opens the fare + change panel');
   await p.evaluate(ch => { const A = '٠١٢٣٤٥٦٧٨٩', ar = n => String(n).replace(/[0-9]/g, d => A[d]); let r = ch; for (const v of [50, 20, 10, 5, 1]) while (r >= v) { [...document.querySelectorAll('#pNotes .note')].find(x => x.textContent.replace('جنيه', '').trim() === ar(v)).click(); r -= v; } document.getElementById('pOk').click(); }, f.change || 0);

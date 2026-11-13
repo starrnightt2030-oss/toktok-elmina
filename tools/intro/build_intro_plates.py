@@ -249,7 +249,7 @@ def anim_common(n):
 def render_anim(name):
     os.makedirs(os.path.join(OUT, name), exist_ok=True)
     scn.render.fps = FPS; scn.render.filepath = os.path.join(OUT, name, '')
-    scn.render.image_settings.file_format = 'PNG'; scn.render.use_persistent_data = False; scn.frame_step = int(os.environ.get('STEP', '1')); scn.frame_end = min(scn.frame_end, int(os.environ.get('END', '9999'))); scn.frame_start = int(os.environ.get('START', '1'))
+    scn.render.image_settings.file_format = 'PNG'; scn.render.use_persistent_data = False; scn.render.use_overwrite = False; scn.render.use_placeholder = True; scn.frame_step = int(os.environ.get('STEP', '1')); scn.frame_end = min(scn.frame_end, int(os.environ.get('END', '9999'))); scn.frame_start = int(os.environ.get('START', '1'))
     bpy.ops.render.render(animation=True); print('rendered', name)
 
 if WHICH in ('harbor', 'all') or WHICH == 'anim:harbor':

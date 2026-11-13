@@ -916,7 +916,9 @@ function pickVoices(){if(!Speech.ok)return;let vs=[];try{vs=speechSynthesis.getV
   const n=$('voiceNote');if(!Speech.ok||!Speech.voice){n.hidden=false;n.textContent='جهازك مفيهوش صوت عربي جاهز، فالحوار هيظهر مكتوب. على Edge أو Chrome أندرويد غالبًا هتسمع الحوار.';}else{n.hidden=false;n.textContent='صوت الحوار: '+Speech.voice.name+(/EG/i.test(Speech.voice.lang)?' (مصري)':'');}}
 if(Speech.ok){pickVoices();try{speechSynthesis.addEventListener('voiceschanged',pickVoices);}catch(e){}}
 const VO=createVoices(()=>A.ctx,()=>A.sfx);
-Speech.mode=(()=>{try{return ls.get('aps_voice')||'game';}catch(e){return 'game';}})();Speech.enabled=Speech.mode!=='off';
+/* the browser's speech engine reads Egyptian lines in a foreign accent and mispronounces them, so it is no longer offered:
+   characters use real recordings when they exist, otherwise the game voice */
+Speech.mode=(()=>{try{const m=ls.get('aps_voice');return m==='off'?'off':'game';}catch(e){return 'game';}})();Speech.enabled=Speech.mode!=='off';
 function say(text,o){if(A.muted||Speech.mode==='off')return false;if(Speech.mode==='game'){if(!A.ctx)return false;VO.speak(text,o);return true;}
   if(!Speech.ok)return false;try{speechSynthesis.cancel();if(speechSynthesis.paused)speechSynthesis.resume();const u=new SpeechSynthesisUtterance(text);const v=o.female?Speech.voiceF:Speech.voiceM;if(v||Speech.voice){u.voice=v||Speech.voice;u.lang=u.voice.lang;}else u.lang='ar-EG';u.pitch=o.pitch||1;u.rate=o.rate||1;u.onend=u.onerror=()=>{o.onend&&o.onend();};speechSynthesis.speak(u);return true;}catch(e){return false;}}
 
@@ -1075,23 +1077,44 @@ function missionState(m){if(m.soon)return 'soon';if(save.missions&&save.missions
 function nextMission(){return MISSIONS.find(m=>missionState(m)==='open'&&POI[m.from]&&POI[missionTo(m)]);}
 function missionDone(){return !nextMission();}
 function spawnMission(dt){missionCd-=dt;if(missionCd>0||isVan||fare||waiting.some(w=>w.mission))return;const M=nextMission();if(!M)return;
-  const k=M.from,p=POI[k];const old=waiting.find(w=>w.poi===k);if(old){scene.remove(old.m);scene.remove(old.b);waiting.splice(waiting.indexOf(old),1);}
+  const k=M.from,p=POI[k];const old=waiting.find(w=>w.poi===k);if(old){scene.remove(old.m);scene.remove(old.b);dropTag(old);waiting.splice(waiting.indexOf(old),1);}
   const m=person(M.pax.look,p.x+p.sx,p.z+p.sz,Math.atan2(p.sx,p.sz));const b=new T.Mesh(beamGeo,missionBeamMat);b.position.set(p.x,0,p.z);addSpot(b,p,true);scene.add(b);
-  waiting.push({poi:k,type:M.pax,name:M.pax.names[0],m:m,b:b,mission:M.id});toast('مهمة جديدة: «'+M.n+'» — '+M.pax.names[0]+' مستني عند '+p.n,'good');}
+  const w={poi:k,type:M.pax,name:M.pax.names[0],m:m,b:b,mission:M.id};chooseDest(w);addTag(w);waiting.push(w);toast('مهمة جديدة: «'+M.n+'» — '+M.pax.names[0]+' مستني عند '+p.n,'good');}
 /* dotted square on the pavement where a rider waits (child of the stop beam, so it goes away with it) */
 const spotTex=ctex(128,128,g=>{g.fillStyle='rgba(245,185,40,.26)';g.fillRect(8,8,112,112);g.strokeStyle='#FFD24A';g.lineWidth=10;g.setLineDash([16,10]);g.lineCap='round';g.strokeRect(9,9,110,110);});
 const spotGeo=new T.PlaneGeometry(2.1,2.1).rotateX(-Math.PI/2);
 const spotMat=new T.MeshBasicMaterial({map:spotTex,toneMapped:false,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
 const spotMatM=new T.MeshBasicMaterial({map:spotTex,color:'#ff9a3c',transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
-function addSpot(b,p,mission){const q=new T.Mesh(spotGeo,mission?spotMatM:spotMat);q.position.set(p.sx,.14,p.sz);q.renderOrder=2;b.add(q);}
+function addSpot(b,p,mission){const q=new T.Mesh(spotGeo,mission?spotMatM:spotMat);q.position.set(p.sx,.14,p.sz);q.renderOrder=2;b.add(q);
+  /* the stop bay on the road: a dotted vehicle-sized box where the driver pulls in, long side along the kerb */
+  const bay=new T.Mesh(bayGeo,mission?bayMatM:bayMat);bay.position.set(0,.06,0);bay.rotation.y=Math.atan2(p.sx,p.sz);bay.renderOrder=2;b.add(bay);}
+const bayTex=ctex(256,160,g=>{g.fillStyle='rgba(255,210,74,.13)';g.fillRect(8,8,240,144);g.strokeStyle='#FFD24A';g.lineWidth=9;g.setLineDash([18,12]);g.lineCap='round';g.strokeRect(9,9,238,142);g.setLineDash([]);
+  g.strokeStyle='rgba(255,226,140,.55)';g.lineWidth=7;[[96,80],[160,80]].forEach(([x,y])=>{g.beginPath();g.moveTo(x-12,y-26);g.lineTo(x+12,y);g.lineTo(x-12,y+26);g.stroke();});});
+const bayGeo=new T.PlaneGeometry(4.8,3).rotateX(-Math.PI/2);
+const bayMat=new T.MeshBasicMaterial({map:bayTex,toneMapped:false,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3});
+const bayMatM=new T.MeshBasicMaterial({map:bayTex,color:'#ff9a3c',toneMapped:false,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3});
+/* where a waiting rider is going and the fare, decided when they appear so it can be shown over their head */
+function chooseDest(w){const M=w.mission&&missionById(w.mission);let to;
+  if(M)to=missionTo(M);else{const opts=Object.keys(POI).filter(k=>k!==w.poi&&Math.hypot(POI[k].x-POI[w.poi].x,POI[k].z-POI[w.poi].z)>110);to=opts.filter(k=>w.type.likes.includes(k));to=to.length&&Math.random()<.75?pick(to):pick(opts);}
+  const r=route(POI[w.poi].x,POI[w.poi].z,POI[to].x,POI[to].z);w.to=to;w.len=r.len;w.price=clamp(Math.round((10+r.len/1000*12)/5)*5,10,60);}
+/* floating destination card over a waiting rider: destination, name and fare, a pointer down to them */
+function tagTex(w){const c=document.createElement('canvas');c.width=640;c.height=210;const g=c.getContext('2d');const gold=w.mission?'#ff9a3c':'#F5B928';
+  const r=(x,y,W,H,R)=>{g.beginPath();g.moveTo(x+R,y);g.arcTo(x+W,y,x+W,y+H,R);g.arcTo(x+W,y+H,x,y+H,R);g.arcTo(x,y+H,x,y,R);g.arcTo(x,y,x+W,y,R);g.closePath();};
+  g.shadowColor='rgba(0,0,0,.45)';g.shadowBlur=14;g.shadowOffsetY=4;r(14,10,612,150,30);g.fillStyle='rgba(17,26,40,.92)';g.fill();g.shadowColor='transparent';
+  g.lineWidth=6;g.strokeStyle=gold;g.stroke();g.beginPath();g.moveTo(296,158);g.lineTo(320,196);g.lineTo(344,158);g.closePath();g.fillStyle=gold;g.fill();
+  r(28,26,132,118,22);g.fillStyle=gold;g.fill();g.fillStyle='#1a1408';g.textAlign='center';g.textBaseline='middle';g.font='bold 54px '+GAMEF;g.fillText(arNum(w.price),94,74);g.font='bold 26px '+GAMEF;g.fillText('جنيه',94,118);
+  g.direction='rtl';g.textAlign='right';g.fillStyle='#ffffff';let fs=50;const dn=POI[w.to].n;g.font='bold '+fs+'px '+GAMEF;while(g.measureText(dn).width>420&&fs>26){fs-=2;g.font='bold '+fs+'px '+GAMEF;}
+  g.fillText(dn,598,66);g.font='30px '+GAMEF;g.fillStyle=w.mission?'#ffc48a':'#ffe08a';g.fillText((w.mission?'مهمة · ':'رايح · ')+w.name,598,122);
+  const t=new T.CanvasTexture(c);t.encoding=T.sRGBEncoding;t.anisotropy=4;return t;}
+function addTag(w){const sp=new T.Sprite(new T.SpriteMaterial({map:tagTex(w),transparent:true,depthWrite:false,toneMapped:false,fog:false}));sp.center.set(.5,0);sp.scale.set(3.9,1.28,1);sp.position.set(w.m.position.x,2.15,w.m.position.z);sp.renderOrder=5;scene.add(sp);w.tag=sp;}
+function dropTag(w){if(w.tag){scene.remove(w.tag);w.tag.material.map.dispose();w.tag.material.dispose();w.tag=null;}}
 function spawnWaiting(){const keys=Object.keys(POI).filter(k=>!waiting.some(w=>w.poi===k)&&(!fare||fare.to!==k)&&Math.hypot(POI[k].x-car.x,POI[k].z-car.z)>40);if(!keys.length)return;
   const k=pick(keys),p=POI[k];const ty=pick(PT);const lk=ty.look;const m=person(lk,p.x+p.sx,p.z+p.sz,Math.atan2(-(p.x-(p.x+p.sx)),-(p.z-(p.z+p.sz))));const b=new T.Mesh(beamGeo,beamMat);b.position.set(p.x,0,p.z);addSpot(b,p);scene.add(b);
-  waiting.push({poi:k,type:ty,name:pick(ty.names),m:m,b:b});}
-function startFare(w){const opts=Object.keys(POI).filter(k=>k!==w.poi&&Math.hypot(POI[k].x-POI[w.poi].x,POI[k].z-POI[w.poi].z)>110);let to=opts.filter(k=>w.type.likes.includes(k));to=to.length&&Math.random()<.75?pick(to):pick(opts);const M=w.mission&&missionById(w.mission);if(M)to=missionTo(M);
-  const r=route(POI[w.poi].x,POI[w.poi].z,POI[to].x,POI[to].z);fare={pax:Object.assign({name:w.name},w.type),from:w.poi,to:to,len:r.len,t:0,budget:M&&M.urgent?Math.round(r.len/9+8):Math.round(r.len/7.5+22),hits:0,fast:0,chat:rand(9,13),fastCd:0,phase:'board',wait:1.2,mission:w.mission||null};
-  scene.remove(w.m);scene.remove(w.b);waiting.splice(waiting.indexOf(w),1);
-  paxSeat.clear();const s=new T.Mesh(personGeo(w.type.look,true),VC);s.castShadow=true;paxSeat.add(s);
-  fare.price=clamp(Math.round((10+r.len/1000*12)/5)*5,10,60);const d=POI[to].n;const intro=[['p',M?M.intro.replace('{d}',d):pick(INTRO_P).replace('{d}',d)],['d',pick(INTRO_D).replace('{t}',w.type.title)],['p',pick(PRICE_P)],['d',pick(PRICE_D).replace('{n}',arNum(fare.price))]];if(Math.random()<.4)intro.push(['d',pick(INTRO_D2)]);dlgPush(intro,fare.pax);fare.area=areaOf(car.x,car.z);
+  const w={poi:k,type:ty,name:pick(ty.names),m:m,b:b};chooseDest(w);addTag(w);waiting.push(w);}
+function startFare(w){const M=w.mission&&missionById(w.mission);if(!w.to)chooseDest(w);const to=w.to,r={len:w.len};fare={pax:Object.assign({name:w.name},w.type),from:w.poi,to:to,len:r.len,t:0,budget:M&&M.urgent?Math.round(r.len/9+8):Math.round(r.len/7.5+22),hits:0,fast:0,chat:rand(9,13),fastCd:0,phase:'board',wait:1.2,mission:w.mission||null};
+  /* the rider walks from the pavement to the side of the vehicle and gets in (see boardTick) */
+  scene.remove(w.b);dropTag(w);waiting.splice(waiting.indexOf(w),1);paxSeat.clear();fare.walker={m:w.m,look:w.type.look,t:0};
+  fare.price=w.price;const d=POI[to].n;const intro=[['p',M?M.intro.replace('{d}',d):pick(INTRO_P).replace('{d}',d)],['d',pick(INTRO_D).replace('{t}',w.type.title)],['p',pick(PRICE_P)],['d',pick(PRICE_D).replace('{n}',arNum(fare.price))]];if(Math.random()<.4)intro.push(['d',pick(INTRO_D2)]);dlgPush(intro,fare.pax);fare.area=areaOf(car.x,car.z);
   destBeam.position.set(POI[to].x,0,POI[to].z);destRing.position.set(POI[to].x,.15,POI[to].z);destBeam.visible=destRing.visible=true;gpsRoute=null;blip('ok');}
 const PRICE_P=['هتاخد كام يا اسطى؟','الأجرة كام يا معلم؟','بكام المشوار ده يا اسطى؟'];
 const PRICE_D=['{n} جنيه بس، عشان خاطرك','هات {n} جنيه وخلاص','{n} جنيه يا باشا، ده سعره'];
@@ -1131,12 +1154,28 @@ function finishFare(lost){lost=lost||0;const f=fare;let r=5-f.hits*.6-Math.min(2
   const lv0=repLevel((save.rep&&save.rep.xp)||0);const gx=rideXP({rating:r,short:f.short,lost,hits:f.hits,mission:!!FM,failed:mFail});save.rep={xp:((save.rep&&save.rep.xp)||0)+gx};const lv1=repLevel(save.rep.xp);
   if(lv1>lv0){const rw=LEVEL_REWARD(lv1);save.wallet+=rw;save.total+=rw;setTimeout(()=>toast('⭐ ترقية! بقيت «'+REP_LEVELS[lv1].n+'» — مكافأة '+rw+' ج.م'+(MISSIONS.some(m=>m.lvl===lv1)||MODS.some(m=>m.lvl===lv1)?' وفتحت حاجات جديدة':''),'good'),2600);}
   persist();dlgPush((late?pick(END_LATE):pick(END_SEQ)).map(l=>[l[0],l[1].replace('{t}',f.pax.title)]),f.pax);blip('cash');
-  toast((mFail?'المهمة فشلت، اتأخرت! تقدر تعيدها بعدين  • ':'')+'+'+pay+' ج.م'+(mb?'  • مكافأة «'+FM.n+'» '+mb:'')+'  • +'+gx+' سمعة'+(tip?'  • بقشيش '+tip:'')+(lost?'  • ضاع منك '+lost:'')+(late?'  • متأخر':''),lost?'bad':'good');paxSeat.clear();destBeam.visible=destRing.visible=false;fare=null;gpsRoute=null;updateMoney();}
+  toast((mFail?'المهمة فشلت، اتأخرت! تقدر تعيدها بعدين  • ':'')+'+'+pay+' ج.م'+(mb?'  • مكافأة «'+FM.n+'» '+mb:'')+'  • +'+gx+' سمعة'+(tip?'  • بقشيش '+tip:'')+(lost?'  • ضاع منك '+lost:'')+(late?'  • متأخر':''),lost?'bad':'good');paxSeat.clear();alight(f);destBeam.visible=destRing.visible=false;fare=null;gpsRoute=null;updateMoney();}
 function onImpact(s){blip('thud',s);if(fare&&fare.phase==='ride'){fare.hits++;if(Dlg.q.length<2)dlgPush([['p',pick(HIT_L)]],fare.pax);}}
 let nearMsgT=0,stopHint=0;
+/* boarding / getting out: the rider walks between the kerb and the vehicle's side door */
+const _sp=new T.Vector3();
+function doorPoint(fromX,fromZ){paxSeat.getWorldPosition(_sp);const rx=Math.cos(car.h),rz=-Math.sin(car.h);const side=((fromX-_sp.x)*rx+(fromZ-_sp.z)*rz)>=0?1:-1;const o=isVan?1.35:.95;return [_sp.x+rx*side*o,_sp.z+rz*side*o];}
+function stepWalk(m,tx,tz,sp,dt,t){const dx=tx-m.position.x,dz=tz-m.position.z,d=Math.hypot(dx,dz);if(d>.02){const s=Math.min(d,sp*dt);m.position.x+=dx/d*s;m.position.z+=dz/d*s;m.rotation.y=Math.atan2(dx,dz);}
+  m.position.y=Math.abs(Math.sin(t*9))*.06;m.rotation.z=Math.sin(t*9)*.05;return d;}
+function boardTick(dt){const W=fare.walker;W.t+=dt;const [tx,tz]=doorPoint(W.m.position.x,W.m.position.z);const moving=Math.abs(car.v)>2.5;
+  const d=stepWalk(W.m,tx,tz,moving?3.4:1.7,dt,W.t);
+  if(moving&&stopHint<=0){toast('استنى الزبون لما يركب');stopHint=3;}
+  if(d<.3||W.t>7){scene.remove(W.m);fare.walker=null;const s=new T.Mesh(personGeo(W.look,true),VC);s.castShadow=true;paxSeat.add(s);blip('ok');fare.wait=.5;}}
+const leavers=[];
+function alight(f){if(!f||isVan)return;const lk=f.pax.look;if(!lk)return;paxSeat.getWorldPosition(_sp);const p=POI[f.to];const [dx,dz]=doorPoint(p.x+p.sx,p.z+p.sz);
+  const m=person(lk,dx,dz,0);leavers.push({m:m,t:0,tx:p.x+p.sx*1.15,tz:p.z+p.sz*1.15});}
+function leaversTick(dt){for(let i=leavers.length-1;i>=0;i--){const L=leavers[i];L.t+=dt;const d=stepWalk(L.m,L.tx,L.tz,1.5,dt,L.t);
+  if(d<.15){L.m.position.y=0;L.m.rotation.z=0;}if(L.t>9){scene.remove(L.m);leavers.splice(i,1);}}}
 function updateFares(dt){interactions(dt);spotMat.opacity=spotMatM.opacity=.7+.3*Math.sin(clock*3.2);if(isVan){updateLine(dt);return;}spawnMission(dt);for(let i=0;i<3&&waiting.length<MAXW;i++)spawnWaiting();
-  for(const w of waiting){w.m.rotation.y=Math.atan2(-(car.x-w.m.position.x),-(car.z-w.m.position.z))+Math.PI;}
-  if(fare){if(fare.phase!=='pay')fare.t+=dt;if(fare.phase==='board'){fare.wait-=dt;if(fare.wait<=0&&!Dlg.q.length)fare.phase='ride';}
+  for(const w of waiting){w.m.rotation.y=Math.atan2(-(car.x-w.m.position.x),-(car.z-w.m.position.z))+Math.PI;
+    if(w.tag){const d=Math.hypot(camera.position.x-w.m.position.x,camera.position.z-w.m.position.z);w.tag.visible=d<110;const k=clamp(d/20,1,2.4);w.tag.scale.set(3.9*k,1.28*k,1);w.tag.position.y=2.1+(Math.sin(clock*2+w.m.position.x)*.04);}}
+  leaversTick(dt);
+  if(fare){if(fare.phase!=='pay')fare.t+=dt;if(fare.phase==='board'){if(fare.walker)boardTick(dt);else{fare.wait-=dt;if(fare.wait<=0&&!Dlg.q.length)fare.phase='ride';}}
     else if(fare.phase==='ride'){const p=POI[fare.to],d=Math.min(Math.hypot(p.x-car.x,p.z-car.z),Math.hypot(p.x+p.sx-car.x,p.z+p.sz-car.z));if(d<PICK_R){if(Math.abs(car.v)<2.2){if(fare.phase!=='pay')startPay();return;}else if(stopHint<=0){toast('هدّي ووقّف عند العمود');stopHint=3;}}
       fare.chat-=dt;if(fare.chat<=0&&!Dlg.cur&&!Dlg.q.length){dlgPush([['p',radio.on&&Math.random()<.3?pick(RADIO_L):pick(fare.pax.ride)]],fare.pax);fare.chat=rand(14,22);}
       fare.fastCd-=dt;if(Math.abs(car.v)*3.6>70&&fare.fastCd<=0){fare.fastCd=10;fare.fast++;dlgPush([['p',pick(FAST_L)]],fare.pax);}}}
@@ -1184,7 +1223,7 @@ function updateHUD(dt){const sp=Math.round(Math.abs(car.v)*3.6);if(sp!==lastSpd)
   if(isVan&&line&&fuel>=15){const p=POI[line.stops[line.idx]];tx=p.x;tz=p.z;name='المحطة الجاية: '+p.n;}
   else if(fare&&fare.phase!=='board'){const p=POI[fare.to];tx=p.x;tz=p.z;name=p.n;showTime=true;}
   else if(!fare&&fuel<25){const s=nearestStation();tx=s.sx;tz=s.sz;name='أقرب بنزينة';}
-  else if(!fare&&waiting.length){let b=waiting.find(w=>w.mission)||null,bd=b?-1:1e9;for(const w of waiting){if(bd<0)break;const p=POI[w.poi],d=Math.hypot(p.x-car.x,p.z-car.z);if(d<bd){bd=d;b=w;}}if(b){const p=POI[b.poi];tx=p.x;tz=p.z;name=(b.mission?'مهمة الورديان: زبونة عند ':'زبون عند ')+p.n;}}
+  else if(!fare&&waiting.length){let b=waiting.find(w=>w.mission)||null,bd=b?-1:1e9;for(const w of waiting){if(bd<0)break;const p=POI[w.poi],d=Math.hypot(p.x-car.x,p.z-car.z);if(d<bd){bd=d;b=w;}}if(b){const p=POI[b.poi];tx=p.x;tz=p.z;name=(b.mission?'مهمة «'+missionById(b.mission).n+'»: '+b.name+' عند ':'زبون عند ')+p.n;}}
   const nav=$('nav');
   if(tx!==null){if(navTarget!==name){navTarget=name;gpsRoute=null;}const g=gpsUpdate(dt,tx,tz);const dx=g.nx-car.x,dz=g.nz-car.z;
     updateChev(tx);
@@ -1268,7 +1307,7 @@ $('btnVoiceTest').addEventListener('click',()=>{const n=$('voiceNote');n.hidden=
   const ok=say('أهلاً يا اسطى، الوردية بدأت. على مركز التدريب لو سمحت',{pitch:1,rate:1,onend:()=>{}});n.textContent=ok?'لو سمعت الجملة يبقى صوت الحوار شغال: '+Speech.voice.name:'الصوت مقفول من الإعداد.';});
 $('btnQuality').addEventListener('click',()=>{setQuality(quality==='low'?'med':(quality==='med'?'high':'low'));});
 const VMODES={game:'أصوات اللعبة',browser:'صوت المتصفح',off:'مقفول'};function voiceUI(){$('btnVoice').textContent='صوت الحوار: '+VMODES[Speech.mode];}
-$('btnVoice').addEventListener('click',()=>{Speech.mode=Speech.mode==='game'?'browser':(Speech.mode==='browser'?'off':'game');Speech.enabled=Speech.mode!=='off';try{ls.set('aps_voice',Speech.mode);}catch(_){}VO.stop();if(Speech.ok)try{speechSynthesis.cancel();}catch(_){}voiceUI();});voiceUI();
+$('btnVoice').addEventListener('click',()=>{Speech.mode=Speech.mode==='game'?'off':'game';Speech.enabled=Speech.mode!=='off';try{ls.set('aps_voice',Speech.mode);}catch(_){}VO.stop();if(Speech.ok)try{speechSynthesis.cancel();}catch(_){}voiceUI();});voiceUI();
 function renderGarage(){vehUI();$('garWallet').textContent='محفظتك: '+Math.round(save.wallet)+' ج.م';const box=$('paints');box.innerHTML='';
   PAINTS.forEach(p=>{const owned=save.owned.includes(p.id);const b=document.createElement('button');b.className='paint'+(save.paint===p.id?' sel':'')+(owned?'':' locked');
     b.innerHTML='<i style="background:'+p.c+'"></i><span>'+p.n+'<small>'+(owned?(save.paint===p.id?'متركّب':'اضغط للتركيب'):p.p+' ج.م')+'</small></span>';
@@ -1404,7 +1443,7 @@ function seg(id,opts,get,set){const el=$(id);const draw=()=>{el.innerHTML='';opt
 const segDraw=[];
 segDraw.push(seg('segCtl',[['touch','الدركسيون'],['arrows','الأسهم'],['tilt','الإمالة']],()=>ctl.mode,v=>setCtl(v)));
 segDraw.push(seg('segSens',[[0.7,'تقيل'],[1,'عادي'],[1.35,'خفيف']],()=>ctl.sens,v=>{ctl.sens=v;saveCtl();ctlUI();}));
-segDraw.push(seg('segVoice',[['game','أصوات اللعبة'],['browser','المتصفح'],['off','مقفول']],()=>Speech.mode,v=>{while(Speech.mode!==v)$('btnVoice').click();}));
+segDraw.push(seg('segVoice',[['game','شغالة'],['off','مقفولة']],()=>Speech.mode,v=>{while(Speech.mode!==v)$('btnVoice').click();}));
 segDraw.push(seg('segIntro',[['play','شغّلها'],['skip','اتخطاها']],()=>skipIntro()?'skip':'play',v=>{ls.set('aps_skipIntro',v==='skip'?'1':'0');}));
 segDraw.push(seg('segQ',[['low','خفيفة'],['med','متوسطة'],['high','عالية']],()=>quality,v=>setQuality(v)));
 $('btnSettings').addEventListener('click',()=>{segDraw.forEach(f=>f());$('verNote').textContent='النسخة '+APP_VERSION;$('settings').hidden=false;});

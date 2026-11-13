@@ -491,6 +491,30 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
 #mapCv{display:block;width:100%;height:min(62vh,560px);background:#16314f}
 @media (orientation:landscape) and (max-height:560px){#mapCv{height:calc(100vh - 130px)}}
 @media (prefers-reduced-motion:reduce){#menu.enter .mlogo,#menu.enter .mi>*{animation:none}}
+
+/* ===== gauge on top (portrait, and the Suzuki everywhere) so it never covers the vehicle; wrapping toasts ===== */
+@media (orientation:portrait){
+  body.is-touch .tr,body.is-touch.cam-in .tr{top:calc(env(safe-area-inset-top,0px) + 102px);bottom:auto;right:calc(env(safe-area-inset-right,0px) + 10px);left:auto;transform:none;min-width:0;grid-template-columns:auto 92px;padding:4px 10px}
+  body.is-touch .tr .spd b{font-size:30px}
+  #nav{top:calc(env(safe-area-inset-top,0px) + 174px)}
+  #onair{top:calc(env(safe-area-inset-top,0px) + 250px)}
+  #lineBar{top:calc(env(safe-area-inset-top,0px) + 252px)}
+  body.is-touch #dialog,body.is-touch.cam-in #dialog{bottom:calc(env(safe-area-inset-bottom,0px) + 222px)}
+}
+@media (orientation:landscape){body.is-touch.veh-van .tr{top:calc(env(safe-area-inset-top,0px) + 112px);bottom:auto;right:calc(env(safe-area-inset-right,0px) + 10px);left:auto;transform:none;min-width:0;grid-template-columns:auto 90px;padding:4px 10px}}
+#toast{white-space:normal;line-height:1.35;width:max-content;max-width:min(92vw,620px);font-size:clamp(18px,4.6vw,26px)}
+.cbtn,.ib{transition:transform .06s ease-out,filter .06s}.pad:not(.pedal).on,.cbtn:active,.cbtn.on,.ib:active{transform:scale(.93);filter:brightness(1.15)}.pedal.on{filter:brightness(1.1)}
+
+/* ===== map v2 ===== */
+#mapView{padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+.mapcard{width:min(1000px,100%);height:100%;max-height:100%;display:flex;flex-direction:column}
+.mapwrap{position:relative;flex:1;min-height:0}
+#mapCv{display:block;width:100%;height:100%;touch-action:none;cursor:grab;background:#14304d}
+@media (orientation:landscape) and (max-height:560px){#mapCv{height:100%}}
+.mapbtns{position:absolute;left:10px;bottom:10px;display:grid;gap:8px}
+.mapbtns button{width:48px;height:48px;border-radius:12px;border:1.5px solid var(--line-strong);background:rgba(var(--navy-rgb),.9);color:var(--tuk);font:700 22px var(--f-body);display:grid;place-items:center}
+.mapbtns button:active{transform:scale(.93)}
+.mapcard .pgnote{margin:8px 12px 10px;font-size:12px}
 </style>
 </head>
 <body>
@@ -558,8 +582,9 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
 <div id="mapView" class="ui-overlay" dir="rtl" hidden>
   <div class="ui-card ui-pop mapcard">
     <div class="ui-head"><h2>🗺️ الخريطة</h2><button class="ui-x" id="mapClose" aria-label="قفل">✕</button></div>
-    <canvas id="mapCv" aria-label="خريطة عالم اللعبة"></canvas>
-    <p class="pgnote">الأصفر: أماكن الركاب · البرتقاني: البنزينات · السهم: انت. الورديان تخطيط مستوحى، مش خريطة حقيقية.</p>
+    <div class="mapwrap"><canvas id="mapCv" aria-label="خريطة عالم اللعبة، اسحب عشان تتحرك وقرّب بصباعين"></canvas>
+      <div class="mapbtns"><button id="mapIn" aria-label="قرّب">＋</button><button id="mapOut" aria-label="بعّد">－</button><button id="mapMe" aria-label="مكاني">◎</button><button id="mapAll" aria-label="الخريطة كلها">⤢</button></div></div>
+    <p class="pgnote">اسحب عشان تتحرك وقرّب بصباعين. <b style="color:#4cff5e">الأخضر</b>: وجهتك وطريقك · <b style="color:#F5B928">الأصفر</b>: زبون مستني · البرتقاني: بنزينة. الورديان تخطيط مستوحى، مش خريطة حقيقية.</p>
   </div>
 </div>
 <div id="progress" class="ui-overlay" dir="rtl" hidden>

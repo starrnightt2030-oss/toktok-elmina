@@ -1,0 +1,14 @@
+{
+  "appId": "io.github.starrnightt.toktokelmina",
+  "appName": "توكتوك في المينا",
+  "webDir": "app/www",
+  "server": {
+    "url": "https://starrnightt2030-oss.github.io/toktok-elmina/?app=android",
+    "androidScheme": "https",
+    "errorPath": "offline.html"
+  },
+  "android": {
+    "backgroundColor": "#101B2D",
+    "allowMixedContent": false
+  }
+}

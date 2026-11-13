@@ -302,6 +302,7 @@ function buildWorld(){
   buildLamps();buildPalms();buildTrees();
   /* gulls */
   for(let i=0;i<10;i++){const g=new T.Group();const m=new T.MeshStandardMaterial({color:'#f2eef0'});const body=new T.Mesh(new T.BoxGeometry(.24,.16,.75),m);g.add(body);const l=new T.Group(),r=new T.Group();const wg=new T.BoxGeometry(.9,.04,.3);wg.translate(-.45,0,0);const wl=new T.Mesh(wg,m);l.add(wl);const wg2=wg.clone();wg2.translate(.9,0,0);r.add(new T.Mesh(wg2,m));g.add(l,r);scene.add(g);gulls.push({g:g,l:l,r:r,cx:rand(-250,150),cz:rand(-200,-130),rad:rand(18,45),y:rand(14,30),sp:rand(.15,.3)*(Math.random()<.5?-1:1),ph:rand(0,6.28)});}
+  streetSigns();
   S.mesh(VC);SM.mesh(VCm);
   /* the merged meshes now own their typed arrays: drop the big JS build arrays so they can be garbage-collected */
   for(const M of [S,SM]){M.p=[];M.n=[];M.c=[];M.u=[];}
@@ -374,6 +375,36 @@ function school(x,z){const tex=rep(texFacade,3,1.6);S.box(x,x+38,0,2.6,z,z+.6,'#
 function cafe(x,z){S.box(x,x+34,2.6,2.8,z,z+6,'#7a2f2a');for(let i=0;i<6;i++){const tx=x+3+i*5.5;S.cyl(.5,.08,tx,.8,z+3,'#ddd');S.cyl(.05,.8,tx,.4,z+3,'#888');S.box(tx-1.1,tx-.7,0,.5,z+2.7,z+3.3,'#c9302a');S.box(tx+.7,tx+1.1,0,.5,z+2.7,z+3.3,'#c9302a');}
   plainSign('قهوة البحّارة',9,1.4,x+17,3.6,z-.02,Math.PI,{bg:'#5b2a1c',glow:true});
   [[x+6,z+3.4],[x+17,z+3.2]].forEach(p=>person({shirt:'#e9e2d0',pants:'#e9e2d0',skin:'#8a5a3b',galabeya:true},p[0],p[1],Math.PI));}
+/* ============ street names (Phase 8) ============
+   Real names the player asked for, placed on the game's streets in the real west-to-east order (Wardian → Qabbari → port /
+   shipyard). The game's street layout is a simplified version of the area, so a name sits on the street that plays its part,
+   not on its surveyed line. Sources: the training-centre site plan (الشارع العام، شارع ترسانة الإسكندرية), the player
+   (Qabbari: الإسناوي، الأمير لؤلؤ، أم السلطان، مسجد سيدي القباري) and listings of Wardian streets (حافظ حسين، الطيبي،
+   الشهيد مصطفى عواد، المكس). */
+const STREETS=[
+  {n:'شارع المكس',d:'الورديان',a:[-445,0],b:[-300,0]},
+  {n:'شارع المكس',d:'القباري',a:[-300,0],b:[-150,0]},
+  {n:'الشارع العام',d:'الميناء والترسانة',a:[-150,0],b:[EX,0]},
+  {n:'شارع حافظ حسين',d:'الورديان',a:[-375,0],b:[-375,195]},
+  {n:'شارع الطيبي',d:'الورديان',a:[-440,0],b:[-440,120]},
+  {n:'شارع الشهيد مصطفى عواد',d:'الورديان',a:[-440,120],b:[-300,120]},
+  {n:'شارع الإسناوي',d:'القباري',a:[-250,0],b:[-250,235]},
+  {n:'شارع أم السلطان',d:'القباري',a:[-300,120],b:[-150,120]},
+  {n:'شارع الأمير لؤلؤ',d:'القباري',a:[-250,235],b:[-150,235]},
+  {n:'شارع مسجد سيدي القباري',d:'القباري',a:[-150,0],b:[-150,235]},
+  {n:'شارع ترسانة الإسكندرية',d:'مركز التدريب',a:[286,0],b:[286,235]}];
+function streetSigns(){const names=[...new Set(STREETS.map(q=>q.n+'|'+q.d))];const CW=512,CH=150,NC=2,NR=Math.ceil(names.length/NC);
+  const tex=ctex(CW*NC,CH*NR,g=>{names.forEach((k,i)=>{const [n,d]=k.split('|'),x=(i%NC)*CW,y=Math.floor(i/NC)*CH;g.fillStyle='#ffffff';g.fillRect(x+4,y+4,CW-8,CH-8);g.fillStyle='#1d4f9a';g.fillRect(x+12,y+12,CW-24,CH-24);
+    g.strokeStyle='#ffffff';g.lineWidth=4;g.strokeRect(x+20,y+20,CW-40,CH-40);g.fillStyle='#ffffff';g.textAlign='center';g.textBaseline='middle';g.direction='rtl';let fs=52;g.font='bold '+fs+'px '+AR;while(g.measureText(n).width>CW-70&&fs>26){fs-=2;g.font='bold '+fs+'px '+AR;}
+    g.fillText(n,x+CW/2,y+64);g.font='24px '+AR;g.fillStyle='rgba(255,255,255,.85)';g.fillText('حي '+d.replace('الميناء والترسانة','الجمرك').replace('مركز التدريب','الترسانة'),x+CW/2,y+112);});});
+  const M=new Merger();const uv=k=>{const i=names.indexOf(k);return [1/NC,1/NR,(i%NC)/NC,1-(Math.floor(i/NC)+1)/NR];};
+  const put=(k,x,z,ry)=>{const [us,vs,uo,vo]=uv(k);S.cyl(.06,3.4,x,1.7,z,'#5a6066',8);M.wall(x+Math.sin(ry)*.03,z+Math.cos(ry)*.03,1.6,2.75,.47,ry,'#ffffff',us,vs,uo,vo);M.wall(x-Math.sin(ry)*.03,z-Math.cos(ry)*.03,1.6,2.75,.47,ry+Math.PI,'#ffffff',us,vs,uo,vo);};
+  for(const q of STREETS){const k=q.n+'|'+q.d,dx=q.b[0]-q.a[0],dz=q.b[1]-q.a[1],L=Math.hypot(dx,dz),ux=dx/L,uz=dz/L,px=-uz,pz=ux,w=q.a[1]===0&&q.b[1]===0?13:7.4;
+    /* a sign near each end and every ~120 m, on the kerb corner, plate facing along the street */
+    const n=Math.max(2,Math.round(L/120));for(let i=0;i<n;i++){const t=n===1?.5:(i/(n-1));const along=12+t*(L-24);const side=i%2?1:-1;
+      const x=q.a[0]+ux*along+px*w*side,z=q.a[1]+uz*along+pz*w*side;if(blockedAt(x,z))continue;put(k,x,z,Math.atan2(ux,uz));}}
+  const m=new T.Mesh(M.geo(),new T.MeshStandardMaterial({map:tex,roughness:.5,emissive:'#ffffff',emissiveMap:tex,emissiveIntensity:.25,side:T.FrontSide}));m.name='streetSigns';scene.add(m);}
+function blockedAt(x,z){return colliders.some(q=>q.h>.05&&x>q.x0-.4&&x<q.x1+.4&&z>q.z0-.4&&z<q.z1+.4);}
 /* parked vehicles placed while the world is built; the detailed models are fitted once they have loaded */
 const PARKED=[];function parked(k,x,z,ry){const g=new T.Group();g.position.set(x,0,z);g.rotation.y=ry||0;scene.add(g);PARKED.push([g,k]);return g;}
 function microStand(o){S.box(229+o,241+o,3.4,3.6,172,192,'#2a6fb0');[[229.2,172.2],[240.8,172.2],[229.2,191.8],[240.8,191.8]].forEach(p=>S.box(p[0]+o-.1,p[0]+o+.1,0,3.4,p[1]-.1,p[1]+.1,'#888'));
@@ -543,6 +574,8 @@ function personGeo(lk,seated){const k=JSON.stringify(lk)+(seated?'s':'');if(pers
   else if(!lk.hijab)M.xf(NI.hemi,0,by+.84,0,.28,.2,.3,0,'#1d1712');
   return personCache[k]=M.geo();}
 /* people (Phase 8): rigged, animated figures; person() places one in the world, human() makes one to place yourself */
+/* inside the Android app the download section is not needed */
+try{if(/[?&]app=android\b/.test(location.search))localStorage.setItem('aps_app','android');if(localStorage.getItem('aps_app')==='android'){document.documentElement.classList.add('in-app');const e=document.getElementById('apkSec');if(e)e.hidden=true;}}catch(_){}
 const PEOPLE=createPeople(T);let peopleFrame=0;
 function human(lk,clip){return PEOPLE.make(lk||{},clip||'Idle');}
 function person(lk,x,z,ry,seated){const m=human(lk,seated?'Sit':'Idle');m.position.set(x,0,z);m.rotation.y=ry||0;scene.add(m);return m;}
@@ -982,8 +1015,14 @@ const INTRO_D=['وعليكم السلام، اتفضل {t}','اتفضل {t}، ا
 const INTRO_D2=['امسك نفسك كويس، الطريق فيه مطبات','لو عايز أعلّي الراديو قولّي'];
 const END_SEQ=[[['p','الحساب كام يا اسطى؟'],['d','خليها علينا {t}'],['p','لا والله ما يحصل، اتفضل'],['d','تسلم إيدك، في رعاية الله']],[['p','وصلنا الحمد لله، تسلم إيدك يا اسطى'],['d','الله يسلمك {t}، نوّرتني']],[['p','اتفضل يا اسطى، والباقي علشانك'],['d','ربنا يكرمك {t}']]];
 const END_LATE=[[['p','اتأخرنا كتير يا اسطى، المرة الجاية شد حيلك شوية'],['d','حقك عليّا {t}، الطريق كان واقف']],[['p','الحمد لله وصلنا، بس الوقت راح علينا'],['d','معلش {t}، المرة الجاية أحسن']]];
-const HIT_L=['حاسب يا اسطى! هتودّينا في داهية','براحة يا معلم، إحنا مش في سباق','يا ساتر يا رب! خلّي بالك من الطريق'];
-const FAST_L=['بالراحة يا اسطى، مش مستعجلين على آخرتنا','هدّي شوية الله يخليك، قلبي وقع','إيه ده يا اسطى! التوكتوك ده فيه موتور طيارة؟'];
+const HIT_L=['حاسب يا اسطى! هتودّينا في داهية','إيه يا عم ده؟ إحنا راكبين توكتوك ولا لعبة الملاهي؟','يا أسطى ده مطب ولا جبل؟ ضهري اتقسم نصين','الخبطة دي هتتحسب عليك في الأجرة يا معلم','براحة يا معلم، إحنا مش في سباق','يا ساتر يا رب! خلّي بالك من الطريق'];
+const FAST_L=['بالراحة يا اسطى، مش مستعجلين على آخرتنا','إيه يا عم الطيارة دي؟ إحنا رايحين المطار؟','اللي يستعجل يتأخر يا اسطى، ده كلام الكبار','هدّي يا فورمولا، التوكتوك مش فيراري','هدّي شوية الله يخليك، قلبي وقع','إيه ده يا اسطى! التوكتوك ده فيه موتور طيارة؟'];
+/* إفيهات: light Egyptian humour that comes up by itself during rides (shared tuk, traffic, waiting, rush hour) */
+const IFEH_L=['يا اسطى إنت سايق ولا بتحلم؟ صحصح معانا','التوكتوك ده فيه تكييف؟ آه، تكييف طبيعي من الشباك','الدنيا زحمة ليه كده؟ هو النهارده العيد ولا إيه؟',
+  'أنا لو كنت أعرف إن المشوار ده كله كده كنت جيت ماشي','يا عم الحاج، الحاجات الحلوة بتيجي متأخر، زي التوكتوك ده بالظبط','اللي اختشوا ماتوا يا اسطى، زمّر وعدّي',
+  'يا بني الصبر مفتاح الفرج، بس مش للدرجة دي','ده أنا لو ركبت الطيارة كنت وصلت أسرع','عارف يا اسطى؟ أحلى حاجة في إسكندرية الهوا… وأوحش حاجة الزحمة',
+  'شغّل لنا حاجة نسمعها يا معلم، الطريق طويل','إنت منين يا اسطى؟ باين عليك إسكندراني أصلي','كل ما أركب توكتوك أفتكر أيام الجامعة'];
+const JAM_L=['يا ساتر على الزحمة، هو كل إسكندرية نازلة النهارده؟','ما تدخل من الشارع اللي جنب يا اسطى، اختصر','لو فضلنا واقفين كده هنعيّد هنا'];
 const RADIO_L=['الله! صوت الراديو ده بيفكرني بأيام زمان','علّي الراديو شوية يا اسطى، الإذاعة دي حلوة','هنا القاهرة… ياه، أيام ما كنا بنسمعها مع أبويا'];
 const GUARD={name:'أمن البوابة',pitch:.72,rate:.95},WALKER={name:'واحد ماشي',pitch:1.05,rate:1.1};
 const GUARD_IN=[[['p','مساء الخير يا اسطى، التصريح معاك؟'],['d','أيوه يا باشا، اتفضل'],['p','تمام، اتفضل. وخلّي سرعتك هادية جوه']],[['p','على فين يا اسطى؟'],['d','موصّل زبون جوه يا فندم'],['p','ماشي، بالراحة على الرصيف']],[['p','صباح الفل يا اسطى، اتفضل عدّي']]];
@@ -1189,7 +1228,7 @@ function updateFares(dt){interactions(dt);if(!isVan)eventsTick(dt);spotMat.opaci
     if(d<PICK_R){if(Math.abs(car.v)<2.2){finishFare();return;}else if(stopHint<=0){toast('هدّي ووقّف عند العمود');stopHint=3;}}
     else if(stopHint<=0&&Math.abs(car.v)<1.2){const o=riders.slice(1).find(r=>{const q=POI[r.to];return Math.hypot(q.x-car.x,q.z-car.z)<PICK_R;});
       if(o){toast('لازم توصّل '+fare.pax.name+' الأول، ركب قبل '+o.pax.name);stopHint=4;if(!Dlg.cur&&!Dlg.q.length)dlgPush([['p',pick(ORDER_P)]],fare.pax);}}}
-  if(riders.length){const rr=pick(riders);rr.chat-=dt*riders.length;if(rr.chat<=0&&!Dlg.cur&&!Dlg.q.length){dlgPush([['p',radio.on&&Math.random()<.3?pick(RADIO_L):(riders.length>1&&Math.random()<.35?pick(SHARE_L):pick(rr.pax.ride))]],rr.pax);rr.chat=rand(14,22);}
+  if(riders.length){const rr=pick(riders);rr.chat-=dt*riders.length;if(rr.chat<=0&&!Dlg.cur&&!Dlg.q.length){const jam=Math.abs(car.v)<1.2&&rr.t>20;dlgPush([['p',jam&&Math.random()<.6?pick(JAM_L):radio.on&&Math.random()<.3?pick(RADIO_L):(riders.length>1&&Math.random()<.35?pick(SHARE_L):(Math.random()<.3?pick(IFEH_L):pick(rr.pax.ride)))]],rr.pax);rr.chat=rand(14,22);}
     fare.fastCd-=dt;if(Math.abs(car.v)*3.6>70&&fare.fastCd<=0){fare.fastCd=10;riders.forEach(r=>r.fast++);dlgPush([['p',pick(FAST_L)]],pick(riders).pax);}}
   if(!boarding&&riders.length<SEATS_TUK){for(const w of waiting){const p=POI[w.poi];const d=Math.min(Math.hypot(p.x-car.x,p.z-car.z),Math.hypot(p.x+p.sx-car.x,p.z+p.sz-car.z));if(d<PICK_R){if(Math.abs(car.v)<2.2){startFare(w);break;}else if(stopHint<=0){toast('هدّي ووقّف جنب الزبون');stopHint=3;}}else if(d<PICK_R+14&&stopHint<=0&&Math.abs(car.v)>2.2){toast('الزبون قدامك، هدّي');stopHint=4;}}}
   stopHint-=dt;
@@ -1411,6 +1450,11 @@ function drawMap(){const cv=$('mapCv'),r=cv.getBoundingClientRect(),dpr=Math.min
   g.lineCap='round';g.lineJoin='round';
   for(const s2 of ROADSEG){const [a,b]=P(s2[0],s2[1]),[c2,d]=P(s2[2],s2[3]);g.strokeStyle='#5d6c80';g.lineWidth=Math.max(3*dpr,(s2[4]+3)*sc);g.beginPath();g.moveTo(a,b);g.lineTo(c2,d);g.stroke();}
   for(const s2 of ROADSEG){const [a,b]=P(s2[0],s2[1]),[c2,d]=P(s2[2],s2[3]);g.strokeStyle='#c9d2dc';g.lineWidth=Math.max(2*dpr,s2[4]*sc*.8);g.beginPath();g.moveTo(a,b);g.lineTo(c2,d);g.stroke();}
+  /* street names along the roads once zoomed in */
+  if(sc>1.1*dpr){g.save();g.font='600 '+Math.round(Math.min(15,Math.max(10,sc*3.2/dpr))*dpr)+'px '+AR;g.textAlign='center';g.textBaseline='middle';g.direction='rtl';
+    for(const q of STREETS){const [a,b]=P(q.a[0],q.a[1]),[c2,d]=P(q.b[0],q.b[1]);let ang=Math.atan2(d-b,c2-a);if(ang>Math.PI/2)ang-=Math.PI;if(ang<-Math.PI/2)ang+=Math.PI;
+      g.save();g.translate((a+c2)/2,(b+d)/2);g.rotate(ang);g.fillStyle='rgba(29,79,154,.92)';const tw=g.measureText(q.n).width+12*dpr;g.fillRect(-tw/2,-9*dpr,tw,18*dpr);g.fillStyle='#fff';g.fillText(q.n,0,1);g.restore();}
+    g.restore();}
   if(fare&&POI[fare.to]){try{const p=POI[fare.to],rt=route(car.x,car.z,p.x,p.z);g.strokeStyle=RIDER_COLS[fare.col];g.lineWidth=Math.max(3*dpr,4*sc);g.beginPath();rt.pts.forEach((q,i)=>{const [a,b]=P(q[0],q[1]);i?g.lineTo(a,b):g.moveTo(a,b);});g.stroke();}catch(_){}}
   const placed=[],fit=(x,y,w,h)=>{for(const q of placed)if(x<q[0]+q[2]&&x+w>q[0]&&y<q[1]+q[3]&&y+h>q[1])return false;placed.push([x,y,w,h]);return true;};
   g.textAlign='center';g.textBaseline='middle';g.direction='rtl';

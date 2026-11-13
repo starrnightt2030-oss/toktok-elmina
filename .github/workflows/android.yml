@@ -1,0 +1,99 @@
+name: Android APK
+# Builds the installable Android app: a full-screen WebView (Capacitor) around the live game. The app loads the game
+# from GitHub Pages, so every game update reaches it on its own (and it keeps working offline after the first start).
+# The APK only needs rebuilding when the app shell changes, so this runs when app/ or the config changes, or by hand.
+# Published to the release "apk-latest", so the download link never changes.
+#
+# Signing key: if the repository secrets ANDROID_KEYSTORE_B64 (base64 of a .jks) and ANDROID_KEYSTORE_PASS exist they are
+# used. Otherwise a key is generated once and kept in the Actions cache (private to this repository) so later builds
+# install over earlier ones. Adding the secrets makes the key permanent.
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', 'capacitor.config.json', '.github/workflows/android.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: apk
+  cancel-in-progress: true
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Version name
+        run: echo "VERSION_NAME=$(date -u +%Y.%m.%d)-${{ github.run_number }}" >> $GITHUB_ENV
+      - name: Capacitor project
+        run: |
+          mkdir -p /tmp/cap && cp -r app capacitor.config.json /tmp/cap/
+          cd /tmp/cap
+          npm init -y > /dev/null
+          npm i --no-audit --no-fund @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/assets@3
+          npx cap add android
+          npx capacitor-assets generate --android --assetPath app/assets \
+            --iconBackgroundColor '#101B2D' --iconBackgroundColorDark '#101B2D' \
+            --splashBackgroundColor '#101B2D' --splashBackgroundColorDark '#101B2D'
+          bash $GITHUB_WORKSPACE/app/customize.sh
+          npx cap sync android
+      - name: Build
+        run: |
+          cd /tmp/cap/android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+      - name: Signing key from the cache
+        id: kcache
+        uses: actions/cache@v4
+        with:
+          path: ~/.tt-signing
+          key: tt-android-signing-v1
+      - name: Prepare the signing key
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+        run: |
+          mkdir -p ~/.tt-signing
+          if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ]; then
+            echo "$KS_B64" | base64 -d > /tmp/release.jks; printf '%s' "$KS_PASS" > /tmp/release.pass
+          else
+            if [ ! -f ~/.tt-signing/release.jks ]; then
+              openssl rand -hex 24 > ~/.tt-signing/release.pass
+              keytool -genkeypair -keystore ~/.tt-signing/release.jks -alias toktok -keyalg RSA -keysize 2048 -validity 10000 \
+                -storepass "$(cat ~/.tt-signing/release.pass)" -keypass "$(cat ~/.tt-signing/release.pass)" \
+                -dname "CN=Toktok Elmina, O=starrnightt2030-oss, C=EG"
+            fi
+            cp ~/.tt-signing/release.jks /tmp/release.jks; cp ~/.tt-signing/release.pass /tmp/release.pass
+          fi
+      - name: Sign
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          IN=$(ls /tmp/cap/android/app/build/outputs/apk/release/*.apk | head -1)
+          $BT/zipalign -p -f 4 "$IN" /tmp/aligned.apk
+          $BT/apksigner sign --ks /tmp/release.jks --ks-key-alias toktok --ks-pass file:/tmp/release.pass --key-pass file:/tmp/release.pass \
+            --out toktok-elmina.apk /tmp/aligned.apk
+          $BT/apksigner verify toktok-elmina.apk
+          rm -f /tmp/release.jks /tmp/release.pass
+          cp toktok-elmina.apk "toktok-elmina-${VERSION_NAME}.apk"
+          ls -la *.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: "توكتوك في المينا — تطبيق أندرويد"
+          body: |
+            نزّل الملف toktok-elmina.apk على الموبايل وافتحه عشان يتثبّت (لو الموبايل سأل، اسمح بالتثبيت من المتصفح أو من مدير الملفات).
+            النسخة: ${{ env.VERSION_NAME }}
+            التطبيق بيفتح اللعبة نفسها اللي على الموقع وبيتحدّث لوحده مع كل تحديث للعبة، وبعد أول فتحة بيشتغل من غير نت.
+          files: |
+            toktok-elmina.apk
+            toktok-elmina-${{ env.VERSION_NAME }}.apk
+          make_latest: true

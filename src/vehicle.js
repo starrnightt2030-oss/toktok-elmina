@@ -12,7 +12,7 @@ export const TUNING = {
   vmaxRev: 15 / 3.6,
   force: 2100,             // N at the rear axle, low speed
   forceTurbo: 3000,
-  brake: 12,
+  brake: 26,
   coastBrake: 0.35,
   steerMax: 0.62,          // rad at walking pace
   steerMin: 0.09,
@@ -35,7 +35,7 @@ export const SPECS = {
     wheels: [{ x: -0.58, z: -1.05, front: true }, { x: 0.58, z: -1.05, front: true }, { x: -0.58, z: 1.02 }, { x: 0.58, z: 1.02 }],
     drive: [2, 3], conn: 0.52, rest: 0.32, radius: 0.27, base: 2.07, stiffness: 45,
     box: [0.72, 0.62, 1.7, 1.15], com: { x: 0, y: 0.3, z: 0 }, inertia: { x: 900, y: 1000, z: 380 },
-    tuning: { mass: 950, vmax: 75 / 3.6, vmaxTurbo: 100 / 3.6, force: 5600, forceTurbo: 8000, brake: 30, coastBrake: 0.8,
+    tuning: { mass: 950, vmax: 75 / 3.6, vmaxTurbo: 100 / 3.6, force: 5600, forceTurbo: 8000, brake: 58, coastBrake: 0.8,
       steerMax: 0.6, gears: [0, 18, 36, 56], fuelPerMeter: 100 / 15000 },
   },
 };
@@ -147,10 +147,10 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
             F = f * Math.pow(clamp(1 - vF / vmax, 0, 1), 0.55);
           }
         }
-        // progressive brake: bites at 45% and builds to full over ~0.35 s, eases off just before the stop (no jerk)
-        car.brakeHold = input.down && vF > 0.6 ? Math.min(1, (car.brakeHold || 0) + STEP / 0.35) : 0;
+        // strong progressive brake: bites at 70% at once, full within 0.15 s, eases off just before the stop (no jerk)
+        car.brakeHold = input.down && vF > 0.6 ? Math.min(1, (car.brakeHold || 0) + STEP / 0.15) : 0;
         if (input.down) {
-          if (vF > 0.6) brake = TN.brake * (0.45 + 0.55 * car.brakeHold) * (vF < 2 ? 0.6 + 0.2 * vF : 1);   // brake while rolling forward
+          if (vF > 0.6) brake = TN.brake * (0.7 + 0.3 * car.brakeHold) * (vF < 1.5 ? 0.7 + 0.2 * vF : 1);   // brake while rolling forward
           else F = -TN.force * 0.55 * clamp(1 - (-vF) / TN.vmaxRev, 0, 1);
         }
         if (!thr && !input.down) brake = TN.coastBrake;
@@ -219,8 +219,8 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
       const MAXF = boost ? TN.vmaxTurbo : TN.vmax;
       let a = 0;
       if (thr) a = vl < -0.3 ? 11 : (boost ? 6 : 3.6) * Math.max(0, 1 - vl / MAXF) + 0.2;
-      car.brakeHold = input.down && vl > 0.6 ? Math.min(1, (car.brakeHold || 0) + dt / 0.35) : 0; car.braking = !!input.down && vl > 0.6;
-      if (input.down) a = vl > 0.6 ? -11 * (0.45 + 0.55 * car.brakeHold) * (vl < 2 ? 0.6 + 0.2 * vl : 1) : -3 * (1 + vl / TN.vmaxRev);
+      car.brakeHold = input.down && vl > 0.6 ? Math.min(1, (car.brakeHold || 0) + dt / 0.15) : 0; car.braking = !!input.down && vl > 0.6;
+      if (input.down) a = vl > 0.6 ? -20 * (0.7 + 0.3 * car.brakeHold) * (vl < 1.5 ? 0.7 + 0.2 * vl : 1) : -3 * (1 + vl / TN.vmaxRev);
       const drag = (0.5 + 0.012 * vl * vl) * Math.sign(vl); a -= (thr || input.down) ? drag * 0.45 : drag * 1.5;
       let nv = vl + a * dt; if (!thr && !input.down && vl !== 0 && Math.sign(nv) !== Math.sign(vl)) nv = 0;
       vl = clamp(nv, -TN.vmaxRev, MAXF + 1);

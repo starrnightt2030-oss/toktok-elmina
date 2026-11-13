@@ -33,10 +33,12 @@ const BASE = process.argv[2], SLOW = +(process.env.SLOW || 1);
   const w = await p.evaluate(() => { const s = window.portSim; const w = s.waiting.find(q => !q.mission); const P = s.POI[w.poi]; return { poi: w.poi, to: w.to, price: w.price, tag: !!(w.tag && w.tag.material.map), bay: w.b.children.length, P: [P.x, P.z, P.sx, P.sz], m0: [w.m.position.x, w.m.position.z] }; });
   ok(w.tag && w.to && w.price > 0 && w.bay >= 2, 'riders: card shows destination (' + w.to + ') and fare (' + w.price + '), square round them and a stop bay on the road');
   await p.evaluate(P => { const n = Math.hypot(P[2], P[3]); window.portSim.teleport(P[0], P[1], Math.atan2(P[3] / n, -P[2] / n)); }, w.P);
-  const b1 = await p.evaluate(async T => { const s = window.portSim, t0 = performance.now(); while (performance.now() - t0 < T) { const f = s.fare; if (f) return { ph: f.phase, walking: !!f.walker, to: f.to }; await new Promise(r => setTimeout(r, 30)); } return null; }, SLOW * 30000);
+  const b1 = await p.evaluate(async T => { const s = window.portSim, t0 = performance.now(); while (performance.now() - t0 < T) { const f = s.boarding; if (f) return { ph: f.phase, walking: !!f.walker, to: f.to }; await new Promise(r => setTimeout(r, 30)); } return null; }, SLOW * 30000);
   ok(b1 && b1.walking && b1.to === w.to, 'boarding: after stopping the rider walks to the vehicle (phase ' + (b1 && b1.ph) + '), going where the card said');
-  await p.waitForFunction(() => window.portSim.fare && !window.portSim.fare.walker, null, { timeout: SLOW * 60000 }).catch(() => {});
-  ok(await p.evaluate(() => window.portSim.fare && !window.portSim.fare.walker), 'boarding: the rider reaches the door and sits in the vehicle');
+  await p.waitForFunction(() => window.portSim.boarding && !window.portSim.boarding.walker, null, { timeout: SLOW * 60000 }).catch(() => {});
+  ok(await p.evaluate(() => window.portSim.boarding && !window.portSim.boarding.walker && !document.getElementById('pay').hidden), 'boarding: the rider reaches the door, sits in the vehicle and pays');
+  await p.evaluate(() => { const ch = window.portSim.boarding ? window.portSim.boarding.change : 0; const A = '٠١٢٣٤٥٦٧٨٩', ar = n => String(n).replace(/[0-9]/g, d => A[d]); let r = ch; for (const v of [50, 20, 10, 5, 1]) while (r >= v) { [...document.querySelectorAll('#pNotes .note')].find(x => x.textContent.replace('جنيه', '').trim() === ar(v)).click(); r -= v; } });
+  await p.waitForFunction(() => document.getElementById('pay').hidden && window.portSim.riders.length === 1, null, { timeout: 30000 }).catch(() => {});
 
 
   // ---- driving through the centre with real physics

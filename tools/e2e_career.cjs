@@ -15,7 +15,7 @@ const BASE = process.argv[2];
   // missions list
   await p.evaluate(() => document.getElementById('btnMissions').click());
   const ms = await p.evaluate(() => [...document.querySelectorAll('#msList .msn')].map(e => e.querySelector('b').textContent + ':' + e.querySelector('.pill').textContent));
-  ok(ms.length === 5 && /مشوار الورديان:خلصت/.test(ms.join()) && /مشوار القباري:متاحة/.test(ms.join()) && /مشوار مستعجل:تتفتح/.test(ms.join()), 'missions: 5 listed with real state (' + ms.join(' | ') + ')');
+  ok(ms.length === 8 && /مشوار الورديان:خلصت/.test(ms.join()) && /مشوار القباري:متاحة/.test(ms.join()) && /مشوار مستعجل:تتفتح/.test(ms.join()), 'missions: 8 listed with real state (' + ms.join(' | ') + ')');
   await p.evaluate(() => document.getElementById('msClose').click());
   // reputation
   await p.evaluate(() => document.getElementById('btnProgress').click());

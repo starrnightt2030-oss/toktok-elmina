@@ -368,5 +368,5 @@ export function buildWardianLate(ctx, info) {
   if (g) park(['tuk', '#c9302a'], g.x + g.nx * 2.3, g.z + g.nz * 2.3, Math.atan2(g.nx, g.nz), 2.8);
   const looks = [{ shirt: '#e9e2d0', pants: '#e9e2d0', skin: '#8a5a3b', galabeya: true }, { shirt: '#3b2a4a', pants: '#3b2a4a', skin: '#c69472', hijab: '#1f1f2a', galabeya: true }, { shirt: '#2e5e8c', pants: '#2a2a2a', skin: '#b07a55' }, { shirt: '#c9302a', pants: '#2a3550', skin: '#9c6b48' }, { shirt: '#6b2fa0', pants: '#2a2a2a', skin: '#c69472', hijab: '#c9302a' }, { shirt: '#f2c218', pants: '#384a63', skin: '#8f6446' }];
   const paths = [[false, -382.5, 20, 105], [false, -367.8, 25, 100], [false, -367.8, 132, 178], [true, 112.6, -428, -390], [true, 126.2, -360, -280], [false, -432.6, 20, 100], [false, -382.6, 132, 178], [true, 208.5, -386, -364]];
-  paths.forEach(([ax, f, a, b]) => { const m = new T.Mesh(personGeo(rp(looks), false), VC); m.castShadow = true; scene.add(m); walkers.push({ m, a, b, f, ax, t: R(), dir: R() < .5 ? 1 : -1, sp: (.9 + R() * .5) / (b - a) }); });
+  paths.forEach(([ax, f, a, b]) => { const m = ctx.human ? ctx.human(rp(looks), 'Walk') : new T.Mesh(personGeo(rp(looks), false), VC); m.castShadow = true; scene.add(m); walkers.push({ m, a, b, f, ax, t: R(), dir: R() < .5 ? 1 : -1, sp: (.9 + R() * .5) / (b - a) }); });
 }

@@ -44,7 +44,19 @@ M = dict(
     red=mat('CabRed', 'b8231b', 0.3, 0.1, coat=0.8),
     steel=mat('Steel', '6c7278', 0.45, 0.8),
     sign=mat('TaxiSign', 'fff2c0', 0.3, 0.0, emit=0.6),
+    green=mat('Stripe2', '2f8f4a', 0.4),
+    curtain=mat('Curtain', 'e9d9b5', 0.9),
+    seat=mat('SeatFabric', '6b4a3a', 0.9),
+    floor=mat('Floor', '2a2b2e', 0.95),
+    skin=mat('Skin', '8f6446', 0.6),
+    shirt=mat('Shirt', 'c9b48d', 0.8),
+    hair=mat('Hair', '1d1712', 0.7),
+    luggage=mat('Luggage', '3d5a7a', 0.8),
+    luggage2=mat('Luggage2', '8a5a2a', 0.8),
 )
+M['glassT'] = mat('GlassClear', '1d2a33', 0.06, 0.3)
+_gb = M['glassT'].node_tree.nodes['Principled BSDF']; _gb.inputs['Alpha'].default_value = 0.45; M['glassT'].surface_render_method = 'BLENDED'
+
 
 def obj(name, bm, m_list):
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
@@ -200,34 +212,79 @@ def classic(name, L=4.05, W=1.62):
     parts.append(box(-0.2, 0.2, -f-0.04, -f-0.02, 0.55, 0.65, M['plate']))
     finish(name, parts)
 
-# ------------------------------------------------------------ microbus (Toyota Hiace style)
-def micro(name, L=4.9, W=1.76):
-    hw = W/2; f = L/2; wf, wr, wz, ar = f-0.75, -f+1.0, 0.33, 0.4
-    prof = [(f, 0.42), (f+0.04, 0.72), (f, 1.02), (f-0.55, 1.98), (-f+0.05, 2.02), (-f, 1.9), (-f, 0.42)] \
-        + arch(wr, wz, ar) + arch(wf, wz, ar)
-    body = bevel(extrude(name+'Body', prof, hw, [M['white'], M['glass']], face_mat=lambda i: 1 if i == 2 else 0,
-                         top_scale=(1.15, 2.0, 0.95)), 0.07, 3)
-    xs = lambda z: hw*(1 - 0.05*min(1, max(0, (z-1.15)/0.85))) + 0.006
+# ------------------------------------------------------------ microbus: Toyota HiAce cab-over, the Alexandria "ميكروباص"
+# Same build quality as the player's Suzuki: framed glass, pillars, sliding door with rail, mirrors, grille, lamps, bumpers,
+# roof rack with luggage, curtains, four rows of benches and a driver inside, blue/green stripe.
+def micro(name, L=4.75, W=1.70):
+    hw, f = W / 2, L / 2
+    wf, wr, wz, ar = f - 0.62, -f + 0.92, 0.33, 0.38
+    prof = [(f - 0.04, 0.32), (f, 0.45), (f + 0.01, 0.70), (f - 0.02, 1.02), (f - 0.10, 1.12), (f - 0.42, 1.92), (f - 0.58, 2.02),
+            (-f + 0.06, 2.04), (-f, 1.94), (-f, 0.36)] + arch(wr, wz, ar) + arch(wf, wz, ar)
+    body = bevel(extrude(name + 'Body', prof, hw, [M['white'], M['glassT']], face_mat=lambda i: 1 if i == 4 else 0,
+                         top_scale=(1.15, 2.04, 0.94)), 0.06, 3)
+    xs = lambda z: hw * (1 - 0.06 * min(1, max(0, (z - 1.15) / 0.89))) + 0.006
     parts = [body]
+    def window(pts, s):
+        cy = sum(p[0] for p in pts) / len(pts); cz = sum(p[1] for p in pts) / len(pts)
+        grow = [(y + (0.03 if y > cy else -0.03), z + (0.03 if z > cz else -0.03)) for y, z in pts]
+        parts.append(panel(grow, lambda z: xs(z) - 0.002, M['black'], s)); parts.append(panel(pts, xs, M['glassT'], s))
     for s in (1, -1):
-        parts.append(panel([(f-0.12, 1.12), (f-0.7, 1.12), (f-0.7, 1.82), (f-0.55, 1.86)], xs, M['glass'], s))
-        y = f-0.85
-        for k in range(4):
-            parts.append(panel([(y, 1.25), (y-0.82, 1.25), (y-0.82, 1.80), (y, 1.80)], xs, M['glass'], s))
-            y -= 0.9
-        parts.append(panel([(f-0.05, 0.95), (-f+0.05, 0.95), (-f+0.05, 1.06), (f-0.05, 1.06)],
-                           lambda z: hw+0.008, M['blue'], s))
-        x = s*(hw-0.13)
-        parts += wheel(wf, x, 0.33, 0.21) + wheel(wr, x, 0.33, 0.21)
-        parts.append(box(s*0.52, s*0.80, f-0.02, f+0.06, 0.74, 0.86, M['head'], 0.02))
-        parts.append(box(s*0.70, s*0.84, -f-0.03, -f+0.05, 0.75, 1.15, M['tail']))
-        parts.append(box(s*0.88, s*0.98, f-0.3, f-0.18, 1.1, 1.32, M['black'], 0.02))
-    parts.append(box(-0.66, 0.66, -f-0.012, -f+0.01, 1.22, 1.84, M['glass']))
-    parts.append(box(-0.45, 0.45, f-0.02, f+0.07, 0.56, 0.72, M['black'], 0.02))
-    parts.append(box(-hw-0.01, hw+0.01, f-0.08, f+0.12, 0.36, 0.52, M['black'], 0.04))
-    parts.append(box(-hw-0.01, hw+0.01, -f-0.12, -f+0.06, 0.38, 0.52, M['black'], 0.04))
-    parts.append(box(-0.24, 0.24, f+0.12, f+0.14, 0.38, 0.5, M['plate']))
-    parts.append(box(-0.7, 0.7, -1.2, 1.0, 2.02, 2.07, M['steel']))                         # roof rack
+        window([(f - 0.16, 1.18), (f - 0.46, 1.84), (f - 0.92, 1.86), (f - 0.92, 1.18)], s)                       # cab door
+        y = f - 1.08
+        for k in range(3):                                                                                       # side windows
+            window([(y, 1.22), (y, 1.86), (y - 0.86, 1.87), (y - 0.86, 1.22)], s); y -= 1.0
+        window([(y, 1.22), (y, 1.87), (-f + 0.12, 1.87), (-f + 0.08, 1.74), (-f + 0.08, 1.22)], s)               # rear quarter
+        for yy in (f - 0.92, f - 1.08, f - 1.94, f - 2.08, f - 2.94, f - 3.08):                                   # pillars
+            parts.append(panel([(yy, 1.16), (yy, 1.9), (yy - 0.03, 1.9), (yy - 0.03, 1.16)], lambda z: xs(z) - 0.001, M['black'], s))
+        sx = lambda z: hw + 0.008
+        parts.append(panel([(f - 0.03, 1.02), (-f + 0.04, 1.02), (-f + 0.04, 1.10), (f - 0.03, 1.10)], sx, M['blue'], s))      # stripe
+        parts.append(panel([(f - 0.03, 0.96), (-f + 0.04, 0.96), (-f + 0.04, 0.99), (f - 0.03, 0.99)], sx, M['green'], s))
+        for yy in (f - 0.92, f - 1.08, -0.62, -1.5):                                                                         # door seams
+            parts.append(panel([(yy + 0.006, 0.38), (yy + 0.006, 1.14), (yy - 0.006, 1.14), (yy - 0.006, 0.38)], sx, M['black'], s))
+        parts.append(panel([(f - 1.1, 1.13), (-1.6, 1.13), (-1.6, 1.15), (f - 1.1, 1.15)], sx, M['steel'], s))                # sliding rail
+        parts.append(box(s * (hw - 0.01), s * (hw + 0.016), f - 1.0, f - 0.88, 0.95, 0.99, M['black'], 0.006))              # handles
+        parts.append(box(s * (hw - 0.01), s * (hw + 0.016), -0.5, -0.38, 0.95, 0.99, M['black'], 0.006))
+        parts.append(box(s * (hw - 0.03), s * (hw + 0.14), f - 0.30, f - 0.27, 1.18, 1.21, M['black']))                     # mirror arm
+        parts.append(box(s * (hw + 0.10), s * (hw + 0.19), f - 0.33, f - 0.22, 1.02, 1.32, M['black'], 0.02))                # mirror
+        parts.append(box(s * 0.44, s * 0.74, f - 0.01, f + 0.04, 0.70, 0.86, M['head'], 0.015))                               # headlamps
+        parts.append(box(s * 0.42, s * 0.76, f - 0.02, f + 0.025, 0.68, 0.88, M['chrome'], 0.01))
+        parts.append(box(s * 0.62, s * 0.78, f + 0.02, f + 0.06, 0.52, 0.60, M['amber'], 0.01))                              # turn signals
+        parts.append(box(s * (hw - 0.17), s * (hw - 0.02), -f - 0.035, -f + 0.02, 0.62, 1.02, M['tail'], 0.012))             # tail lamps
+        parts.append(box(s * (hw - 0.17), s * (hw - 0.02), -f - 0.035, -f + 0.02, 0.52, 0.61, M['amber'], 0.01))
+        for y in (f - 1.25, f - 2.25, f - 3.25):                                                                              # curtains
+            parts.append(box(s * (hw - 0.12), s * (hw - 0.07), y - 0.2, y, 1.25, 1.78, M['curtain'], 0.02))
+        x = s * (hw - 0.12)
+        parts += wheel(wf, x, 0.33, 0.21, rim_r=0.21) + wheel(wr, x, 0.33, 0.21, rim_r=0.21)
+    parts.append(box(-0.40, 0.40, f - 0.005, f + 0.035, 0.70, 0.86, M['black'], 0.01))                                       # grille
+    for z in (0.725, 0.77, 0.815): parts.append(box(-0.38, 0.38, f + 0.03, f + 0.04, z, z + 0.02, M['chrome']))
+    parts.append(box(-0.1, 0.1, f + 0.035, f + 0.05, 0.88, 0.94, M['chrome'], 0.008))                                         # badge
+    parts.append(box(-hw - 0.02, hw + 0.02, f - 0.06, f + 0.12, 0.32, 0.50, M['black'], 0.04))                                # bumpers
+    parts.append(box(-hw + 0.08, hw - 0.08, f + 0.11, f + 0.135, 0.42, 0.45, M['chrome'], 0.005))
+    parts.append(box(-hw - 0.02, hw + 0.02, -f - 0.12, -f + 0.05, 0.32, 0.48, M['black'], 0.04))
+    parts.append(box(-0.72, 0.72, -f - 0.014, -f + 0.01, 1.16, 1.88, M['black'], 0.02))                                       # rear window
+    parts.append(box(-0.68, 0.68, -f - 0.02, -f + 0.0, 1.19, 1.85, M['glassT']))
+    parts.append(box(-0.14, 0.14, -f - 0.03, -f - 0.01, 1.0, 1.06, M['chrome']))                                               # hatch handle
+    parts.append(box(-0.22, 0.22, f + 0.12, f + 0.14, 0.38, 0.50, M['plate']))
+    parts.append(box(-0.22, 0.22, -f - 0.05, -f - 0.03, 0.56, 0.68, M['plate']))
+    for x0 in (-0.36, 0.30):                                                                                                   # wipers
+        parts.append(box(x0 - 0.012, x0 + 0.34, f - 0.12, f - 0.10, 1.12, 1.14, M['black']))
+    parts.append(box(-0.62, 0.62, -1.7, 1.0, 2.04, 2.08, M['steel']))                                                          # roof rack
+    for y in (-1.6, -0.9, -0.2, 0.5): parts.append(box(-0.66, 0.66, y, y + 0.04, 2.08, 2.12, M['chrome']))
+    for x0 in (-0.66, 0.62): parts.append(box(x0, x0 + 0.04, -1.7, 1.0, 2.08, 2.13, M['chrome']))
+    parts.append(box(-0.5, 0.1, -1.4, -0.5, 2.12, 2.42, M['luggage'], 0.05))                                                   # bags on the roof
+    parts.append(box(0.15, 0.55, -0.4, 0.3, 2.12, 2.32, M['luggage2'], 0.05))
+    # interior: floor, driver + seat, four benches
+    parts.append(box(-hw + 0.06, hw - 0.06, -f + 0.1, f - 0.25, 0.38, 0.42, M['floor']))
+    parts.append(box(0.0, 0.66, f - 0.95, f - 0.55, 0.42, 0.72, M['seat'], 0.03))
+    parts.append(box(0.0, 0.66, f - 1.02, f - 0.9, 0.72, 1.35, M['seat'], 0.03))
+    for y in (f - 1.75, f - 2.55, f - 3.35, f - 4.1):
+        parts.append(box(-hw + 0.08, hw - 0.08, y - 0.2, y + 0.24, 0.42, 0.64, M['seat'], 0.03))
+        parts.append(box(-hw + 0.08, hw - 0.08, y - 0.3, y - 0.18, 0.64, 1.26, M['seat'], 0.03))
+    parts.append(box(-hw + 0.08, hw - 0.08, f - 0.55, f - 0.22, 0.98, 1.06, M['black'], 0.02))                                # dashboard
+    parts.append(cyl(0.17, 0.5, (0.33, f - 0.72, 1.0), M['shirt'], axis='Z', seg=14))                                          # driver
+    parts.append(cyl(0.11, 0.24, (0.33, f - 0.72, 1.38), M['skin'], axis='Z', seg=14))
+    parts.append(cyl(0.115, 0.06, (0.33, f - 0.72, 1.51), M['hair'], axis='Z', seg=14))
+    parts.append(cyl(0.19, 0.035, (0.33, f - 0.42, 1.12), M['black'], axis='Y', seg=20))
     finish(name, parts)
 
 # ------------------------------------------------------------ container truck (cab-over tractor + chassis)

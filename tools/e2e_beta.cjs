@@ -39,14 +39,18 @@ const PFX = process.argv[3] === 'main' ? '' : 'beta_';   // main build saves on 
   await p.evaluate(() => { window.portSim.input.down = 0; });
   // ---- passenger + change
   await p.evaluate(() => { const s = window.portSim; const w = s.waiting[0]; const P = s.POI[w.poi]; s.teleport(P.x + 1, P.z + 1); });
-  await p.waitForFunction(() => window.portSim.fare, null, { timeout: 60000 }).catch(() => {});
-  ok(await p.evaluate(() => !!window.portSim.fare), 'passenger: boards when stopped next to them');
-  for (let k = 0; k < 20; k++) { await p.evaluate(() => window.portSim.startPay()); if (await p.evaluate(() => window.portSim.fare.change > 0)) break; }
-  const f = await p.evaluate(() => ({ price: window.portSim.fare.price, given: window.portSim.fare.given, change: window.portSim.fare.change }));
-  await p.evaluate(ch => { const A = '٠١٢٣٤٥٦٧٨٩', ar = n => String(n).replace(/[0-9]/g, d => A[d]); let r = ch; for (const v of [50, 20, 10, 5, 1]) while (r >= v) { [...document.querySelectorAll('#pNotes .note')].find(x => x.textContent.replace('جنيه', '').trim() === ar(v)).click(); r -= v; } document.getElementById('pOk').click(); }, f.change);
-  await p.waitForTimeout(600);
-  const after = await p.evaluate(() => ({ fare: !!window.portSim.fare, saved: JSON.parse(localStorage.getItem(PFX_ + 'aps_tuk_v2')) }));
-  ok(!after.fare && after.saved.trips === 1 && after.saved.wallet > 60, 'fare + change: paid ' + f.given + ' for ' + f.price + ', change ' + f.change + ' → wallet ' + after.saved.wallet + ', trips ' + after.saved.trips);
+  // Phase 8: the rider walks over, gets in and pays straight away; the change goes back by itself once it is right
+  await p.waitForFunction(() => !document.getElementById('pay').hidden, null, { timeout: 120000 }).catch(() => {});
+  ok(await p.evaluate(() => !!window.portSim.boarding && !document.getElementById('pay').hidden), 'passenger: boards when stopped next to them and pays on getting in');
+  const f = await p.evaluate(() => { const b = window.portSim.boarding; return { price: b.price, given: b.given, change: b.change }; });
+  await p.evaluate(ch => { const A = '٠١٢٣٤٥٦٧٨٩', ar = n => String(n).replace(/[0-9]/g, d => A[d]); let r = ch; for (const v of [50, 20, 10, 5, 1]) while (r >= v) { [...document.querySelectorAll('#pNotes .note')].find(x => x.textContent.replace('جنيه', '').trim() === ar(v)).click(); r -= v; } }, f.change);
+  await p.waitForFunction(() => document.getElementById('pay').hidden && window.portSim.riders.length === 1, null, { timeout: 30000 }).catch(() => {});
+  const mid = await p.evaluate(() => ({ n: window.portSim.riders.length, w: JSON.parse(localStorage.getItem(PFX_ + 'aps_tuk_v2')).wallet }));
+  ok(mid.n === 1 && mid.w === 60 + f.price, 'fare + change: paid ' + f.given + ' for ' + f.price + ', change ' + f.change + ' handed back with no confirm button → wallet ' + mid.w);
+  await p.evaluate(() => { const s = window.portSim, P = s.POI[s.riders[0].to]; s.teleport(P.x, P.z); });
+  await p.waitForFunction(() => window.portSim.riders.length === 0, null, { timeout: 60000 }).catch(() => {});
+  const after = await p.evaluate(() => ({ n: window.portSim.riders.length, saved: JSON.parse(localStorage.getItem(PFX_ + 'aps_tuk_v2')) }));
+  ok(after.n === 0 && after.saved.trips === 1 && after.saved.wallet >= mid.w, 'drop-off: rider gets out at the destination, trips ' + after.saved.trips + ', wallet ' + after.saved.wallet);
   // ---- studio: record one line with the fake microphone
   await p.evaluate(() => { document.getElementById('pause') && (document.getElementById('pause').hidden = true); document.getElementById('hud').hidden = true; document.getElementById('menu').hidden = false; });
   await click('btnStudio'); await p.waitForTimeout(400);

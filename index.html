@@ -123,6 +123,18 @@ kbd{font:700 11px ui-monospace,monospace;border:1px solid rgba(255,255,255,.3);b
 .fuelrow .bar{flex:1;margin-top:0}
 .rev{font:14px var(--f-game);color:#ff9c7a;text-align:center;margin-top:2px}
 
+#riders{margin-top:8px;display:flex;flex-direction:column;gap:5px;z-index:6;pointer-events:none;direction:rtl}
+#riders .rd{display:flex;align-items:center;gap:7px;background:rgba(16,27,45,.82);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:4px 12px 4px 5px;color:#fff;font:600 13px var(--f,system-ui);box-shadow:0 3px 10px rgba(0,0,0,.3);max-width:46vw}
+#riders .rd i{font-style:normal;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:#101B2D;font-weight:800;flex:none;border:2px solid #101B2D}
+#riders .rd b{white-space:nowrap}#riders .rd span{opacity:.8;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#riders .rd:first-child{border-color:rgba(255,255,255,.5)}
+#evBadge{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 64px);z-index:6;display:flex;gap:8px;align-items:center;padding:5px 14px;border-radius:999px;background:linear-gradient(90deg,#7a2a10,#b8451a);color:#fff;font:700 13px var(--f-body,system-ui);box-shadow:0 4px 14px rgba(0,0,0,.35);pointer-events:none;direction:rtl;white-space:nowrap}
+#evBadge span{background:rgba(0,0,0,.28);border-radius:999px;padding:1px 9px}
+.msday{background:rgba(245,185,40,.08);border:1px solid rgba(245,185,40,.35);border-radius:14px;padding:10px 12px;margin-bottom:10px}
+.msday h3{margin:0 0 8px;font:700 16px var(--f-body,system-ui);color:#F5B928}.msday h3 small{font-weight:500;opacity:.7;font-size:12px;color:#e7ecf2}
+.msday .dg{display:grid;grid-template-columns:1fr auto;gap:4px 8px;align-items:center;margin:7px 0}.msday .dg b{font-weight:600}
+.msday .dg i{grid-column:1/3;height:6px;border-radius:9px;background:rgba(255,255,255,.12);overflow:hidden}.msday .dg em{display:block;height:100%;background:#F5B928;border-radius:9px}
+.msday .dg.done b{opacity:.6;text-decoration:line-through}.msday .dg.done em{background:#4cd26b}
 #nav{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;align-items:center;gap:12px;padding:8px 16px 8px 10px;border-radius:999px;border:3px solid var(--cyan);background:rgba(20,24,48,.9);direction:rtl;max-width:calc(100vw - 20px);white-space:nowrap}
 .navic{width:42px;height:42px;border-radius:50%;border:3px solid #2c8a52;display:grid;place-items:center;flex:none;background:#14283a}
 .navic svg{width:24px;height:24px;color:var(--go);transition:transform .2s}
@@ -465,6 +477,9 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
 @keyframes cfade{to{opacity:1}}
 #cine .cskip{position:absolute;bottom:calc(9vh + env(safe-area-inset-bottom,0px) + 8px);left:0;right:0;text-align:center;font:600 12px var(--f-body);color:rgba(245,241,232,.6);direction:rtl}
 #cineFade{position:absolute;inset:0;background:#000;opacity:1;pointer-events:none}
+#cine .ccap{position:absolute;right:calc(env(safe-area-inset-right,0px) + 5vw);bottom:calc(9vh + 34px);font:clamp(20px,3.6vw,34px) var(--f-game);color:var(--cream);text-shadow:0 3px 12px rgba(0,0,0,.85);opacity:0;transform:translateY(8px);transition:opacity .5s,transform .5s;border-right:4px solid var(--gold,#F5B928);padding-right:12px;direction:rtl}
+#cine .ccap.on{opacity:1;transform:none}
+#cine .ccap small{display:block;font:600 clamp(12px,1.8vw,16px) var(--f-body);opacity:.8;margin-top:2px}
 #loading .stage1{aspect-ratio:2.19;width:min(86vw,120vh,640px)}
 #loading .ilogo{object-fit:contain}
 @media (prefers-reduced-motion:reduce){#cine .clogo{animation:none!important;opacity:1;transform:translate(-50%,-50%)}#cine .clogo p{opacity:1}}
@@ -559,6 +574,7 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
   <div class="cbar top"></div><div class="cbar bot"></div>
   <div class="cshade"></div>
   <div class="clogo"><img src="./img/logo-v2.webp" alt="توكتوك في المينا" width="1200" height="549"><p>المينا مستنياك يا أسطى!</p></div>
+  <div class="ccap" id="cineCap"></div>
   <div class="cskip">اضغط في أي حتة للتخطي</div>
   <div id="cineFade"></div>
 </div>
@@ -686,6 +702,7 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
       <button class="ib pe" id="bHorn" aria-label="كلاكس"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M3 10v4l13 5V5z"/><path d="M19 9v6" stroke-linecap="round"/></svg></button>
     </div>
     <canvas id="gps" width="150" height="150"></canvas>
+    <div id="riders" hidden></div>
   </div>
   <div class="tR">
     <div class="wallet"><b id="wallet">0</b><span>ج.م</span></div>
@@ -700,7 +717,7 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
   </div>
 
   <div id="onair" hidden></div>
-  <div id="nav" hidden><div class="navic"><svg id="navArrow" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 4 13h5v8h6v-8h5z"/></svg></div><span id="navName"></span><b id="navTime"></b><span id="navDist"></span></div>
+  <div id="evBadge" hidden></div><div id="nav" hidden><div class="navic"><svg id="navArrow" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 4 13h5v8h6v-8h5z"/></svg></div><span id="navName"></span><b id="navTime"></b><span id="navDist"></span></div>
   <div id="pay" dir="rtl" hidden>
     <div class="ptop"><span>الأجرة <b id="pFare">0</b> ج</span><span>الراكب: <span id="pName"></span></span></div>
     <div class="given">ادّاك: <span id="pGiven"></span></div>
@@ -708,7 +725,7 @@ body.in-garage #garage .gcard h2:first-child::after{content:'اسحب الشاش
     <div class="msg" id="pMsg">رجّعله الباقي من الفكة</div>
     <div class="tray" id="pTray"><span class="sum">الباقي اللي في إيدك: <b id="pSum">0</b> ج</span></div>
     <div class="notes" id="pNotes"></div>
-    <div class="acts"><button class="clr" id="pClr">لمّ الفكة تاني</button><button class="ok" id="pOk">رجّع الباقي</button></div>
+    <div class="acts"><button class="clr" id="pClr">لمّ الفكة تاني</button><button class="ok" id="pOk" hidden>رجّع الباقي</button></div>
   </div>
   <div id="lineBar" dir="rtl" hidden><div class="track"></div><div class="lrow"><span id="lineNext"></span><b id="lineSeats"></b></div></div>
   <div id="toast" hidden></div>

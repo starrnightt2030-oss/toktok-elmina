@@ -1064,7 +1064,7 @@ function missionTo(m){return m.to==='@wgarage'?(POI.wgarage?'wgarage':'wshops'):
 function missionState(m){if(m.soon)return 'soon';if(save.missions&&save.missions[m.id])return 'done';if(repLevel((save.rep&&save.rep.xp)||0)<m.lvl)return 'locked';return 'open';}
 function nextMission(){return MISSIONS.find(m=>missionState(m)==='open'&&POI[m.from]&&POI[missionTo(m)]);}
 function missionDone(){return !nextMission();}
-function spawnMission(dt){missionCd-=dt;if(missionCd>0||isVan||riders.length>=SEATS_TUK||waiting.some(w=>w.mission))return;const M=nextMission();if(!M)return;
+function spawnMission(dt){missionCd-=dt;if(missionCd>0||isVan||riders.length>=SEATS_TUK||riders.some(r=>r.mission)||(boarding&&boarding.mission)||waiting.some(w=>w.mission))return;const M=nextMission();if(!M)return;
   const k=M.from,p=POI[k];const old=waiting.find(w=>w.poi===k);if(old){scene.remove(old.m);scene.remove(old.b);dropTag(old);waiting.splice(waiting.indexOf(old),1);}
   const m=person(M.pax.look,p.x+p.sx,p.z+p.sz,Math.atan2(p.sx,p.sz));const b=new T.Mesh(beamGeo,missionBeamMat);b.position.set(p.x,0,p.z);addSpot(b,p,true);scene.add(b);
   const w={poi:k,type:M.pax,name:M.pax.names[0],m:m,b:b,mission:M.id};chooseDest(w);addTag(w);waiting.push(w);toast('مهمة جديدة: «'+M.n+'» — '+M.pax.names[0]+' مستني عند '+p.n,'good');}

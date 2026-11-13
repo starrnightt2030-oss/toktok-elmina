@@ -44,7 +44,8 @@ jobs:
             adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' > out/focus.txt || true
             sleep 45; adb exec-out screencap -p > out/s90.png
             PID=$(adb shell pidof io.github.starrnightt.toktokelmina | tr -d '\r'); echo "pid $PID"
-            adb forward tcp:9222 localabstract:webview_devtools_remote_$PID || true
+            SOCK=$(adb shell cat /proc/net/unix | grep -o 'webview_devtools_remote_[0-9]*' | head -1); echo "socket $SOCK"
+            adb forward tcp:9222 localabstract:${SOCK:-webview_devtools_remote_$PID} || true
             (cd app/check && npm i --no-audit --no-fund ws@8 >/dev/null 2>&1; timeout 300 node cdp.mjs) > out/cdp.txt 2>&1 || true
             adb exec-out screencap -p > out/s_cdp.png
             adb shell wm size > out/size.txt

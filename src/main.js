@@ -1428,7 +1428,7 @@ $('btnImportMain').addEventListener('click',()=>{if(!confirm('هتتجاب نس�
 function openMissions(){const box=$('msList');box.innerHTML='';const rp=repProgress((save.rep&&save.rep.xp)||0);
   {const D=daily();const h=document.createElement('div');h.className='msday';h.innerHTML='<h3>🎯 أهداف النهارده <small>بتتجدد كل يوم</small></h3>';
    D.g.forEach(q=>{const G=DAILY_POOL.find(x=>x.id===q.id);if(!G)return;const r=document.createElement('div');r.className='dg'+(q.done?' done':'');
-     r.innerHTML='<b></b><span class="pill"></span><i><em style="width:'+Math.round(q.p/G.goal*100)+'%"></em></i>';r.querySelector('b').textContent=G.n;r.querySelector('.pill').textContent=q.done?'خلص ✓':(arNum(q.p)+' من '+arNum(G.goal)+' · '+arNum(G.rw)+' ج');h.appendChild(r);});
+     r.innerHTML='<b></b><span class="pill"></span><i><em style="width:'+Math.round(q.p/G.goal*100)+'%"></em></i>';r.querySelector('b').textContent=G.n;r.querySelector('.pill').textContent=q.done?'خلص ✓':(arNum(q.p)+' من '+arNum(G.goal));r.querySelector('b').insertAdjacentHTML('beforeend',' <small class="rw">مكافأة '+arNum(G.rw)+' ج.م</small>');h.appendChild(r);});
    box.appendChild(h);}
   MISSIONS.forEach(m=>{const st=missionState(m);const el=document.createElement('div');el.className='msn st-'+st;
     el.innerHTML='<div class="mst"><b></b><span class="pill"></span></div><p></p><small></small>';el.querySelector('b').textContent=m.n;

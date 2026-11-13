@@ -42,7 +42,7 @@ const PFX = process.argv[3] === 'main' ? '' : 'beta_';   // main build saves on 
   // Phase 8: the rider walks over, gets in and pays straight away; the change goes back by itself once it is right
   await p.waitForFunction(() => !document.getElementById('pay').hidden, null, { timeout: 120000 }).catch(() => {});
   ok(await p.evaluate(() => !!window.portSim.boarding && !document.getElementById('pay').hidden), 'passenger: boards when stopped next to them and pays on getting in');
-  const f = await p.evaluate(() => { const b = window.portSim.boarding; return { price: b.price, given: b.given, change: b.change }; });
+  const f = await p.evaluate(() => { const s = window.portSim, b = s.boarding || s.riders[s.riders.length - 1]; return { price: b.price, given: b.given, change: b.change }; });
   await p.evaluate(ch => { const A = '٠١٢٣٤٥٦٧٨٩', ar = n => String(n).replace(/[0-9]/g, d => A[d]); let r = ch; for (const v of [50, 20, 10, 5, 1]) while (r >= v) { [...document.querySelectorAll('#pNotes .note')].find(x => x.textContent.replace('جنيه', '').trim() === ar(v)).click(); r -= v; } }, f.change);
   await p.waitForFunction(() => document.getElementById('pay').hidden && window.portSim.riders.length === 1, null, { timeout: 30000 }).catch(() => {});
   const mid = await p.evaluate(() => ({ n: window.portSim.riders.length, w: JSON.parse(localStorage.getItem(PFX_ + 'aps_tuk_v2')).wallet }));

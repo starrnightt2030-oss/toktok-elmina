@@ -57,7 +57,10 @@ export function createPeople(T) {
     const lk = g.userData.look, v = variantOf(lk), tpl = VAR[v] || VAR.Man;
     const fig = skClone(tpl); fig.position.set(0, 0, 0); fig.rotation.set(0, 0, 0);
     const mat = palMaterial(palette(lk, v));
-    fig.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = g.userData.shadow !== false; o.receiveShadow = false; o.frustumCulled = false; } });
+    fig.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = g.userData.shadow !== false; o.receiveShadow = false;
+      /* culled by a sphere round the whole figure (the skinned pose stays inside it) */
+      if (!o.geometry.userData.sph) { o.geometry.boundingSphere = new T.Sphere(new T.Vector3(0, .9, 0), 1.25); o.geometry.userData.sph = 1; }
+      o.frustumCulled = true; g.userData.mesh = o; } });
     if (lk.scale) fig.scale.setScalar(lk.scale);
     g.add(fig);
     const mixer = new T.AnimationMixer(fig);
@@ -103,7 +106,10 @@ export function createPeople(T) {
         if (!g.parent) { live.delete(g); g.userData.mixer && g.userData.mixer.stopAllAction(); continue; }
         if (!g.visible) continue;
         g.getWorldPosition(_w); const d = Math.hypot(_w.x - cam.x, _w.z - cam.z);
-        if (d > 140) continue;
+        /* far people are not drawn, only near ones cast shadows (keeps the frame light on phones) */
+        const fig = g.userData.fig, on = d < 120; if (fig.visible !== on) fig.visible = on;
+        const m = g.userData.mesh; if (m) { const sh = d < 35 && g.userData.shadow !== false; if (m.castShadow !== sh) m.castShadow = sh; }
+        if (!on) continue;
         const k = d < 45 ? 1 : (d < 90 ? 2 : 4);
         g.userData.acc = (g.userData.acc || 0) + dt;
         if ((frame + (g.id % k)) % k === 0) { g.userData.mixer.update(g.userData.acc); g.userData.acc = 0; }

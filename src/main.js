@@ -919,7 +919,7 @@ function buildRadioUI(){const box=$('stations');RST.forEach((s,i)=>{const b=docu
 function radioUI(){$('rPower').setAttribute('aria-pressed',radio.on);$('rPower').textContent=radio.on?'شغّال':'مقفول';RST.forEach((s,i)=>$('st'+i).classList.toggle('on',radio.on&&i===radio.idx));$('needle').style.left=NEEDLE[radio.idx];
   const st=RST[radio.idx],b=radio.buffers[st.id];let note;
   if(b)note='شغّال من جهازك: '+b.name;
-  else if(radio.live)note='🔴 بث مباشر الآن: '+radio.liveName;
+  else if(radio.live)note=dmEl?'🔴 '+radio.liveState:'🔴 بث مباشر الآن: '+radio.liveName;
   else if(radio.liveState)note=radio.liveState+(radio.liveBusy?'':(st.kind==='file'?' — تقدر تحمّل تلاوة من جهازك.':' — شغالين مؤقتًا على محاكاة المحطة.'));
   else note=st.kind==='file'?'حمّل تلاوة من جهازك.':'محاكاة لروح المحطة.';
   if(A.fail)note='المتصفح ده مش بيدعم الصوت. افتح اللعبة في Chrome أو Edge.';
@@ -942,15 +942,18 @@ async function findStreams(id){const out=[],seen=new Set();try{const m=ls.get('a
     if(out.length>0&&!dead)return out;if(dead&&location.protocol==='https:')return out;}
   return out;}
 let dmEl=null;
-function dmStop(){if(dmEl){dmEl.remove();dmEl=null;}}
-/* official live stream in a tiny embedded player (needs the tap that turned the radio on, so autoplay with sound is allowed) */
-function dmPlay(st,tok){dmStop();const f=document.createElement('iframe');f.allow='autoplay; encrypted-media';f.title=st.name;
-  f.src='https://www.dailymotion.com/embed/video/'+st.dm+'?autoplay=1&mute=0&controls=0&queue-enable=0&ui-start-screen-info=0&sharing-enable=0';
-  f.style.cssText='position:fixed;left:-4px;bottom:-4px;width:4px;height:4px;opacity:.01;border:0;pointer-events:none;z-index:-1';document.body.appendChild(f);dmEl=f;
-  radio.live=true;radio.liveBusy=false;radio.liveName='البث الرسمي من ماسبيرو';radio.liveState='';if(A.ctx)A.staticG.gain.setTargetAtTime(0,A.ctx.currentTime,.1);radioLevel();radioUI();}
+function dmStop(){if(dmEl){dmEl.remove();dmEl=null;}const b=$('rDm');if(b)b.hidden=true;}
+/* official Maspero live stream (Dailymotion) as a fallback: shown as a small player inside the radio panel, with its own play
+   button, because phones and the Android app often refuse to start sound in a hidden embedded player by themselves */
+function dmPlay(st){dmStop();const box=$('rDm');const f=document.createElement('iframe');f.allow='autoplay; encrypted-media; fullscreen';f.title=st.name;
+  f.src='https://www.dailymotion.com/embed/video/'+st.dm+'?autoplay=1&mute=0&controls=1&queue-enable=0&ui-start-screen-info=0&sharing-enable=0&ui-logo=0';
+  f.setAttribute('allowfullscreen','');f.style.cssText='width:100%;height:100%;border:0;border-radius:10px;background:#000';box.appendChild(f);box.hidden=false;dmEl=f;
+  radio.live=true;radio.liveBusy=false;radio.liveName='البث الرسمي من ماسبيرو';radio.liveState='البث الرسمي من ماسبيرو — لو مسمعتش صوت اضغط ▶ في المشغّل';
+  if(A.ctx)A.staticG.gain.setTargetAtTime(0,A.ctx.currentTime,.1);radioLevel();radioUI();}
 async function liveTry(i){const tok=++liveTok;radio.live=false;radio.liveBusy=true;radio.liveState='بيدوّر على البث المباشر…';radioUI();const st=RST[i];
-  if(st.dm&&!(ls.get('aps_custom_'+st.id))){dmPlay(st,tok);return;}let list=[];try{list=await findStreams(st.id);}catch(e){}
+  let list=[];try{list=await findStreams(st.id);}catch(e){}
   if(tok!==liveTok||!radio.on||radio.idx!==i)return;
+  if(!list.length&&st.dm){dmPlay(st);return;}
   if(!list.length){radio.liveBusy=false;liveFail(location.protocol==='https:'?'البث المباشر مش متاح جوه Claude؛ افتح ملف اللعبة في Chrome':'مش لاقي بث للمحطة دي دلوقتي');return;}
   const a=liveAudio();
   for(let k=0;k<list.length;k++){if(tok!==liveTok)return;const c=list[k];a._tok=tok;a._name=c.name;radio.liveState='بيجرّب بث '+(k+1)+' من '+list.length+': '+c.name;radioUI();
@@ -958,6 +961,7 @@ async function liveTry(i){const tok=++liveTok;radio.live=false;radio.liveBusy=tr
       const onP=()=>fin(true),onE=()=>fin(false);a.addEventListener('playing',onP);a.addEventListener('error',onE);const t=setTimeout(()=>fin(false),8000);
       try{a.src=c.url;a.volume=radio.vol;const pr=a.play();if(pr)pr.catch(()=>fin(false));}catch(e){fin(false);}});
     if(tok!==liveTok)return;if(ok){try{ls.set('aps_ok_'+st.id,c.url);}catch(e){}return;}}
+  if(st.dm){dmPlay(st);return;}
   radio.liveBusy=false;liveFail('كل روابط البث للمحطة دي واقفة دلوقتي');}
 function liveFail(msg){dmStop();radio.live=false;radio.liveBusy=false;radio.liveState=msg;if(liveEl){liveEl.pause();liveEl.removeAttribute('src');}radioLevel();radioUI();}
 function liveStop(){dmStop();liveTok++;radio.live=false;radio.liveBusy=false;radio.liveState='';if(liveEl){liveEl.pause();liveEl.removeAttribute('src');}}

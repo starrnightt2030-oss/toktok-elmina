@@ -995,11 +995,12 @@ const QUIP_SETS={
   campus:['campus1'],                                    /* عسكر في المعسكر */
   port:['ride1'],                                        /* إيه اللي جاب القلعة جنب البحر */
   yard:['ride3'],                                        /* مفهمتش حاجة خالص */
+  pass:['crash1','fast1','ride4'],                       /* أوبا عالكسفة اللي إنت فيها · أنا الحكومة · تطيب الحياة لمن لا يبالي */
   ride:['ride2','ride4','ride5','ride6','ride7','ride8']};/* الدقن · تطيب الحياة · بلدي طنطا · حبيبي الأسمر · مشربش عندك · مدرس فرنساوي */
 QUIP_SETS.crash=QUIP_SETS.hitWall;QUIP_SETS.pay=QUIP_SETS.board;
 /* how likely each moment plays a clip, and the quiet time it needs since the last one (s) */
 const QUIP_RULE={board:[.75,15],pay:[.75,15],full:[.95,12],hitWall:[.8,10],hitCar:[.85,10],hitPed:[.9,10],crash:[.8,10],happy:[.75,12],drop:[.6,12],late:[.85,10],angry:[.9,10],
-  win:[1,8],fast:[.65,20],horn:[.7,30],event:[1,10],campus:[1,60],port:[1,90],yard:[1,90],ride:[1,40]};
+  win:[1,8],fast:[.75,18],pass:[.9,12],horn:[.7,30],event:[1,10],campus:[1,60],port:[1,90],yard:[1,90],ride:[1,40]};
 const Quip={on:true,buf:{},loading:{},src:null,playing:false,last:-1e9,lastId:'',nextRide:0,horns:[],gain:null};
 try{Quip.on=ls.get('aps_quips')!=='0';}catch(_){}
 function quipLoad(id){if(Quip.buf[id]||Quip.loading[id]||!A.ctx)return Quip.loading[id];
@@ -1028,6 +1029,14 @@ function quipStart(){if(!Quip.on||A.muted||!A.ctx)return;quipLoad(QUIP_START);Qu
 function quipStop(){if(Quip.src){try{Quip.src.stop();}catch(_){}Quip.src=null;}Quip.playing=false;radioLevel();}
 /* during a ride: now and then, only when nobody is talking */
 function quipTick(){if(!Quip.on||state!=='play')return;quipPreload();
+  /* turbo: held a moment at speed → the speeding clip; overtaking a car on turbo → the overtake clip */
+  const kmh=Math.abs(car.v)*3.6;
+  if(car.boost&&kmh>40){Quip.boostT=(Quip.boostT||0)+(clock-(Quip.tickC||clock));if(Quip.boostT>1.2&&!Quip.boostDone){Quip.boostDone=true;quip('fast');}}else if(!car.boost){Quip.boostT=0;Quip.boostDone=false;}
+  if(!riders.length&&kmh>70&&!car.boost&&!Quip.fastNoRider){Quip.fastNoRider=true;quip('fast');}else if(kmh<45)Quip.fastNoRider=false;
+  {const sp=Math.hypot(car.vx||0,car.vz||0);if(car.boost&&sp>8){const fx=car.vx/sp,fz=car.vz/sp;
+    for(const c of traffic){const dx=c.x-car.x,dz=c.z-car.z;const al=dx*fx+dz*fz,lat=Math.abs(dx*fz-dz*fx);
+      if(lat<5.5&&Math.abs(al)<9){if(al>1.5)c._ah=clock;else if(al<-1.5&&c._ah&&clock-c._ah<2.5){c._ah=0;quip('pass');break;}}else if(Math.abs(al)>14)c._ah=0;}}}
+  Quip.tickC=clock;
   if(Quip.startAt&&clock>=Quip.startAt){if(clock>Quip.startAt+15)Quip.startAt=0;else if(Quip.buf[QUIP_START]&&!quipBusy()&&!A.muted){Quip.startAt=0;quipPlayId(QUIP_START);}}
   if(riders.length&&!quipBusy()){if(!Quip.nextRide)Quip.nextRide=clock+rand(35,60);if(clock>=Quip.nextRide){Quip.nextRide=clock+rand(80,140);quip('ride');}}else if(!riders.length)Quip.nextRide=0;
   if(input.horn&&!Quip.hornPrev){Quip.horns.push(clock);Quip.horns=Quip.horns.filter(t=>clock-t<3);if(Quip.horns.length>=3){Quip.horns.length=0;quip('horn');}}Quip.hornPrev=input.horn;}
@@ -1896,7 +1905,7 @@ async function boot(){try{ldStep('بنفتح بوابة الميناء…');awai
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);
   destRing=new T.Mesh(new T.TorusGeometry(3,.15,8,40),new T.MeshBasicMaterial({color:'#4cff5e'}));destRing.rotation.x=Math.PI/2;destRing.visible=false;scene.add(destRing);
   buildRadioUI();radioUI();syncTuk();menuWallet();updateMoney();
-  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get training(){return TRAINING;},voices:VO,get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,cineSeek:t=>{if(CINE.on){if(CINE.film&&FILM.v)FILM.v.currentTime=t;else CINE.t=t;}},get film(){return {on:!!CINE.film,ready:FILM.ready,bad:FILM.bad,src:FILM.src&&FILM.src.url,t:FILM.v&&FILM.v.currentTime};},get cineShots(){return CINE.shots&&CINE.shots.map(x=>[x.id,x.t0,x.t1]);},get fare(){return fare;},get riders(){return riders;},get boarding(){return boarding;},get people(){return PEOPLE;},get line(){return line;},get perf(){return perf;},quip:(k,f)=>quip(k,f),hitKind:()=>hitKind(),get traffic(){return traffic;},get walkers(){return walkers;},quipReset:()=>{Quip.last=-1e9;},quipStop:()=>quipStop(),get leavers(){return leavers;},get quips(){return {on:Quip.on,loaded:Object.keys(Quip.buf).length,playing:Quip.playing,last:Quip.lastId,startAt:Quip.startAt,clock:clock,busy:quipBusy()};},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
+  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get training(){return TRAINING;},voices:VO,get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,cineSeek:t=>{if(CINE.on){if(CINE.film&&FILM.v)FILM.v.currentTime=t;else CINE.t=t;}},get film(){return {on:!!CINE.film,ready:FILM.ready,bad:FILM.bad,src:FILM.src&&FILM.src.url,t:FILM.v&&FILM.v.currentTime};},get cineShots(){return CINE.shots&&CINE.shots.map(x=>[x.id,x.t0,x.t1]);},get fare(){return fare;},get riders(){return riders;},get boarding(){return boarding;},get people(){return PEOPLE;},get line(){return line;},get perf(){return perf;},quip:(k,f)=>quip(k,f),quipTick:()=>quipTick(),hitKind:()=>hitKind(),get traffic(){return traffic;},get walkers(){return walkers;},quipReset:()=>{Quip.last=-1e9;},quipStop:()=>quipStop(),get leavers(){return leavers;},get quips(){return {on:Quip.on,loaded:Object.keys(Quip.buf).length,playing:Quip.playing,last:Quip.lastId,startAt:Quip.startAt,clock:clock,busy:quipBusy()};},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
   state='menu';ldStep('كله تمام، الوردية مستنياك!');requestAnimationFrame(frame);introReady();}
   catch(err){console.error(err);loadingText.textContent='حصلت مشكلة: '+err.message;}}
 const fr0=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();

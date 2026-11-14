@@ -37,6 +37,14 @@ const BASE = process.argv[2];
     await p.evaluate(() => window.portSim.quipStop && window.portSim.quipStop());
     await p.waitForFunction(() => !window.portSim.quips.playing, null, { timeout: 60000 }).catch(() => {});
   }
+  // overtaking a car on turbo → the overtake clip (the check is driven by hand: physics on the test machine is too slow)
+  await p.evaluate(() => { window.portSim.quipStop(); });
+  let pass = false; for (let i = 0; i < 10 && !pass; i++) pass = await p.evaluate(() => { const s = window.portSim, c = s.car; s.quipReset();
+    const fake = { x: c.x + 6, z: c.z + 1, r: 1.1, len: 3 }; s.traffic.push(fake); const b = c.boost, vx = c.vx, vz = c.vz, v = c.v;
+    c.boost = true; c.vx = 20; c.vz = 0; c.v = 20; s.quipTick(); fake.x = c.x - 6; s.quipTick(); c.boost = b; c.vx = vx; c.vz = vz; c.v = v;
+    s.traffic.splice(s.traffic.indexOf(fake), 1); return ['crash1', 'fast1', 'ride4'].includes(s.quips.last) && s.quips.playing; });
+  ok(pass, 'overtaking a car on turbo plays the overtake clip (' + await p.evaluate(() => window.portSim.quips.last) + ')');
+  await p.evaluate(() => { window.portSim.quipStop(); window.portSim.quipReset(); });
   // driving into the port from the avenue → the port clip
   await p.evaluate(() => { window.portSim.quipReset(); window.portSim.teleport(-60, 4); });
   await p.waitForTimeout(3000);

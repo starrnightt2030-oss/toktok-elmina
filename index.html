@@ -450,6 +450,11 @@ button.mb:active{background:rgba(var(--tuk-rgb),.15)}
 
 /* ===== garage workshop (Phase 2 E): the 3D workshop stays visible, the shop is a sheet ===== */
 body.in-garage #menu{visibility:hidden}
+/* developer credit: small and quiet at the bottom of the main menu, never over the game itself */
+#menu .devCredit{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);text-align:center;pointer-events:none;z-index:1;
+  font:500 10.5px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.04em;color:rgba(245,241,232,.5);text-shadow:0 1px 3px rgba(0,0,0,.7)}
+@media (min-width:900px){#menu .devCredit{font-size:11.5px}}
+#menu{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 24px)}
 body.in-garage #garage{background:linear-gradient(180deg,rgba(16,27,45,0) 40%,rgba(16,27,45,.55));backdrop-filter:none;-webkit-backdrop-filter:none;pointer-events:none;place-items:end center;padding:0}
 body.in-garage #garage .gcard{pointer-events:auto;width:100%;max-width:560px;max-height:52vh;border-radius:var(--radius-l) var(--radius-l) 0 0;border-bottom:0;padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 12px)}
 body.in-garage #garage .gcard h2:first-child{display:flex;align-items:center;gap:8px}
@@ -624,6 +629,7 @@ body.menu-cine #game{animation:sceneIn 1.4s ease-out both}
 <div id="upd" hidden><div class="uc"><h2>في تحديث جديد 🚀</h2><p>نزّلنا نسخة أحدث من اللعبة. لازم تحدّث عشان تكمّل على آخر إصدار.</p><button id="updBtn">حدّث دلوقتي</button><small id="updVer"></small></div></div>
 <div id="menu" dir="rtl" hidden>
   <div class="betaTag" id="betaTag" hidden>نسخة تجريبية BETA</div>
+  <footer class="devCredit" dir="ltr">© <span id="crYear">2026</span> Mohamed Eldawly · All rights reserved</footer>
   <div class="mhero">
     <img class="mlogo" src="./img/logo-v2.webp" alt="توكتوك في المينا" width="1200" height="549">
     <h1 class="sr">توكتوك في المينا</h1>
@@ -693,6 +699,7 @@ body.menu-cine #game{animation:sceneIn 1.4s ease-out both}
       </section>
       <section><h3>🔊 الصوت</h3>
         <div class="srow"><span>صوت الحوار</span><div class="seg" id="segVoice"></div></div>
+        <div class="srow"><span>إفيهات الأفلام</span><div class="seg" id="segQuips"></div></div>
         <div class="srow"><span>جرّب الصوت</span><button class="sbtn" id="btnVoiceTest">▶️ اسمع جملة</button></div>
         <div class="srow"><label for="volMaster">الصوت العام</label><input type="range" id="volMaster" min="0" max="100" step="5"></div>
         <div class="srow"><label for="volUi">أصوات الأزرار</label><input type="range" id="volUi" min="0" max="100" step="5"></div>
@@ -704,6 +711,7 @@ body.menu-cine #game{animation:sceneIn 1.4s ease-out both}
       </section>
       <section><h3>❓ المساعدة</h3>
         <div class="keys"><kbd>W</kbd> بنزين · <kbd>S</kbd> فرامل/رجوع · <kbd>A</kbd><kbd>D</kbd> دركسيون · <kbd>Shift</kbd> تيربو · <kbd>Space</kbd> فرامل يد · <kbd>H</kbd> سرينة · <kbd>R</kbd> راديو · <kbd>C</kbd> كاميرا</div>
+        <p class="snote" dir="ltr" style="text-align:center;opacity:.7;font-size:12px">Developed by Mohamed Eldawly · © <span class="crY">2026</span> All rights reserved</p>
         <p class="snote">على الموبايل: لف الدركسيون بصباعك زي الطارة الحقيقية، ودوس الدواسات. لو بتلعب من آيفون اقفل زرار الصامت عشان الصوت يشتغل.</p>
         <p class="snote">الأماكن مستوحاة من ميناء الإسكندرية وترسانتها وتقريبية. <span id="verNote"></span></p>
       </section>

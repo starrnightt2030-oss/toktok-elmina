@@ -925,7 +925,7 @@ function radioUI(){$('rPower').setAttribute('aria-pressed',radio.on);$('rPower')
   if(A.fail)note='المتصفح ده مش بيدعم الصوت. افتح اللعبة في Chrome أو Edge.';
   $('rNote').textContent=note;let cu='';try{cu=ls.get('aps_custom_'+st.id)||'';}catch(e){}$('rUrl').value=cu;
   $('rLoad').textContent=st.kind==='file'?'حمّل تلاوة من جهازك':'شغّل تسجيل من جهازك';if(onairT<=0){const oa=$('onair');if(radio.on&&state==='play'){oa.hidden=false;oa.textContent=(radio.live?'🔴 مباشر • ':'')+(b?st.name+' • '+b.name:st.name);}else oa.hidden=true;}}
-function radioLevel(){const duck=(Dlg.cur?.32:1)*(radio.identSpeaking?.45:1);if(liveEl)liveEl.volume=radio.on&&radio.live?clamp(radio.vol*(Dlg.cur?.4:1),0,1):0;if(!A.ctx)return;A.radioVol.gain.setTargetAtTime(radio.on&&!radio.live?radio.vol*duck:0,A.ctx.currentTime,.12);}
+function radioLevel(){const duck=(Dlg.cur?.32:1)*(radio.identSpeaking?.45:1)*(Quip.playing?.25:1);if(liveEl)liveEl.volume=radio.on&&radio.live?clamp(radio.vol*(Dlg.cur?.4:1)*(Quip.playing?.3:1),0,1):0;if(!A.ctx)return;A.radioVol.gain.setTargetAtTime(radio.on&&!radio.live?radio.vol*duck:0,A.ctx.currentTime,.12);}
 const LIVEQ={quran:['القرآن الكريم من القاهرة','القرآن الكريم','Quran Cairo'],sharq:['الشرق الأوسط','الشرق الاوسط','Middle East','Sharq','El Sharq','Al Sharq Al Awsat','Sharq Al Awsat'],nogoum:['نجوم','Nogoum','Nogoom','Nojoom'],aghani:['اذاعة الاغاني','إذاعة الأغاني','Aghani','El Aghany','Elaghany','أم كلثوم','ام كلثوم','Kalthoum','Kolthoum','طرب','Tarab','عبد الحليم','Halim','زمان']};
 const RB=['https://de1.api.radio-browser.info','https://nl1.api.radio-browser.info','https://at1.api.radio-browser.info'];
 let liveEl=null,liveTok=0;
@@ -974,6 +974,37 @@ function radioUpdate(dt){musicTick();if(onairT>0){onairT-=dt;if(onairT<=0)radioU
   if(!radio.live&&clock>=radio.nextIdent&&!Dlg.cur&&!radio.identSpeaking){let txt=pick(st.idents);if(typeof txt==='function')txt=txt();const oa=$('onair');oa.hidden=false;oa.textContent='على الهوا: '+txt;onairT=6;
     radio.identSpeaking=say(txt,{pitch:.82,rate:.88,babble:false,onend:()=>{radio.identSpeaking=false;radioLevel();}});radioLevel();radio.nextIdent=clock+rand(40,75);}}
 
+/* ============ film catchphrases (إفيهات) ============
+   Short clips the owner supplied, played on game moments: boarding, paying, drop-off, crashes, speeding, the horn, a full tuk,
+   events, the training centre, and now and then during a ride. Rules so they stay funny and never annoying:
+   one at a time, never over a passenger's line, a pause between clips (longer for the "during the ride" ones), never the same
+   clip twice in a row, and a setting to turn them off. The radio and engine dip while a clip plays.
+   Files: public/audio/quips/<moment><n>.mp3 (mono, levels evened out, silences trimmed). */
+const QUIP_SETS={board:['board1'],pay:['pay1','pay2','pay3'],full:['full1'],drop:['drop1','drop2'],late:['late1','late2','late3'],win:['win1'],
+  crash:['crash1','crash2','crash3','crash4','crash5'],fast:['fast1'],horn:['horn1'],event:['event1'],campus:['campus1'],
+  ride:['ride1','ride2','ride3','ride4','ride5','ride6','ride7','ride8']};
+/* how likely each moment plays a clip, and the quiet time it needs since the last one (s) */
+const QUIP_RULE={board:[.35,22],pay:[.35,22],full:[.9,15],drop:[.45,20],late:[.8,12],win:[1,8],crash:[.55,14],fast:[.6,25],horn:[.7,30],event:[1,10],campus:[.6,60],ride:[1,40]};
+const Quip={on:true,buf:{},loading:{},src:null,playing:false,last:-1e9,lastId:'',nextRide:0,horns:[],gain:null};
+try{Quip.on=ls.get('aps_quips')!=='0';}catch(_){}
+function quipLoad(id){if(Quip.buf[id]||Quip.loading[id]||!A.ctx)return Quip.loading[id];
+  Quip.loading[id]=fetch('./audio/quips/'+id+'.mp3').then(r=>r.ok?r.arrayBuffer():Promise.reject()).then(b=>new Promise((res,rej)=>A.ctx.decodeAudioData(b,res,rej)))
+    .then(d=>{Quip.buf[id]=d;return d;}).catch(()=>null);return Quip.loading[id];}
+/* fetch the clips one after another in the background once the player is driving (never during the first load) */
+function quipPreload(){if(Quip.pre||!A.ctx)return;Quip.pre=true;const ids=[].concat(...Object.values(QUIP_SETS));let i=0;const next=()=>{if(i>=ids.length)return;const id=ids[i++];Promise.resolve(quipLoad(id)).then(()=>setTimeout(next,150));};next();}
+function quipBusy(){return Quip.playing||!!Dlg.cur||Dlg.q.length>0;}
+function quip(kind,force){if(!Quip.on||A.muted||!A.ctx||state!=='play')return false;const R=QUIP_RULE[kind],set=QUIP_SETS[kind];if(!R||!set)return false;
+  if(Quip.playing||(!force&&(Dlg.cur||Dlg.q.length)))return false;if(clock-Quip.last<R[1])return false;if(Math.random()>R[0])return false;
+  const ready=set.filter(id=>Quip.buf[id]&&id!==Quip.lastId);const pickFrom=ready.length?ready:set.filter(id=>Quip.buf[id]);
+  if(!pickFrom.length){set.forEach(quipLoad);return false;}
+  const id=pick(pickFrom),ctx=A.ctx;if(!Quip.gain){Quip.gain=ctx.createGain();Quip.gain.gain.value=1.05;Quip.gain.connect(A.master);}
+  const src=ctx.createBufferSource();src.buffer=Quip.buf[id];src.connect(Quip.gain);src.onended=()=>{if(Quip.src===src){Quip.src=null;Quip.playing=false;Quip.last=clock;radioLevel();}};
+  src.start();Quip.src=src;Quip.playing=true;Quip.last=clock;Quip.lastId=id;radioLevel();return true;}
+function quipStop(){if(Quip.src){try{Quip.src.stop();}catch(_){}Quip.src=null;}Quip.playing=false;radioLevel();}
+/* during a ride: now and then, only when nobody is talking */
+function quipTick(){if(!Quip.on||state!=='play')return;quipPreload();
+  if(riders.length&&!quipBusy()){if(!Quip.nextRide)Quip.nextRide=clock+rand(35,60);if(clock>=Quip.nextRide){Quip.nextRide=clock+rand(80,140);quip('ride');}}else if(!riders.length)Quip.nextRide=0;
+  if(input.horn&&!Quip.hornPrev){Quip.horns.push(clock);Quip.horns=Quip.horns.filter(t=>clock-t<3);if(Quip.horns.length>=3){Quip.horns.length=0;quip('horn');}}Quip.hornPrev=input.horn;}
 /* dialogue */
 const Dlg={q:[],cur:null,t:0,minT:0,maxT:0,done:false,gap:0};
 function dlgPush(lines,pax){lines.forEach(l=>Dlg.q.push({who:l[0],text:l[1],pax:pax}));}
@@ -1058,7 +1089,7 @@ function areaOf(x,z){if(z<-16){if(x>115)return 'yard';return 'port';}if(x>TC.X0&
 const guardCd={};let walkCd=0,hailCd=0;
 function interactions(dt){walkCd-=dt;hailCd-=dt;const quiet=!Dlg.cur&&!Dlg.q.length;
   for(const g of GATES){if(Math.abs(car.x-g.x)<6&&car.z>-21&&car.z<-11&&(guardCd[g.x]||0)<clock&&quiet){if(car.vz<-1.2){dlgPush(pick(GUARD_IN),GUARD);guardCd[g.x]=clock+45;}else if(car.vz>1.2){dlgPush(pick(GUARD_OUT),GUARD);guardCd[g.x]=clock+45;}}}
-  if(Math.abs(car.x-TC.gateMain)<5&&car.z>TC.Z0-1&&car.z<TC.Z0+6&&car.vz>1.2&&(guardCd.c||0)<clock&&quiet){dlgPush(pick(CAMPUS_IN),GUARD);guardCd.c=clock+45;}
+  if(Math.abs(car.x-TC.gateMain)<5&&car.z>TC.Z0-1&&car.z<TC.Z0+6&&car.vz>1.2&&(guardCd.c||0)<clock&&quiet){dlgPush(pick(CAMPUS_IN),GUARD);guardCd.c=clock+45;setTimeout(()=>quip('campus'),5200);}
   if(walkCd<=0&&Math.abs(car.v)>5&&Dlg.q.length<2){for(const w of walkers){if(Math.hypot(w.m.position.x-car.x,w.m.position.z-car.z)<2.6){dlgPush([['p',pick(WALK_L)]],WALKER);walkCd=10;break;}}}
   if(riders.length<SEATS_TUK&&!boarding&&hailCd<=0&&quiet){for(const w of waiting){const p=POI[w.poi],d=Math.hypot(p.x-car.x,p.z-car.z);if(!w.hailed&&d>12&&d<35){w.hailed=true;PEOPLE.play(w.m,'Wave',.25);w.waveT=3.5;dlgPush([['p',pick(HAIL_L)]],{name:w.name,pitch:w.type.pitch,female:w.type.female});hailCd=12;break;}}}
   if(fare&&fare.phase==='ride'){const a=areaOf(car.x,car.z);if(a!==fare.area){fare.area=a;if(AREA_C[a]&&Math.random()<.6&&quiet)dlgPush([['p',pick(AREA_C[a])]],fare.pax);}}}
@@ -1161,7 +1192,7 @@ function eventsTick(dt){if(isVan)return;daily();
   EV.next-=dt;if(EV.next>0)return;const k=Math.random()<.55?'rush':'vip';
   if(k==='rush'){EV.kind='rush';EV.t=80;toast('🔥 ساعة الذروة! الأجرة ×١٫٥ لمدة دقيقة ونص','good');waiting.forEach(w=>{if(!w.mission){chooseDest(w);dropTag(w);addTag(w);}});}
   else{const w=spawnWaiting();if(w){w.vip=true;w.name='الباشا '+pick(['رأفت','ممدوح','شريف','عادل']);chooseDest(w);dropTag(w);addTag(w);w.b.material=vipBeamMat;EV.kind='vip';EV.t=70;EV.w=w;toast('⭐ زبون VIP مستنيك عند '+POI[w.poi].n+' — الأجرة الضعف','good');}else EV.next=20;}
-  evBadge();}
+  setTimeout(()=>quip('event'),900);  evBadge();}
 function endEvent(){EV.kind=null;EV.w=null;EV.next=rand(110,190);evBadge();}
 function forgotItem(f){if(EV.kind)return;EV.kind='lost';EV.t=75;EV.poi=f.to;EV.name=f.pax.name;setTimeout(()=>{toast('📱 '+f.pax.name+' نسي موبايله في التوكتوك! رجّعهوله عند '+POI[f.to].n,'bad');dlgPush([['d','يا نهار أبيض، الزبون نسي موبايله! لازم أرجّعهوله']],null);},2600);evBadge();}
 function evBadge(){const b=$('evBadge');if(!b)return;const show=EV.kind||streak>=2;b.hidden=!show;if(!show)return;
@@ -1221,7 +1252,7 @@ function payConfirm(){const f=payS.f;if(!f||f.phase!=='pay')return;const sum=pay
 /* paid when getting in: the fare goes in the wallet now; the drop-off adds tip, mission bonus and reputation */
 function paidAtBoard(f,lost){lost=lost||0;f.lost=lost;const got=f.price-lost;save.wallet+=got;save.total+=got;persist();updateMoney();blip('cash');
   toast('+'+got+' ج.م الأجرة من '+f.pax.name+(lost?'  • ضاع منك '+lost:''),lost?'bad':'good');
-  f.phase='ride';f.col=freeCol();riders.push(f);boarding=null;dailyEv('earn',got);if(f.exact)dailyEv('exact',1);if(riders.length>=SEATS_TUK)dailyEv('full',1);
+  f.phase='ride';f.col=freeCol();riders.push(f);boarding=null;setTimeout(()=>{if(riders.length>=SEATS_TUK&&quip('full'))return;quip(Math.random()<.5?'pay':'board');},1800);dailyEv('earn',got);if(f.exact)dailyEv('exact',1);if(riders.length>=SEATS_TUK)dailyEv('full',1);
   const sp=paxSeat&&paxSeat.getObjectByName('slot'+f.slot);if(sp&&sp.children[0])PEOPLE.play(sp.children[0],'Sit',.3);syncFare();}
 function finishFare(){const f=fare;if(!f)return;const lost=f.lost||0;let r=5-f.hits*.6-Math.min(2,f.fast)*.3-(f.short||0)*.4;const late=f.t>f.budget;if(late)r-=1.2;r=clamp(r,1,5);
   const bonus=late?0:Math.round((f.budget-f.t)*.2/5)*5;const tip=Math.min(15,(r>=4.5?5:0)+Math.max(0,bonus));const FM=f.mission&&missionById(f.mission);const mFail=!!(FM&&FM.urgent&&late);const mb=FM&&!mFail?FM.bonus:0;
@@ -1231,12 +1262,13 @@ function finishFare(){const f=fare;if(!f)return;const lost=f.lost||0;let r=5-f.h
   save.wallet+=pay;save.total+=pay;save.trips++;if(FM&&!mFail)save.missions=Object.assign({},save.missions,{[f.mission]:1});if(FM)missionCd=mFail?40:25;
   const lv0=repLevel((save.rep&&save.rep.xp)||0);const gx=rideXP({rating:r,short:f.short,lost,hits:f.hits,mission:!!FM,failed:mFail});save.rep={xp:((save.rep&&save.rep.xp)||0)+gx};const lv1=repLevel(save.rep.xp);
   if(lv1>lv0){const rw=LEVEL_REWARD(lv1);save.wallet+=rw;save.total+=rw;setTimeout(()=>toast('⭐ ترقية! بقيت «'+REP_LEVELS[lv1].n+'» — مكافأة '+rw+' ج.م'+(MISSIONS.some(m=>m.lvl===lv1)||MODS.some(m=>m.lvl===lv1)?' وفتحت حاجات جديدة':''),'good'),2600);}
+  setTimeout(()=>{if(FM&&!mFail)quip('win',true);else if(late||mFail||f.hits>=3)quip('late');else quip('drop');},1500);
   if(window.onRideDone)window.onRideDone(f,{rating:r,late,tip,mFail});
   persist();dlgPush((late?pick(END_LATE):pick(END_SEQ)).map(l=>[l[0],l[1].replace('{t}',f.pax.title)]),f.pax);blip('cash');
   toast((mFail?'المهمة فشلت، اتأخرت! تقدر تعيدها بعدين  • ':'')+'وصّلت '+f.pax.name+(pay?'  • +'+pay+' ج.م':'')+(mb?'  • مكافأة «'+FM.n+'» '+mb:'')+'  • +'+gx+' سمعة'+(tip?'  • بقشيش '+tip:'')+(sb?'  • سلسلة ×'+arNum(streak)+' +'+sb:'')+(vipb?'  • VIP +'+vipb:'')+(late?'  • متأخر':''),mFail?'bad':'good');
   if(!FM&&!f.vip&&Math.random()<.14)forgotItem(f);
   const sa=paxSeat.getObjectByName('slot'+f.slot);if(sa)sa.clear();alight(f);riders.shift();syncFare();updateMoney();}
-function onImpact(s){blip('thud',s);if(riders.length){riders.forEach(r=>r.hits++);if(Dlg.q.length<2)dlgPush([['p',pick(HIT_L)]],pick(riders).pax);}}
+function onImpact(s){blip('thud',s);if(riders.length){riders.forEach(r=>r.hits++);if(!quip('crash')&&Dlg.q.length<2)dlgPush([['p',pick(HIT_L)]],pick(riders).pax);}else if(s>.6)quip('crash');}
 let nearMsgT=0,stopHint=0;
 /* boarding / getting out: the rider walks between the kerb and the vehicle's side door */
 const _sp=new T.Vector3();
@@ -1265,7 +1297,7 @@ function updateFares(dt){interactions(dt);if(!isVan)eventsTick(dt);spotMat.opaci
     else if(stopHint<=0&&Math.abs(car.v)<1.2){const o=riders.slice(1).find(r=>{const q=POI[r.to];return Math.hypot(q.x-car.x,q.z-car.z)<PICK_R;});
       if(o){toast('لازم توصّل '+fare.pax.name+' الأول، ركب قبل '+o.pax.name);stopHint=4;if(!Dlg.cur&&!Dlg.q.length)dlgPush([['p',pick(ORDER_P)]],fare.pax);}}}
   if(riders.length){const rr=pick(riders);rr.chat-=dt*riders.length;if(rr.chat<=0&&!Dlg.cur&&!Dlg.q.length){const jam=Math.abs(car.v)<1.2&&rr.t>20;dlgPush([['p',jam&&Math.random()<.6?pick(JAM_L):radio.on&&Math.random()<.3?pick(RADIO_L):(riders.length>1&&Math.random()<.35?pick(SHARE_L):(Math.random()<.3?pick(IFEH_L):pick(rr.pax.ride)))]],rr.pax);rr.chat=rand(14,22);}
-    fare.fastCd-=dt;if(Math.abs(car.v)*3.6>70&&fare.fastCd<=0){fare.fastCd=10;riders.forEach(r=>r.fast++);dlgPush([['p',pick(FAST_L)]],pick(riders).pax);}}
+    fare.fastCd-=dt;if(Math.abs(car.v)*3.6>70&&fare.fastCd<=0){fare.fastCd=10;riders.forEach(r=>r.fast++);if(!quip('fast'))dlgPush([['p',pick(FAST_L)]],pick(riders).pax);}}
   if(!boarding&&riders.length<SEATS_TUK){for(const w of waiting){const p=POI[w.poi];const d=Math.min(Math.hypot(p.x-car.x,p.z-car.z),Math.hypot(p.x+p.sx-car.x,p.z+p.sz-car.z));if(d<PICK_R){if(Math.abs(car.v)<2.2){startFare(w);break;}else if(stopHint<=0){toast('هدّي ووقّف جنب الزبون');stopHint=3;}}else if(d<PICK_R+14&&stopHint<=0&&Math.abs(car.v)>2.2){toast('الزبون قدامك، هدّي');stopHint=4;}}}
   stopHint-=dt;
   /* fuel stations */
@@ -1442,7 +1474,7 @@ addEventListener('resize',()=>{if(state==='play')gpsSize();});
 let last=performance.now(),mA=0;
 function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000||0);last=now;
   PEOPLE.update(dt,camera.position,peopleFrame++);
-  if(state==='play'){animWorld(dt);updateTraffic(dt);updateCar(dt);updateWalkers(dt);syncTuk();updateFares(dt);dlgUpdate(dt);radioUpdate(dt);updateHUD(dt);updateCam(dt);audioTick();}
+  if(state==='play'){animWorld(dt);updateTraffic(dt);updateCar(dt);updateWalkers(dt);syncTuk();updateFares(dt);dlgUpdate(dt);radioUpdate(dt);quipTick();updateHUD(dt);updateCam(dt);audioTick();}
   else if(state==='intro'){if(CINE.film){cineTick(dt);}else{animWorld(dt);updateTraffic(dt);updateWalkers(dt);cineTick(dt);}}
   else if(state==='menu'||state==='loading'){animWorld(dt);updateTraffic(dt);updateWalkers(dt);syncTuk();mA+=dt*.04;
     if(car&&state==='menu'&&GAR.open){if(!dragging)GAR.yaw+=dt*.18;const port=innerWidth<innerHeight,r=port?6.4:4.8,k=port?0:-1.25,sy=Math.sin(GAR.yaw),cy=Math.cos(GAR.yaw);camera.position.set(car.x+sy*r,port?2.6:1.85,car.z+cy*r);camera.lookAt(car.x+cy*k,port?-.55:.9,car.z-sy*k);}
@@ -1458,6 +1490,7 @@ function vehUI(){const v=VEHS.find(x=>x.id===save.vehicle)||VEHS[0];$('btnVeh').
 function setVehicle(id){if(id===save.vehicle)return;save.vehicle=id;persist();toast('بنجهّز '+(VEHS.find(x=>x.id===id).n)+'…');setTimeout(()=>location.reload(),400);}
 $('btnVeh').addEventListener('click',()=>setVehicle(save.vehicle==='van'?'tuk':'van'));vehUI();
 
+{const y=String(new Date().getFullYear());const e=$('crYear');if(e)e.textContent=y;document.querySelectorAll('.crY').forEach(x=>x.textContent=y);}
 /* ============ beta channel ============ */
 if(IS_BETA){$('betaSec').hidden=false;$('betaTag').hidden=false;document.title='BETA · '+document.title;}
 function saveNote(){const n=$('saveNote');if(!n)return;n.textContent='حالة الحفظ: '+({new:'جديد',current:'سليم',migrated:'اتحدّث للإصدار ١ واتعمل نسخة احتياطية','migrated-unsaved':'شغال من الذاكرة، الأصل ما اتلمسش',corrupt:'الحفظ القديم مش مقروء ومحفوظ زي ما هو',future:'من نسخة أحدث، مش هيتعدل'}[SAVE_LOAD.status]||SAVE_LOAD.status)+(saveWritable?'':' (الحفظ متوقف في الجلسة دي)');}
@@ -1550,6 +1583,7 @@ const segDraw=[];
 segDraw.push(seg('segCtl',[['touch','الدركسيون'],['arrows','الأسهم'],['tilt','الإمالة']],()=>ctl.mode,v=>setCtl(v)));
 segDraw.push(seg('segSens',[[0.7,'تقيل'],[1,'عادي'],[1.35,'خفيف']],()=>ctl.sens,v=>{ctl.sens=v;saveCtl();ctlUI();}));
 segDraw.push(seg('segVoice',[['game','شغالة'],['off','مقفولة']],()=>Speech.mode,v=>{while(Speech.mode!==v)$('btnVoice').click();}));
+segDraw.push(seg('segQuips',[['on','شغالة'],['off','مقفولة']],()=>Quip.on?'on':'off',v=>{Quip.on=v==='on';try{ls.set('aps_quips',Quip.on?'1':'0');}catch(_){}if(!Quip.on)quipStop();}));
 segDraw.push(seg('segIntro',[['play','شغّلها'],['skip','اتخطاها']],()=>skipIntro()?'skip':'play',v=>{ls.set('aps_skipIntro',v==='skip'?'1':'0');}));
 segDraw.push(seg('segQ',[['low','خفيفة'],['med','متوسطة'],['high','عالية']],()=>quality,v=>setQuality(v)));
 $('btnSettings').addEventListener('click',()=>{segDraw.forEach(f=>f());$('verNote').textContent='النسخة '+APP_VERSION;$('settings').hidden=false;});
@@ -1796,7 +1830,7 @@ async function boot(){try{ldStep('بنفتح بوابة الميناء…');awai
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);
   destRing=new T.Mesh(new T.TorusGeometry(3,.15,8,40),new T.MeshBasicMaterial({color:'#4cff5e'}));destRing.rotation.x=Math.PI/2;destRing.visible=false;scene.add(destRing);
   buildRadioUI();radioUI();syncTuk();menuWallet();updateMoney();
-  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get training(){return TRAINING;},voices:VO,get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,cineSeek:t=>{if(CINE.on){if(CINE.film&&FILM.v)FILM.v.currentTime=t;else CINE.t=t;}},get film(){return {on:!!CINE.film,ready:FILM.ready,bad:FILM.bad,src:FILM.src&&FILM.src.url,t:FILM.v&&FILM.v.currentTime};},get cineShots(){return CINE.shots&&CINE.shots.map(x=>[x.id,x.t0,x.t1]);},get fare(){return fare;},get riders(){return riders;},get boarding(){return boarding;},get people(){return PEOPLE;},get line(){return line;},get perf(){return perf;},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
+  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get training(){return TRAINING;},voices:VO,get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,cineSeek:t=>{if(CINE.on){if(CINE.film&&FILM.v)FILM.v.currentTime=t;else CINE.t=t;}},get film(){return {on:!!CINE.film,ready:FILM.ready,bad:FILM.bad,src:FILM.src&&FILM.src.url,t:FILM.v&&FILM.v.currentTime};},get cineShots(){return CINE.shots&&CINE.shots.map(x=>[x.id,x.t0,x.t1]);},get fare(){return fare;},get riders(){return riders;},get boarding(){return boarding;},get people(){return PEOPLE;},get line(){return line;},get perf(){return perf;},quip:(k,f)=>quip(k,f),get quips(){return {on:Quip.on,loaded:Object.keys(Quip.buf).length,playing:Quip.playing,last:Quip.lastId};},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
   state='menu';ldStep('كله تمام، الوردية مستنياك!');requestAnimationFrame(frame);introReady();}
   catch(err){console.error(err);loadingText.textContent='حصلت مشكلة: '+err.message;}}
 const fr0=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();

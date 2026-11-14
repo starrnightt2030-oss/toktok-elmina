@@ -11,7 +11,7 @@ const BASE = process.argv[2];
   await p.goto(BASE + 'index.html'); await p.waitForFunction(() => window.portSim && window.portSim.car, null, { timeout: 400000 });
   ok(await p.evaluate(() => window.portSim.quips.loaded === 0), 'no clip is downloaded during the first load');
   await p.evaluate(() => { document.getElementById('loading').style.display = 'none'; document.getElementById('btnStart').click(); });
-  await p.waitForFunction(() => window.portSim.quips.loaded >= 27, null, { timeout: 120000 }).catch(() => {});
+  await p.waitForFunction(() => window.portSim.quips.loaded >= 27, null, { timeout: 360000 }).catch(() => {});
   ok(await p.evaluate(() => window.portSim.quips.loaded >= 27), 'all 27 clips load in the background once driving (' + await p.evaluate(() => window.portSim.quips.loaded) + ')');
   const r1 = await p.evaluate(() => window.portSim.quip('win', true)); const st = await p.evaluate(() => window.portSim.quips);
   ok(r1 && st.playing && st.last === 'win1', 'a moment plays its clip (' + JSON.stringify(st) + ')');

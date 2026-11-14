@@ -1419,7 +1419,7 @@ function sirenOn(on){if(!A.ctx)return;if(on&&!POL.siren){const ctx=A.ctx;const o
 function policeUnit(){if(POL.units.length>=2)return null;const U=POL.pool.find(u=>!POL.units.includes(u))||(()=>{const u=policeBuild();POL.pool.push(u);return u;})();
   const bx=-Math.sin(car.h),bz=-Math.cos(car.h);let best=null,bs=-1e9;for(const n of NL){const dx=n.x-car.x,dz=n.z-car.z,d=Math.hypot(dx,dz);if(d<55||d>120)continue;if(POL.units.some(o=>Math.hypot(o.x-n.x,o.z-n.z)<20))continue;const sc=-(dx*bx+dz*bz)/d-Math.abs(d-80)/80;if(sc>bs){bs=sc;best=n;}}
   if(!best)return null;Object.assign(U,{x:best.x,z:best.z,h:Math.atan2(-(car.x-best.x),-(car.z-best.z)),v:10,phase:'chase',rt:0,pts:null,downT:0,lean:0});U.body.rotation.set(0,0,0);U.body.position.y=0;U.m.visible=true;POL.units.push(U);return U;}
-function policeStart(why){if(!car)return;if(why)POL.pending.push(why);if(POL.on)return;if(!policeUnit())return;POL.on=true;POL.t=0;POL.near=0;POL.far=0;sirenOn(true);
+function policeStart(why){if(!car)return;if(why)POL.pending.push(why);if(POL.on&&POL.units.some(u=>u.phase!=='leave'))return;if(POL.on){POL.leaveId=(POL.leaveId||0)+1;policeEnd();if(why)POL.pending.push(why);}if(!policeUnit())return;POL.on=true;POL.t=0;POL.near=0;POL.far=0;sirenOn(true);
   $('wanted').hidden=false;toast('🚨 عسكري المرور شافك وجاي وراك! اركن على جنب','bad');if(!Dlg.cur)dlgPush([['p','قف عندك يا بتاع التوكتوك! اركن على جنب!']],OFFICER);}
 function policeEnd(){POL.on=false;POL.units.forEach(u=>u.m.visible=false);POL.units=[];sirenOn(false);$('wanted').hidden=true;LAW.heat=0;POL.pending=[];}
 /* steer a bike toward a point, with acceleration and a turning limit like a real motorbike; it leans into the turn */
@@ -1469,9 +1469,9 @@ function ticketShow(o){const el=$('ticket');const d=new Date();const no=arNum(St
   $('tkPlate').textContent=(save.slogan?'توكتوك «'+save.slogan+'»':'توكتوك');
   const L=$('tkList');L.innerHTML='';o.list.forEach(v=>{const r=document.createElement('div');r.className='tkRow';r.innerHTML='<span></span><b></b>';r.firstChild.textContent=v.n;r.lastChild.textContent=o.warn?'تحذير':arNum(v.fine)+' ج.م';L.appendChild(r);});
   $('tkTotal').textContent=o.warn?'تحذير بدون غرامة — المرة الجاية مخالفة':'الإجمالي: '+arNum(o.total)+' ج.م';el.classList.toggle('warn',!!o.warn);el.hidden=false;}
-function ticketClose(){$('ticket').hidden=true;state='play';const us=POL.units.slice();us.forEach(U=>{U.phase='leave';U.lights.forEach(l=>l.material.opacity=0);U.lamps.forEach(l=>l.emissiveIntensity=.2);});let t=0;
+function ticketClose(){$('ticket').hidden=true;state='play';const us=POL.units.slice();const id=POL.leaveId=(POL.leaveId||0)+1;us.forEach(U=>{U.phase='leave';U.lights.forEach(l=>l.material.opacity=0);U.lamps.forEach(l=>l.emissiveIntensity=.2);});let t=0;
   /* they ride off ahead and disappear */
-  const go=()=>{if(!POL.on)return;t+=.05;us.forEach(U=>{bikeTo(U,U.x-Math.sin(U.h)*30,U.z-Math.cos(U.h)*30,14,.05);U.m.position.set(U.x,0,U.z);U.m.rotation.set(0,U.h,0);U.body.rotation.z=-U.lean;U.wheels.forEach(w=>w.rotation.x-=U.v*.05/.34);});
+  const go=()=>{if(!POL.on||POL.leaveId!==id)return;t+=.05;us.forEach(U=>{bikeTo(U,U.x-Math.sin(U.h)*30,U.z-Math.cos(U.h)*30,14,.05);U.m.position.set(U.x,0,U.z);U.m.rotation.set(0,U.h,0);U.body.rotation.z=-U.lean;U.wheels.forEach(w=>w.rotation.x-=U.v*.05/.34);});
     if(t<4)setTimeout(go,50);else policeEnd();};go();}
 function policeEscape(){toast('😎 هربت من العسكري!','good');if(CRAZY.on){CRAZY.t+=10;crazyPop('هربت! +١٠ ثواني','time');if(riders.length)crazyStunt('هروب',10);}try{quip('fast');}catch(e){}policeEnd();}
 /* ============ «وضع المجنون»: a countdown run like Crazy Taxi — fares one after another, seconds added at every drop-off,

@@ -165,7 +165,7 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
       // keep traffic boxes where the traffic meshes are
       for (const c of traffic) {
         if (!c.body) continue;
-        c.body.setNextKinematicTranslation({ x: c.m.position.x, y: 0, z: c.m.position.z });
+        c.body.setNextKinematicTranslation({ x: c.m.position.x, y: c.m.position.y || 0, z: c.m.position.z });
         const a = c.m.rotation.y; c.body.setNextKinematicRotation({ x: 0, y: Math.sin(a / 2), z: 0, w: Math.cos(a / 2) });
       }
       acc += dt;
@@ -203,6 +203,16 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
         for (let i = 0; i < NW; i++) veh.setWheelBrake(i, brake * (S.wheels[i].front ? 0.6 : 1) + (hand && !S.wheels[i].front ? 2.2 : 0));
         S.drive.forEach(i => veh.setWheelFrictionSlip(i, hand ? 0.75 : 2.3));
         veh.updateVehicle(STEP);
+        // stability assist (like ESC): unless you are drifting, sideways sliding is soaked up and the yaw is held
+        // to what the steering asks for, so the vehicle tracks true, corners cleanly and never spins out on its own
+        if (!hand && wheelsDown > 0) {
+          const v1 = body.linvel(), r1 = body.rotation(); q.set(r1.x, r1.y, r1.z, r1.w); right.set(1, 0, 0).applyQuaternion(q); fwd.set(0, 0, -1).applyQuaternion(q);
+          const lat = v1.x * right.x + v1.z * right.z, vf = v1.x * fwd.x + v1.z * fwd.z, k = Math.min(1, STEP * 9);
+          body.setLinvel({ x: v1.x - right.x * lat * k, y: v1.y, z: v1.z - right.z * lat * k }, true);
+          const w1 = body.angvel(), want = vf * Math.tan(car.steerAng) / S.base;   // yaw rate the steering geometry gives
+          const ky = Math.min(1, STEP * (Math.abs(car.steer) < 0.05 ? 10 : 5));
+          body.setAngvel({ x: w1.x, y: w1.y + (want - w1.y) * ky, z: w1.z }, true);
+        }
         wheelsDown = 0; for (let i = 0; i < NW; i++) if (veh.wheelIsInContact(i)) wheelsDown++;
         // keep the three-wheeler from tipping over: gentle righting torque past ~20 degrees
         up.set(0, 1, 0).applyQuaternion(q);

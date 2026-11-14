@@ -1010,14 +1010,26 @@ function quipLoad(id){if(Quip.buf[id]||Quip.loading[id]||!A.ctx)return Quip.load
 /* gently: one clip every ~1.2 s, starting a few seconds into the drive, so slower phones never stutter */
 function quipPreload(){if(Quip.pre||!A.ctx)return;Quip.pre=true;const ids=[...new Set([].concat(...Object.values(QUIP_SETS)))];let i=0;const next=()=>{if(i>=ids.length)return;const id=ids[i++];Promise.resolve(quipLoad(id)).then(()=>setTimeout(next,1200));};setTimeout(next,6000);}
 function quipBusy(){return Quip.playing||!!Dlg.cur||Dlg.q.length>0;}
-function quip(kind,force){if(!Quip.on||A.muted||!A.ctx||state!=='play')return false;const R=QUIP_RULE[kind],set=QUIP_SETS[kind];if(!R||!set)return false;
+function quip(kind,force){if(!Quip.on||A.muted||!A.ctx||state!=='play')return false;quipUnstick();const R=QUIP_RULE[kind],set=QUIP_SETS[kind];if(!R||!set)return false;
   if(Quip.playing||(!force&&(Dlg.cur||Dlg.q.length)))return false;if(clock-Quip.last<R[1])return false;if(Math.random()>R[0])return false;
   const ready=set.filter(id=>Quip.buf[id]&&id!==Quip.lastId);const pickFrom=ready.length?ready:set.filter(id=>Quip.buf[id]);
   if(!pickFrom.length){set.forEach(quipLoad);return false;}
   return quipPlayId(pick(pickFrom));}
-function quipPlayId(id){const ctx=A.ctx;if(!ctx||!Quip.buf[id]||Quip.playing)return false;if(!Quip.gain){Quip.gain=ctx.createGain();Quip.gain.gain.value=1.9;const lim=ctx.createDynamicsCompressor();lim.threshold.value=-12;lim.knee.value=6;lim.ratio.value=12;lim.attack.value=.003;lim.release.value=.18;Quip.gain.connect(lim);lim.connect(A.master);}
+function quipPlayId(id){const ctx=A.ctx;if(!ctx||!Quip.buf[id])return false;quipUnstick();if(Quip.playing)return false;
+  if(ctx.state!=='running'){try{ctx.resume();}catch(_){}}
+  if(!Quip.gain){Quip.gain=ctx.createGain();let out=Quip.gain;
+    try{const lim=ctx.createDynamicsCompressor();lim.threshold.value=-12;lim.knee.value=6;lim.ratio.value=12;lim.attack.value=.003;lim.release.value=.18;Quip.gain.connect(lim);out=lim;Quip.gain.gain.value=1.9;}catch(_){Quip.gain.gain.value=1.1;}
+    out.connect(A.master);}
   const src=ctx.createBufferSource();src.buffer=Quip.buf[id];src.connect(Quip.gain);src.onended=()=>{if(Quip.src===src){Quip.src=null;Quip.playing=false;Quip.last=clock;radioLevel();}};
-  src.start();Quip.src=src;Quip.playing=true;Quip.last=clock;Quip.lastId=id;radioLevel();return true;}
+  src.start();Quip.src=src;Quip.playing=true;Quip.until=performance.now()+Quip.buf[id].duration*1000+1500;Quip.last=clock;Quip.lastId=id;radioLevel();return true;}
+/* if a clip's end was never reported (the phone paused the sound mid-clip), free the slot once it should have ended */
+function quipUnstick(){if(Quip.playing&&Quip.until&&performance.now()>Quip.until&&!(A.ctx&&A.ctx.state!=='running')){Quip.src=null;Quip.playing=false;radioLevel();}}
+/* settings → "try": plays a clip right away and says why if it cannot */
+async function quipTry(){const out=$('quipTryMsg');const say=t=>{if(out)out.textContent=t;};
+  if(!Quip.on)return say('الإفيهات مقفولة — شغّلها من الزرار اللي فوق');if(A.muted)return say('صوت اللعبة مكتوم 🔇 — افتحه من زرار الصوت');
+  initAudio();if(!A.ctx)return say('الموبايل مش سامح بتشغيل الصوت');try{await A.ctx.resume();}catch(_){}
+  say('بيحمّل…');const id=pick(QUIP_SETS.happy);const d=await quipLoad(id);if(!d)return say('الملف ما اتحملش — اتأكد من النت وجرّب تاني');
+  quipStop();if(quipPlayId(id))say('شغّال ✅ ('+(A.ctx.state)+') — لو مسمعتش حاجة علّي صوت الموبايل');else say('مقدرش يشغّل دلوقتي ('+A.ctx.state+')');}
 /* fixed clips: one in the intro (a "news bulletin" opener) and one when the shift starts ("يلا") */
 const QUIP_INTRO='event1',QUIP_START='board1';
 /* intro: fetched on the tap (small file), played on its cue; skipped quietly if it is not ready within ~2 s */
@@ -1658,6 +1670,7 @@ segDraw.push(seg('segCtl',[['touch','الدركسيون'],['arrows','الأسه�
 segDraw.push(seg('segSens',[[0.7,'تقيل'],[1,'عادي'],[1.35,'خفيف']],()=>ctl.sens,v=>{ctl.sens=v;saveCtl();ctlUI();}));
 segDraw.push(seg('segVoice',[['game','شغالة'],['off','مقفولة']],()=>Speech.mode,v=>{while(Speech.mode!==v)$('btnVoice').click();}));
 segDraw.push(seg('segQuips',[['on','شغالة'],['off','مقفولة']],()=>Quip.on?'on':'off',v=>{Quip.on=v==='on';try{ls.set('aps_quips',Quip.on?'1':'0');}catch(_){}if(!Quip.on)quipStop();}));
+$('quipTry').addEventListener('click',quipTry);
 segDraw.push(seg('segIntro',[['play','شغّلها'],['skip','اتخطاها']],()=>skipIntro()?'skip':'play',v=>{ls.set('aps_skipIntro',v==='skip'?'1':'0');}));
 segDraw.push(seg('segQ',[['low','خفيفة'],['med','متوسطة'],['high','عالية']],()=>quality,v=>setQuality(v)));
 $('btnSettings').addEventListener('click',()=>{segDraw.forEach(f=>f());$('verNote').textContent='النسخة '+APP_VERSION;$('settings').hidden=false;});

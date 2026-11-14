@@ -19,7 +19,8 @@ fetch('./version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return
  var show=function(){var u=document.getElementById('upd'),b=document.getElementById('updBtn');if(!u||!b){setTimeout(show,40);return;}document.getElementById('updVer').textContent='نسختك: '+V+' ← الجديدة: '+j.version;u.hidden=false;
   if(!b.__h){b.__h=1;b.addEventListener('click',function(){b.disabled=true;b.textContent='بيحدّث…';hard();});}};show();}).catch(function(){});})();
 </script>
-<style>html.updating body>*{visibility:hidden}html.updating body::after{content:'بنحدّث لآخر نسخة…';position:fixed;inset:0;display:grid;place-items:center;background:#101B2D;color:#F5B928;font:28px Lalezar,Tahoma,sans-serif;z-index:999}</style>
+<style>html.updating body>*{visibility:hidden}html.updating body::after{content:'بنحدّث لآخر نسخة…';position:fixed;inset:0;display:grid;place-items:center;background:#101B2D;color:#F5B928;font:28px Lalezar,Tahoma,sans-serif;z-index:999}#quipTryMsg{font-size:12.5px;opacity:.85;margin:-4px 0 8px;min-height:1em}
+</style>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./icons/icon-192.png">
@@ -702,6 +703,7 @@ body.menu-cine #game{animation:sceneIn 1.4s ease-out both}
       <section><h3>🔊 الصوت</h3>
         <div class="srow"><span>صوت الحوار</span><div class="seg" id="segVoice"></div></div>
         <div class="srow"><span>إفيهات الأفلام</span><div class="seg" id="segQuips"></div></div>
+        <div class="srow"><span>جرّب إفيه</span><button class="sbtn" id="quipTry" type="button">🎬 اسمع إفيه</button></div><div id="quipTryMsg" class="quipMsg" aria-live="polite"></div>
         <div class="srow"><span>جرّب الصوت</span><button class="sbtn" id="btnVoiceTest">▶️ اسمع جملة</button></div>
         <div class="srow"><label for="volMaster">الصوت العام</label><input type="range" id="volMaster" min="0" max="100" step="5"></div>
         <div class="srow"><label for="volUi">أصوات الأزرار</label><input type="range" id="volUi" min="0" max="100" step="5"></div>

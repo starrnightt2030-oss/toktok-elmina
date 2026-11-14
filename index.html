@@ -327,6 +327,33 @@ body.is-touch .touch{display:block}
 #joy.held #knob{transition:none}
 .arrows{display:none;position:fixed;left:calc(env(safe-area-inset-left,0px) + 12px);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);gap:12px;direction:ltr}
 body.ctl-arrows .arrows{display:flex}body.ctl-arrows #joy{display:none}
+#slide{display:none;position:fixed;left:calc(env(safe-area-inset-left,0px) + 10px);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);width:clamp(200px,50vw,300px);height:clamp(96px,24vw,120px);touch-action:none}
+body.ctl-slide #slide{display:block}body.ctl-slide #joy{display:none}
+.slTrack{position:absolute;left:0;right:0;top:50%;height:56%;transform:translateY(-50%);border-radius:999px;background:linear-gradient(#1c2a44,#0f1828);border:3px solid rgba(245,185,40,.7);box-shadow:0 8px 16px rgba(0,0,0,.5),inset 0 2px 0 rgba(255,255,255,.12)}
+.slTrack span{position:absolute;top:50%;transform:translateY(-52%);font:700 34px var(--f-game);color:rgba(245,241,232,.45)}.slL{left:14px}.slR{right:14px}
+.slThumb{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffe27a,#f2b705 60%,#a86f00);border:3px solid #101B2D;box-shadow:0 4px 10px rgba(0,0,0,.5);transition:transform .12s ease-out}
+#slide.held .slThumb{transition:none}
+/* ===== crazy mode ===== */
+.bigbtn.crazybtn{background:linear-gradient(#ff6a2b,#c9302a);border-color:#ffc9a8;box-shadow:0 6px 0 #7a1d16,0 10px 24px rgba(0,0,0,.4);display:flex;flex-direction:column;align-items:center;gap:4px;min-height:58px;padding:10px 24px}
+.bigbtn.crazybtn small{font:14px var(--f-game);opacity:.9}
+#crazyHud{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 222px);transform:translateX(-50%);display:flex;flex-direction:column-reverse;align-items:center;gap:2px;pointer-events:none;z-index:6;text-shadow:0 2px 0 rgba(0,0,0,.6)}
+#crazyTime{font:clamp(30px,8vw,44px)/1 var(--f-game);color:#fff;background:rgba(201,48,42,.85);border:3px solid #ffc9a8;border-radius:14px;padding:4px 16px}
+#crazyTime.low{animation:crzBlink .5s steps(2) infinite;background:#e11}
+#crazyStats{font:16px var(--f-game);color:#ffe08a;background:rgba(16,27,45,.75);border-radius:10px;padding:2px 10px}
+@keyframes crzBlink{50%{filter:brightness(1.6)}}
+@media (max-height:500px){#crazyHud{bottom:calc(env(safe-area-inset-bottom,0px) + 72px)}#crazyTime{font-size:28px;padding:2px 12px}#crazyStats{font-size:14px}}
+#crazyTime{direction:ltr;unicode-bidi:isolate}
+#crazyPop{direction:rtl;unicode-bidi:isolate;position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font:clamp(26px,7vw,40px) var(--f-game);color:#fff;pointer-events:none;opacity:0;z-index:7;text-shadow:0 3px 0 rgba(0,0,0,.6);white-space:nowrap}
+#crazyPop.time{color:#7dff9a}#crazyPop.tip{color:#ffd54a}#crazyPop.bad{color:#ff8a80}
+#crazyPop.go{animation:crzPop 1.3s ease-out forwards}
+@keyframes crzPop{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}30%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-90%)}}
+#crazyEnd{position:fixed;inset:0;display:grid;place-items:center;background:rgba(5,10,20,.55);z-index:30}
+#crazyEnd[hidden]{display:none}
+.ceRank{font:clamp(30px,8vw,40px) var(--f-game);color:#ffd54a;text-align:center;margin:4px 0 10px}
+.ceRow{display:flex;justify-content:space-between;font:20px var(--f-game);padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.12)}
+.ceBest{text-align:center;margin:10px 0 12px;font:17px var(--f-game);color:#cfe3ff}
+
+body.ctl-auto .pedal.gas{opacity:.45}
 .arr{width:clamp(72px,21vw,96px);height:clamp(92px,26vw,118px);border-radius:20px;border:3px solid rgba(255,255,255,.65);background:linear-gradient(#3b4270,var(--navy-700));color:#fff;font-size:38px;touch-action:none;box-shadow:0 6px 0 rgba(0,0,0,.45);text-shadow:0 2px 0 rgba(0,0,0,.4)}
 .arr.on{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.45);background:linear-gradient(var(--tuk),#c98d00);color:#241a00}
 @media (max-height:500px){.arr{width:74px;height:84px}}
@@ -641,6 +668,7 @@ body.menu-cine #game{animation:sceneIn 1.4s ease-out both}
     <div class="mstats"><span class="ms"><i>💰</i><b id="menuWallet">0</b></span></div>
     <div class="vpick" id="vehPick" role="radiogroup" aria-label="العربية"></div>
     <button class="bigbtn ui-btn primary" id="btnStart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg><span id="btnStartLbl">ابدأ الوردية</span></button>
+    <button class="bigbtn ui-btn crazybtn" id="btnCrazy"><span>🔥 وضع المجنون</span><small>٩٠ ثانية · وصّل أكتر زباين</small></button>
     <nav class="mbar" aria-label="القوائم">
       <button class="mb" id="btnGarage"><svg viewBox="0 0 24 24"><path d="M3 10 12 4l9 6v10h-4v-7H7v7H3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 16h8M8 19h8" stroke="currentColor" stroke-width="2"/></svg><span>الجراج</span></button>
       <button class="mb" id="btnMissions"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 3h6v3H9zM8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>المهام</span></button>
@@ -699,6 +727,7 @@ body.menu-cine #game{animation:sceneIn 1.4s ease-out both}
       <section><h3>🎮 التحكم</h3>
         <div class="srow"><span>طريقة السواقة</span><div class="seg" id="segCtl"></div></div>
         <div class="srow"><span>حساسية الدركسيون</span><div class="seg" id="segSens"></div></div>
+        <div class="srow"><span>البنزين</span><div class="seg" id="segGas"></div></div>
       </section>
       <section><h3>🔊 الصوت</h3>
         <div class="srow"><span>صوت الحوار</span><div class="seg" id="segVoice"></div></div>
@@ -777,6 +806,8 @@ body.menu-cine #game{animation:sceneIn 1.4s ease-out both}
   </div>
   <div id="lineBar" dir="rtl" hidden><div class="track"></div><div class="lrow"><span id="lineNext"></span><b id="lineSeats"></b></div></div>
   <div id="toast" hidden></div>
+  <div id="crazyHud" hidden><b id="crazyTime">⏱ ١:٣٠</b><span id="crazyStats"></span></div>
+  <div id="crazyPop" aria-live="polite"></div>
   <div id="dialog" hidden><span class="who" id="dWho"></span><span id="dText"></span></div>
   <div class="hint">W بنزين · S فرامل · A/D دركسيون · Shift تيربو · Space دريفت · H كلاكس · R راديو</div>
 
@@ -812,6 +843,7 @@ body.menu-cine #game{animation:sceneIn 1.4s ease-out both}
         <text x="100" y="108" text-anchor="middle" font-family="Lalezar,Tahoma" font-size="22" fill="#3a2a00">توكتوك</text>
       </svg>
     </div>
+    <div id="slide" class="pe" aria-label="اسحب يمين وشمال عشان تلف"><div class="slTrack"><span class="slL">‹</span><span class="slR">›</span><i class="slThumb" id="slThumb"></i></div></div>
     <div class="arrows"><div class="arrRing"><button class="arr pe" id="arrL" aria-label="شمال"><svg viewBox="0 0 24 24"><path d="M15 4.5 7.5 12l7.5 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="arrHub" aria-hidden="true"></span><button class="arr pe" id="arrR" aria-label="يمين"><svg viewBox="0 0 24 24"><path d="M9 4.5 16.5 12 9 19.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>
     <div class="pads">
       <button class="cbtn horn pe" id="tHorn" data-in="horn" aria-label="سرينة"><svg viewBox="0 0 48 48"><path d="M6 20h7l15-9v26l-15-9H6z" fill="#fff"/><path d="M33 15q6 9 0 18M38 11q9 13 0 26" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round"/></svg><span>سرينة</span></button>
@@ -823,6 +855,17 @@ body.menu-cine #game{animation:sceneIn 1.4s ease-out both}
   </div>
 </div>
 
+<div id="crazyEnd" dir="rtl" hidden>
+  <div class="pcard pn">
+    <h2>الوقت خلص! ⏱</h2>
+    <div class="ceRank" id="ceRank"></div>
+    <div class="ceRow"><span>المشاوير</span><b id="ceFares">٠</b></div>
+    <div class="ceRow"><span>الفلوس</span><b id="ceCash">٠</b></div>
+    <div class="ceBest" id="ceBest"></div>
+    <button class="pb go" id="ceAgain">🔥 العب تاني</button>
+    <button class="pb" id="ceMenu">القائمة</button>
+  </div>
+</div>
 <div id="pause" dir="rtl" hidden>
   <div class="pcard pn">
     <h2>استراحة</h2>

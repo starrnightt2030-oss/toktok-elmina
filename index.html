@@ -359,6 +359,24 @@ body.ctl-stick #stick{display:block}body.ctl-stick #joy{display:none}
 #camFlash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:40}
 #camFlash.go{animation:camFl .45s ease-out}
 @keyframes camFl{0%{opacity:.85}100%{opacity:0}}
+#ticket{position:fixed;inset:0;display:grid;place-items:center;background:rgba(5,10,20,.5);z-index:31}
+#ticket[hidden]{display:none}
+.tk{width:min(92vw,380px);max-height:92vh;overflow:auto;background:#fbf7ea;color:#1d2433;border-radius:6px;padding:14px 16px 16px;box-shadow:0 12px 40px rgba(0,0,0,.55);font-family:var(--f-ui,system-ui);
+  background-image:repeating-linear-gradient(0deg,transparent 0 27px,rgba(31,79,208,.08) 27px 28px);border-top:10px solid #1f4fd0;position:relative}
+.tk::after{content:'';position:absolute;left:0;right:0;bottom:-8px;height:8px;background:radial-gradient(circle at 6px 0,transparent 6px,#fbf7ea 6.5px) 0 0/12px 8px repeat-x}
+.tkHead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px dashed #9aa4b8;padding-bottom:6px}
+.tkHead b{font:20px var(--f-game);color:#16357f}.tkHead span{font-size:11px;opacity:.6}
+.tk h2{font:24px var(--f-game);text-align:center;margin:8px 0;color:#b3261e}
+.tk.warn h2{color:#b07a00}
+.tkMeta{display:flex;justify-content:space-between;font-size:14px;margin:3px 0}
+#tkList{margin:10px 0;border-top:1px solid #c9cfdb;border-bottom:1px solid #c9cfdb}
+.tkRow{display:flex;justify-content:space-between;padding:7px 2px;font-size:16px;border-bottom:1px dotted #c9cfdb}.tkRow:last-child{border-bottom:0}
+.tkTotal{font:20px var(--f-game);text-align:center;margin:6px 0 10px;color:#1d2433}
+.tkFoot{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.tkSign{font-size:13px}.tkSign i{font-family:cursive;font-size:18px;color:#16357f}
+.tkStamp{width:74px;height:74px;border-radius:50%;border:3px double #c62828;color:#c62828;display:grid;place-items:center;text-align:center;font:13px/1.1 var(--f-game);transform:rotate(-14deg);opacity:.85}
+.tk.warn .tkStamp{border-color:#b07a00;color:#b07a00}
+.tk .pb{width:100%}
 #crazyEnd{position:fixed;inset:0;display:grid;place-items:center;background:rgba(5,10,20,.55);z-index:30}
 #crazyEnd[hidden]{display:none}
 .ceRank{font:clamp(30px,8vw,40px) var(--f-game);color:#ffd54a;text-align:center;margin:4px 0 10px}
@@ -869,6 +887,18 @@ body.menu-cine #game{animation:sceneIn 1.4s ease-out both}
   </div>
 </div>
 
+<div id="ticket" dir="rtl" hidden>
+  <div class="tk">
+    <div class="tkHead"><b>إدارة مرور الإسكندرية</b><span>لعبة توكتوك في المينا</span></div>
+    <h2 id="tkTitle">إيصال مخالفة مرورية</h2>
+    <div class="tkMeta"><span>رقم: <b id="tkNo"></b></span><span id="tkDate"></span></div>
+    <div class="tkMeta"><span>المركبة: <b id="tkPlate"></b></span></div>
+    <div id="tkList"></div>
+    <div class="tkTotal" id="tkTotal"></div>
+    <div class="tkFoot"><span class="tkSign">توقيع العسكري: <i>~ع. مرور~</i></span><span class="tkStamp">مرور<br>الإسكندرية</span></div>
+    <button class="pb go" id="tkOk">حاضر يا باشا</button>
+  </div>
+</div>
 <div id="crazyEnd" dir="rtl" hidden>
   <div class="pcard pn">
     <h2>الوقت خلص! ⏱</h2>

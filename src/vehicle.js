@@ -109,6 +109,11 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
       const c = world.createCollider(d.setTranslation(r.x, 0, r.z).setFriction(0.9));
       rampCols.push(c); return c;
     };
+    // any solid above the ground (bridge decks, ramp slopes): a convex hull from world points, or a box
+    api.addHull = (pts, fr = 0.9) => { const d = RAPIER.ColliderDesc.convexHull(new Float32Array(pts)); return d ? world.createCollider(d.setFriction(fr)) : null; };
+    api.addBox = (cx, cy, cz, hx, hy, hz, ry = 0) => world.createCollider(RAPIER.ColliderDesc.cuboid(hx, hy, hz).setTranslation(cx, cy, cz)
+      .setRotation({ x: 0, y: Math.sin(ry / 2), z: 0, w: Math.cos(ry / 2) }).setFriction(0.9));
+    api.remove = (c) => { try { if (c) world.removeCollider(c, false); } catch (e) {} };
     api.clearRamps = () => { for (const c of rampCols) world.removeCollider(c, false); rampCols.length = 0; };
     // speed bumps: a low rounded hump across the road (a capsule lying sideways, mostly under the road)
     api.addBump = (b) => {
@@ -208,13 +213,13 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
         // never let a shove from traffic launch the tuk-tuk
         {
           const v = body.linvel(); const hs = Math.hypot(v.x, v.z), cap = TN.vmaxTurbo * 1.12;
-          const k = hs > cap ? cap / hs : 1, upMax = api.airT > 0 ? 14 : 2.5;
+          const k = hs > cap ? cap / hs : 1, upMax = api.airT > 0 ? 14 : 5;
           if (k < 1 || v.y > upMax || v.y < -20) body.setLinvel({ x: v.x * k, y: clamp(v.y, -20, upMax), z: v.z * k }, true);
           // a little extra gravity in the air so jumps feel snappy instead of floaty
           if (api.airT > 0 && p0air()) body.applyImpulse({ x: 0, y: -TN.mass * 6 * STEP, z: 0 }, true);
           const w = body.angvel(); if (Math.abs(w.y) > 3.5) body.setAngvel({ x: 0, y: clamp(w.y, -3.5, 3.5), z: 0 }, true);
           const p = body.translation();
-          if (!(Math.abs(p.y) < (api.airT > 0 ? 18 : 2.2)) || !isFinite(p.x) || !isFinite(p.z)) { api.teleport(safe.x, safe.z, safe.h); }
+          if (!(p.y > -2.2 && p.y < (api.airT > 0 ? 24 : 12)) || !isFinite(p.x) || !isFinite(p.z)) { api.teleport(safe.x, safe.z, safe.h); }
           else if (p.y < 0.4) { safeT += STEP; if (safeT > 1) { safe.x = p.x; safe.z = p.z; safe.h = car.h; safeT = 0; } }
         }
         // collisions felt as a sudden loss of speed
@@ -302,7 +307,7 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
   }
 
   api.turbo = 1;
-  if (!api.launch) { api.launch = () => {}; api.addRamp = () => null; api.addBump = () => null; api.clearRamps = () => {}; api.airT = 0; }
+  if (!api.launch) { api.launch = () => {}; api.addHull = () => null; api.addBox = () => null; api.remove = () => {}; api.addRamp = () => null; api.addBump = () => null; api.clearRamps = () => {}; api.airT = 0; }
   return api;
 }
 

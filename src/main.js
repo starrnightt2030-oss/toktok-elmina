@@ -998,12 +998,22 @@ function quip(kind,force){if(!Quip.on||A.muted||!A.ctx||state!=='play')return fa
   if(Quip.playing||(!force&&(Dlg.cur||Dlg.q.length)))return false;if(clock-Quip.last<R[1])return false;if(Math.random()>R[0])return false;
   const ready=set.filter(id=>Quip.buf[id]&&id!==Quip.lastId);const pickFrom=ready.length?ready:set.filter(id=>Quip.buf[id]);
   if(!pickFrom.length){set.forEach(quipLoad);return false;}
-  const id=pick(pickFrom),ctx=A.ctx;if(!Quip.gain){Quip.gain=ctx.createGain();Quip.gain.gain.value=1.05;Quip.gain.connect(A.master);}
+  return quipPlayId(pick(pickFrom));}
+function quipPlayId(id){const ctx=A.ctx;if(!ctx||!Quip.buf[id]||Quip.playing)return false;if(!Quip.gain){Quip.gain=ctx.createGain();Quip.gain.gain.value=1.05;Quip.gain.connect(A.master);}
   const src=ctx.createBufferSource();src.buffer=Quip.buf[id];src.connect(Quip.gain);src.onended=()=>{if(Quip.src===src){Quip.src=null;Quip.playing=false;Quip.last=clock;radioLevel();}};
   src.start();Quip.src=src;Quip.playing=true;Quip.last=clock;Quip.lastId=id;radioLevel();return true;}
+/* fixed clips: one in the intro (a "news bulletin" opener) and one when the shift starts ("يلا") */
+const QUIP_INTRO='event1',QUIP_START='board1';
+/* intro: fetched on the tap (small file), played on its cue; skipped quietly if it is not ready within ~2 s */
+function quipIntro(){if(!Quip.on||A.muted||!A.ctx)return;const t0=performance.now();Quip.introDue=false;
+  Promise.resolve(quipLoad(QUIP_INTRO)).then(()=>{Quip.introReady=true;if(Quip.introDue&&performance.now()-t0<4500)quipPlayId(QUIP_INTRO);});}
+function quipIntroCue(){Quip.introDue=true;if(Quip.introReady)quipPlayId(QUIP_INTRO);}
+/* shift start: a couple of seconds after the player takes the wheel, when nobody is talking */
+function quipStart(){if(!Quip.on||A.muted||!A.ctx)return;quipLoad(QUIP_START);Quip.startAt=clock+2.2;}
 function quipStop(){if(Quip.src){try{Quip.src.stop();}catch(_){}Quip.src=null;}Quip.playing=false;radioLevel();}
 /* during a ride: now and then, only when nobody is talking */
 function quipTick(){if(!Quip.on||state!=='play')return;quipPreload();
+  if(Quip.startAt&&clock>=Quip.startAt){if(clock>Quip.startAt+15)Quip.startAt=0;else if(Quip.buf[QUIP_START]&&!quipBusy()&&!A.muted){Quip.startAt=0;quipPlayId(QUIP_START);}}
   if(riders.length&&!quipBusy()){if(!Quip.nextRide)Quip.nextRide=clock+rand(35,60);if(clock>=Quip.nextRide){Quip.nextRide=clock+rand(80,140);quip('ride');}}else if(!riders.length)Quip.nextRide=0;
   if(input.horn&&!Quip.hornPrev){Quip.horns.push(clock);Quip.horns=Quip.horns.filter(t=>clock-t<3);if(Quip.horns.length>=3){Quip.horns.length=0;quip('horn');}}Quip.hornPrev=input.horn;}
 /* dialogue */
@@ -1450,7 +1460,7 @@ let state='loading';
 function menuWallet(){$('menuWallet').textContent=Math.round(save.wallet)+' ج.م · '+save.trips+' مشوار · ⭐ '+repProgress((save.rep&&save.rep.xp)||0).name;const st=$('btnStartLbl');if(st)st.textContent=save.trips>0?'كمّل الوردية':'ابدأ الوردية';}
 function startGame(){closeGarageView();$('garage').hidden=true;initAudio();if(A.ctx){if(A.ctx.state==='suspended')A.ctx.resume();try{const b=A.ctx.createBuffer(1,1,22050),src=A.ctx.createBufferSource();src.buffer=b;src.connect(A.ctx.destination);src.start(0);}catch(e){}}
   if(Speech.ok){try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}}pickVoices();$('menu').hidden=true;$('hud').hidden=false;state='play';snapCam=true;gpsSize();updateMoney();
-  if(!startGame.done){startGame.done=true;radioPower(true);toast(isVan?'السوزوكي فيها ٦ كراسي: لم الزباين، وكل واحد له لون ومكان نزول':'دوّر على الزباين… العمود المنوّر',"good");}else radioUI();canvas.focus({preventScroll:true});}
+  if(!startGame.done){startGame.done=true;radioPower(true);quipStart();toast(isVan?'السوزوكي فيها ٦ كراسي: لم الزباين، وكل واحد له لون ومكان نزول':'دوّر على الزباين… العمود المنوّر',"good");}else radioUI();canvas.focus({preventScroll:true});}
 function pauseGame(){if(state!=='play')return;state='pause';if(liveEl)liveEl.pause();if(dmEl){dmStop();radio.dmPaused=true;}releaseAll();$('pause').hidden=false;if(A.ctx)A.ctx.suspend();if(Speech.ok)try{speechSynthesis.pause();}catch(e){}persist();}
 function resumeGame(){$('pause').hidden=true;state='play';if(liveEl&&radio.live)liveEl.play().catch(()=>{});if(radio.dmPaused){radio.dmPaused=false;if(radio.on&&RST[radio.idx].dm)dmPlay(RST[radio.idx]);}if(A.ctx)A.ctx.resume();if(Speech.ok)try{speechSynthesis.resume();}catch(e){}canvas.focus({preventScroll:true});}
 $('pResume').addEventListener('click',resumeGame);$('pReset').addEventListener('click',()=>{resetToRoad();resumeGame();toast('رجعناك للطريق');});
@@ -1717,7 +1727,7 @@ function filmStart(el){if(!FILM.v||FILM.bad)return false;const v=FILM.v,c=FILM.c
   try{v.currentTime=0;}catch(_){}const p=v.play();if(p&&p.catch)p.catch(()=>{FILM.bad=true;filmFallback();});
   el.onpointerdown=()=>finishCine();CINE.key=e=>{finishCine();};addEventListener('keydown',CINE.key);return true;}
 /* the same sound design as the realtime intro, timed to the film's three shots */
-function filmCues(){return [[0,sfxWaves],[.3,sfxShipHorn],[1.0,sfxGull],[2.6,sfxGull],['hero',-.25,()=>sfxWhoosh(.7,.3)],['hero',.15,introEngine],['hero',.9,sfxBoom],['hero',1.05,()=>sfxChime(0)],['hero',1.35,()=>sfxChime(2)],['hero',2.9,sfxHorn],['flash',.15,()=>sfxWhoosh(1.1,.45)],['flash',1.6,()=>sfxChime(1)],['flash',1.65,sfxBoom]];}
+function filmCues(){return [[0,sfxWaves],[.3,sfxShipHorn],[.55,quipIntroCue],[1.0,sfxGull],[2.6,sfxGull],['hero',-.25,()=>sfxWhoosh(.7,.3)],['hero',.15,introEngine],['hero',.9,sfxBoom],['hero',1.05,()=>sfxChime(0)],['hero',1.35,()=>sfxChime(2)],['hero',2.9,sfxHorn],['flash',.15,()=>sfxWhoosh(1.1,.45)],['flash',1.6,()=>sfxChime(1)],['flash',1.65,sfxBoom]];}
 function filmTick(dt){const v=FILM.v,el=$('cine');if(!v)return;
   const vt=v.currentTime||0;if(vt===CINE.vt&&!v.ended){CINE.stall+=dt;if(CINE.stall>(CINE.t<.05?3:2.5)){if(CINE.t<.05)filmFallback();else finishCine();return;}}else{CINE.stall=0;CINE.vt=vt;}
   CINE.t=vt;const t=vt;
@@ -1753,12 +1763,13 @@ function cineQuality(on){if(on){CINE.q0=quality;if(quality!=='high'){quality='hi
 const easeIO=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
 function cineBuild(light){let t=0;CINE.shots=CINE_SHOTS.map(s=>{const o=Object.assign({},s,{t0:t});t+=s.dur;o.t1=t;return o;});CINE.len=t;}
 function startCine(onEnd){const el=$('cine');$('hud').hidden=true;$('toast').hidden=true;CINE.on=true;CINE.t=0;CINE.end=onEnd;CINE.slow=0;CINE.frames=0;CINE.light=false;cineBuild(false);
+  if(!startCine.q){startCine.q=true;quipIntro();}
   if(filmStart(el))return;
   CINE.hg=headGlow?headGlow.visible:true;if(headGlow)headGlow.visible=false;
   el.hidden=false;el.className='';void el.offsetWidth;el.classList.add('run');
   state='intro';camera.fov=42;camera.updateProjectionMatrix();cineQuality(true);introLook(true);
   /* sound cues, fired from the frame clock so a skip stops them all */
-  CINE.cues=[[0,sfxWaves],[.25,sfxShipHorn],[.9,sfxGull],[2.3,sfxGull],['hero',-.25,()=>sfxWhoosh(.7,.3)],['hero',.1,introEngine],['hero',1.25,sfxBoom],['hero',1.4,()=>sfxChime(0)],['hero',1.7,()=>sfxChime(2)],['hero',2.9,sfxHorn],['flash',.2,()=>sfxWhoosh(1.1,.45)],['flash',1.45,()=>sfxChime(1)],['flash',1.5,sfxBoom]].map(c=>({c:c,done:false}));
+  CINE.cues=[[0,sfxWaves],[.25,sfxShipHorn],[.55,quipIntroCue],[.9,sfxGull],[2.3,sfxGull],['hero',-.25,()=>sfxWhoosh(.7,.3)],['hero',.1,introEngine],['hero',1.25,sfxBoom],['hero',1.4,()=>sfxChime(0)],['hero',1.7,()=>sfxChime(2)],['hero',2.9,sfxHorn],['flash',.2,()=>sfxWhoosh(1.1,.45)],['flash',1.45,()=>sfxChime(1)],['flash',1.5,sfxBoom]].map(c=>({c:c,done:false}));
   el.onpointerdown=()=>finishCine();CINE.key=e=>{finishCine();};addEventListener('keydown',CINE.key);}
 function cueTime(c){if(typeof c[0]==='number')return c[0];const s=CINE.shots.find(x=>x.id===c[0]);return s?s.t0+c[1]:null;}
 function cineTick(dt){if(CINE.film){filmTick(dt);return;}CINE.t+=dt;const t=CINE.t;
@@ -1866,7 +1877,7 @@ async function boot(){try{ldStep('بنفتح بوابة الميناء…');awai
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);
   destRing=new T.Mesh(new T.TorusGeometry(3,.15,8,40),new T.MeshBasicMaterial({color:'#4cff5e'}));destRing.rotation.x=Math.PI/2;destRing.visible=false;scene.add(destRing);
   buildRadioUI();radioUI();syncTuk();menuWallet();updateMoney();
-  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get training(){return TRAINING;},voices:VO,get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,cineSeek:t=>{if(CINE.on){if(CINE.film&&FILM.v)FILM.v.currentTime=t;else CINE.t=t;}},get film(){return {on:!!CINE.film,ready:FILM.ready,bad:FILM.bad,src:FILM.src&&FILM.src.url,t:FILM.v&&FILM.v.currentTime};},get cineShots(){return CINE.shots&&CINE.shots.map(x=>[x.id,x.t0,x.t1]);},get fare(){return fare;},get riders(){return riders;},get boarding(){return boarding;},get people(){return PEOPLE;},get line(){return line;},get perf(){return perf;},quip:(k,f)=>quip(k,f),get leavers(){return leavers;},get quips(){return {on:Quip.on,loaded:Object.keys(Quip.buf).length,playing:Quip.playing,last:Quip.lastId};},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
+  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get training(){return TRAINING;},voices:VO,get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,cineSeek:t=>{if(CINE.on){if(CINE.film&&FILM.v)FILM.v.currentTime=t;else CINE.t=t;}},get film(){return {on:!!CINE.film,ready:FILM.ready,bad:FILM.bad,src:FILM.src&&FILM.src.url,t:FILM.v&&FILM.v.currentTime};},get cineShots(){return CINE.shots&&CINE.shots.map(x=>[x.id,x.t0,x.t1]);},get fare(){return fare;},get riders(){return riders;},get boarding(){return boarding;},get people(){return PEOPLE;},get line(){return line;},get perf(){return perf;},quip:(k,f)=>quip(k,f),quipReset:()=>{Quip.last=-1e9;},get leavers(){return leavers;},get quips(){return {on:Quip.on,loaded:Object.keys(Quip.buf).length,playing:Quip.playing,last:Quip.lastId,startAt:Quip.startAt,clock:clock,busy:quipBusy()};},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
   state='menu';ldStep('كله تمام، الوردية مستنياك!');requestAnimationFrame(frame);introReady();}
   catch(err){console.error(err);loadingText.textContent='حصلت مشكلة: '+err.message;}}
 const fr0=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();

@@ -31,6 +31,8 @@ const BASE = process.argv[2];
     const st = await p.evaluate(() => ({ f: window.portSim.film, cls: document.getElementById('cine').className, shot: document.getElementById('cine').dataset.shot, logo: !!document.querySelector('#cine .clogo img[src*="logo-v2"]') }));
     ok(st.f.on && st.f.t > .3 && /film/.test(st.cls), 'film: plays after the tap (t=' + (st.f.t || 0).toFixed(2) + ', class=' + st.cls + ')');
     ok(st.logo, 'film: official logo (logo-v2) laid over the film');
+    await p.waitForFunction(() => window.portSim.quips.last === 'event1', null, { timeout: 15000 }).catch(() => {});
+    ok(await p.evaluate(() => window.portSim.quips.last === 'event1'), 'film: the intro catchphrase plays after the tap (' + JSON.stringify(await p.evaluate(() => window.portSim.quips)) + ')');
     await p.evaluate(() => window.portSim.cineSeek(4.6)); await p.waitForTimeout(2200);
     ok(await p.evaluate(() => document.getElementById('cine').dataset.shot === 'hero'), 'film: shot clock follows the video (hero at 4.6 s)');
     const shot = await p.screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + '/intro-film-land.png' : undefined });
@@ -62,6 +64,8 @@ const BASE = process.argv[2];
     await p.waitForFunction(() => window.portSim.cineShots && document.getElementById('cine').dataset.shot, null, { timeout: 30000 }).catch(() => {});
     const r = await p.evaluate(() => ({ film: window.portSim.film.on, shots: window.portSim.cineShots, cls: document.getElementById('cine').className }));
     ok(!r.film && r.shots && r.shots.length === 3 && !/film/.test(r.cls), 'fallback: realtime intro runs instead (' + JSON.stringify(r.shots && r.shots.map(s => s[0])) + ')');
+    await p.waitForFunction(() => window.portSim.quips.last === 'event1', null, { timeout: 20000 }).catch(() => {});
+    ok(await p.evaluate(() => window.portSim.quips.last === 'event1'), 'fallback: the intro catchphrase plays in the realtime intro too');
     ok(errs.length === 0, 'fallback: no page errors (' + errs.join(' | ') + ')');
     await c.close();
   }

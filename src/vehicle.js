@@ -7,17 +7,17 @@ const lerp = (a, b, t) => a + (b - a) * t;
 
 export const TUNING = {
   mass: 380,
-  vmax: 60 / 3.6,          // m/s, normal top speed
-  vmaxTurbo: 85 / 3.6,
-  vmaxRev: 15 / 3.6,
-  force: 2100,             // N at the rear axle, low speed
-  forceTurbo: 3000,
-  brake: 26,
+  vmax: 80 / 3.6,          // m/s, normal top speed
+  vmaxTurbo: 110 / 3.6,
+  vmaxRev: 18 / 3.6,
+  force: 2900,             // N at the rear axle, low speed
+  forceTurbo: 4300,
+  brake: 30,
   coastBrake: 0.35,
   steerMax: 0.62,          // rad at walking pace
   steerMin: 0.09,
   latMax: 20,             // m/s² lateral acceleration the steering allows          // rad at top speed
-  gears: [0, 20, 40],      // km/h where gears 1, 2, 3 start
+  gears: [0, 22, 44, 64],  // km/h where gears 1..4 start
   fuelPerMeter: 100 / 12000,   // full tank ~ 12 km
   fuelIdlePerSec: 0.004,
 };
@@ -35,8 +35,8 @@ export const SPECS = {
     wheels: [{ x: -0.58, z: -1.05, front: true }, { x: 0.58, z: -1.05, front: true }, { x: -0.58, z: 1.02 }, { x: 0.58, z: 1.02 }],
     drive: [2, 3], conn: 0.52, rest: 0.32, radius: 0.27, base: 2.07, stiffness: 45,
     box: [0.72, 0.62, 1.7, 1.15], com: { x: 0, y: 0.3, z: 0 }, inertia: { x: 900, y: 1000, z: 380 },
-    tuning: { mass: 950, vmax: 75 / 3.6, vmaxTurbo: 100 / 3.6, force: 5600, forceTurbo: 8000, brake: 58, coastBrake: 0.8,
-      steerMax: 0.6, gears: [0, 18, 36, 56], fuelPerMeter: 100 / 15000 },
+    tuning: { mass: 950, vmax: 95 / 3.6, vmaxTurbo: 130 / 3.6, force: 7000, forceTurbo: 10500, brake: 66, coastBrake: 0.8,
+      steerMax: 0.6, gears: [0, 20, 42, 64, 86], fuelPerMeter: 100 / 15000 },
   },
 };
 
@@ -63,7 +63,19 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
     // gentle expo curve: fine control near the centre, full lock still reachable
     const se = Math.sign(st) * Math.pow(Math.abs(st), 1.3);
     // keys/joystick turn in a little slower at speed and centre back faster; the touch wheel is followed closely
-    car.steer += (se - car.steer) * Math.min(1, dt * (input.wheel ? 12 : (st ? lerp(5.5, 3.2, t) : 7.5)));
+    if (input.wheel || input.joy) {
+      car.steer += (se - car.steer) * Math.min(1, dt * (input.wheel ? 12 : (st ? lerp(5.5, 3.2, t) : 7.5)));
+      car.kst = car.steer;
+    } else {
+      // on/off keys and arrows: the wheel turns in progressively (a tap = a small correction, holding = full lock),
+      // less lock is reached at speed, and it centres back quickly when released or reversed
+      const k = input.steerKey || 0, lock = lerp(1, 0.85, clamp(speedAbs / TN.vmax, 0, 1));
+      const goal = k * lock, back = !k || Math.sign(k) !== Math.sign(car.kst || 0);
+      const rate = back ? 7 : lerp(3.6, 1.9, t);
+      const d = goal - (car.kst || 0);
+      car.kst = (car.kst || 0) + clamp(d, -rate * dt, rate * dt);
+      car.steer = car.kst;
+    }
     // cap the lateral grip demand so a three-wheeler doesn't tip in fast corners
     const grip = Math.atan(S.base * TN.latMax / Math.max(1, speedAbs * speedAbs));
     car.steerAng = car.steer * Math.min(lerp(TN.steerMax, TN.steerMin, t), Math.max(0.07, grip));
@@ -72,7 +84,7 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
     let g = 1; for (let i = 0; i < TN.gears.length; i++) if (kmh >= TN.gears[i]) g = i + 1;
     if (car.v < -0.3) g = 0;
     car.gear = g;
-    const lo = g <= 1 ? 0 : TN.gears[g - 1], hi = g === 0 ? 12 : (TN.gears[g] || 88);
+    const lo = g <= 1 ? 0 : TN.gears[g - 1], hi = g === 0 ? 12 : (TN.gears[g] || TN.vmaxTurbo * 3.6);
     const target = (car.thr && fuelOk ? 1500 : 950) + clamp((kmh - lo) / (hi - lo), 0, 1.15) * 4200;
     car.rpm += (target - car.rpm) * Math.min(1, dt * 6);
   }

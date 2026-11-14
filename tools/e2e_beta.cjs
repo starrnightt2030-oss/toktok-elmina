@@ -88,19 +88,27 @@ const PFX = process.argv[3] === 'main' ? '' : 'beta_';   // main build saves on 
     ok(await p.evaluate(() => ['#bPause', '#bCam', '#bMute', '#bRadio', '#bHorn', '.pedal.gas', '#brakePad', '.cbtn.turbo', '.cbtn.horn', '.cbtn.drift'].every(q => { const e = document.querySelector(q); if (!e) return false; const r = e.getBoundingClientRect(); const t = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return r.width >= 36 && r.height >= 36 && t && (t === e || e.contains(t)); })), 'hud: every driving button is visible, ≥36px and not covered');
     await p.reload(); await ready(); await p.evaluate(() => { document.getElementById('loading').style.display = 'none'; });
   }
-  // ---- Suzuki line, one stop
+  // ---- Suzuki: six seats, every rider with an own destination and colour; anyone gets out at their own stop
   await p.evaluate(() => { document.getElementById('loading').style.display = 'none'; document.querySelectorAll('#vehPick button')[1].click(); });
   await p.waitForTimeout(2500); await ready();
   ok(await p.evaluate(() => window.portSim.car.kind === 'van' && JSON.parse(localStorage.getItem(PFX_ + 'aps_tuk_v2')).vehicle === 'van'), 'suzuki: selected and saved');
   await p.evaluate(() => { document.getElementById('loading').style.display = 'none'; document.getElementById('btnStart').click(); }); await p.waitForTimeout(1500);
-  await p.evaluate(() => { const s = window.portSim, L = s.line; window._i0 = L.idx; const P = s.POI[L.stops[L.idx]]; s.teleport(P.x + 1, P.z + 1); });
-  await p.waitForFunction(() => { const L = window.portSim.line; return (L.phase === 'drive' && L.idx !== window._i0) || !document.getElementById('pay').hidden; }, null, { timeout: 90000 }).catch(() => {});
-  for (let k = 0; k < 8; k++) { if (await p.evaluate(() => document.getElementById('pay').hidden)) break;
-    await p.evaluate(() => { const A = '٠١٢٣٤٥٦٧٨٩', ar = n => String(n).replace(/[0-9]/g, d => A[d]), de = t => Number(t.replace(/[٠-٩]/g, d => A.indexOf(d))); let r = de(document.getElementById('eGiven').textContent) - de(document.getElementById('eFare').textContent); for (const v of [50, 20, 10, 5, 1]) while (r >= v) { [...document.querySelectorAll('#pNotes .note')].find(x => x.textContent.replace('جنيه', '').trim() === ar(v)).click(); r -= v; } document.getElementById('pOk').click(); });
-    await p.waitForFunction(() => !document.getElementById('pay').hidden || window.portSim.line.phase !== 'pay', null, { timeout: 30000 }).catch(() => {}); await p.waitForTimeout(300); }
-  await p.waitForFunction(() => window.portSim.line.phase === 'drive', null, { timeout: 30000 }).catch(() => {});
-  const L = await p.evaluate(() => ({ idx: window.portSim.line.idx, riders: window.portSim.line.riders.length, i0: window._i0 }));
-  ok(L.idx !== L.i0, 'suzuki: stop served and moved on (riders ' + L.riders + ')');
+  const payChange = () => p.evaluate(() => { if (document.getElementById('pay').hidden) return; const A = '٠١٢٣٤٥٦٧٨٩', ar = n => String(n).replace(/[0-9]/g, d => A[d]); const s = window.portSim, b = s.boarding || s.riders[s.riders.length - 1]; let r = b.change; for (const v of [50, 20, 10, 5, 1]) while (r >= v) { [...document.querySelectorAll('#pNotes .note')].find(x => x.textContent.replace('جنيه', '').trim() === ar(v)).click(); r -= v; } });
+  for (let k = 0; k < 2; k++) {
+    await p.waitForFunction(() => window.portSim.waiting.length > 0, null, { timeout: 60000 }).catch(() => {});
+    await p.evaluate(() => { const s = window.portSim; const w = s.waiting.find(w => !s.riders.some(r => r.to === w.to)) || s.waiting[0]; const P = s.POI[w.poi]; s.teleport(P.x + 1, P.z + 1); });
+    await p.waitForFunction(() => !document.getElementById('pay').hidden, null, { timeout: 120000 }).catch(() => {});
+    await payChange(); await p.waitForFunction(n => document.getElementById('pay').hidden && window.portSim.riders.length === n, k + 1, { timeout: 60000 }).catch(() => {});
+  }
+  const V = await p.evaluate(() => window.portSim.riders.map(r => ({ col: r.col, to: r.to, slot: r.slot, name: r.pax.name })));
+  ok(V.length === 2 && V[0].col !== V[1].col && V[0].slot !== V[1].slot, 'suzuki: two riders aboard, each with an own seat and colour (' + JSON.stringify(V) + ')');
+  ok(await p.evaluate(() => window.portSim.riders.every(r => r.to && window.portSim.POI[r.to])), 'suzuki: every rider has an own drop-off place');
+  // drive to the SECOND rider's stop: they get out there even though the first one is still aboard
+  await p.evaluate(() => { const s = window.portSim, r = s.riders[1], P = s.POI[r.to]; window._second = r.pax.name; s.teleport(P.x, P.z); });
+  await p.waitForFunction(() => window.portSim.riders.length === 1, null, { timeout: 90000 }).catch(() => {});
+  const after2 = await p.evaluate(() => ({ n: window.portSim.riders.length, left: window.portSim.riders.map(r => r.pax.name), second: window._second }));
+  ok(after2.n === 1 && !after2.left.includes(after2.second), 'suzuki: a rider gets out at their own stop in any order (' + JSON.stringify(after2) + ')');
+  ok(await p.evaluate(() => window.portSim.leavers.some(L => L.sp && L.mood)), 'reaction: the rider who got out shows a bubble with a mood (' + await p.evaluate(() => window.portSim.leavers.map(L => L.mood).join(',')) + ')');
   if (PFX) ok(await p.evaluate(() => localStorage.getItem('aps_tuk_v2') === null), 'whole run: main save key never touched');
   console.log(res.join('\n')); console.log('page errors:', errs.length ? errs : 'none'); await b.close();
   process.exit(res.some(r => r.startsWith('FAIL')) ? 1 : 0);

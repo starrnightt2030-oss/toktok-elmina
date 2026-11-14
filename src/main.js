@@ -623,7 +623,7 @@ function loadTuk(gltf){tuk=gltf.scene;
     if(m.name==='Glass'||m.name==='Tint'){o.castShadow=false;m.depthWrite=false;}
     if(m.name==='Chrome'||m.name==='Paint'||m.name==='Rim'){m.envMapIntensity=1.2;}});
   tukBody=tuk.getObjectByName('Body')||tuk;isVan=!!tuk.getObjectByName('Seat1');document.body.classList.toggle('veh-van',isVan);
-  if(isVan){const g=n=>tuk.getObjectByName(n);Object.assign(tukNodes,{sfl:g('SteerFL'),sfr:g('SteerFR'),wfl:g('WheelFL'),wfr:g('WheelFR'),wrl:g('WheelRL'),wrr:g('WheelRR')});vanSeats=[1,2,3,4,5,6].map(i=>g('Seat'+i));}
+  if(isVan){const g=n=>tuk.getObjectByName(n);Object.assign(tukNodes,{sfl:g('SteerFL'),sfr:g('SteerFR'),wfl:g('WheelFL'),wfr:g('WheelFR'),wrl:g('WheelRL'),wrr:g('WheelRR')});vanSeats=[1,2,3,4,5,6].map(i=>g('Seat'+i));SEATS_TUK=6;}
   else{tukNodes.steer=tuk.getObjectByName('SteerF');tukNodes.wf=tuk.getObjectByName('WheelF');tukNodes.wl=tuk.getObjectByName('WheelRL');tukNodes.wr=tuk.getObjectByName('WheelRR');}
   setPaint(save.paint);
   sloganMat=new T.MeshStandardMaterial({map:sloganStrip(save.slogan||SLOGANS[0]),roughness:.5});
@@ -1117,6 +1117,7 @@ function dropTex(n,name,col){return ctex(512,128,g=>{g.fillStyle='rgba(16,27,45,
   g.lineWidth=6;g.strokeStyle=col;g.stroke();g.fillStyle=col;g.beginPath();g.arc(450,64,40,0,7);g.fill();g.fillStyle='#101B2D';g.font='bold 56px '+GAMEF;g.textAlign='center';g.textBaseline='middle';g.fillText(arNum(n),450,70);
   g.direction='rtl';g.textAlign='right';g.fillStyle='#fff';let fs=44;g.font='bold '+fs+'px '+GAMEF;const t='نزول '+name;while(g.measureText(t).width>380&&fs>22){fs-=2;g.font='bold '+fs+'px '+GAMEF;}g.fillText(t,394,68);});}
 function riderList(){const el=$('riders');if(!el)return;if(!riders.length){el.hidden=true;return;}el.hidden=false;
+  el.classList.toggle('many',riders.length>3);
   el.innerHTML=riders.map((r,i)=>'<div class="rd"><i style="background:'+RIDER_COLS[r.col]+'">'+arNum(i+1)+'</i><b>'+r.pax.name+'</b><span>'+POI[r.to].n+'</span></div>').join('');}
 /* ============ mission «مشوار الورديان»: one scripted rider on the normal fare + change system ============ */
 /* ============ missions (Phase 6): scripted riders on the normal fare + change system, one at a time ============ */
@@ -1185,7 +1186,7 @@ function dailyEv(ev,n){const D=daily();let ch=false;for(const q of D.g){const G=
   if(ch)persist();}
 /* events: rush hour (fares ×1.5), a VIP rider (double fare, tip if no knocks), a rider who forgot something */
 const EV={kind:null,t:0,next:rand(70,120)};
-function eventsTick(dt){if(isVan)return;daily();
+function eventsTick(dt){daily();
   if(EV.kind){EV.t-=dt;if(EV.kind==='lost'){const p=POI[EV.poi];if(Math.hypot(p.x-car.x,p.z-car.z)<PICK_R&&Math.abs(car.v)<2.2){const rw=30;save.wallet+=rw;save.total+=rw;save.rep={xp:((save.rep&&save.rep.xp)||0)+12};persist();updateMoney();blip('cash');
         dlgPush([['p','ربنا يخليك يا اسطى! ده أنا كنت هتجنن عليه'],['d','ولا يهمك، الأمانة أمانة']],{name:EV.name,pitch:1});toast('🤝 رجّعت الأمانة لـ'+EV.name+'  • +'+rw+' ج.م  • +١٢ سمعة','good');dailyEv('lost',1);endEvent();return;}}
     if(EV.t<=0){if(EV.kind==='lost')toast('الوقت خلص… '+EV.name+' مشي','bad');endEvent();}evBadge();return;}
@@ -1198,11 +1199,11 @@ function forgotItem(f){if(EV.kind)return;EV.kind='lost';EV.t=75;EV.poi=f.to;EV.n
 function evBadge(){const b=$('evBadge');if(!b)return;const show=EV.kind||streak>=2;b.hidden=!show;if(!show)return;
   const tt=EV.kind?Math.max(0,Math.ceil(EV.t))+'s':'';
   b.innerHTML=(EV.kind==='rush'?'🔥 ساعة الذروة ×١٫٥ '+tt:EV.kind==='vip'?'⭐ زبون VIP مستني '+tt:EV.kind==='lost'?'📱 رجّع موبايل '+EV.name+' '+tt:'')+(streak>=2?'<span>سلسلة ×'+arNum(streak)+'</span>':'');}
-const SEATS_TUK=3,RIDER_COLS=['#3ec6ff','#ff5fd2','#ffd23f'],SEAT_X=[-.33,.33,0];let riders=[],boarding=null;
+let SEATS_TUK=3;const RIDER_COLS=['#3ec6ff','#ff5fd2','#ffd23f','#6dff8a','#ff8a3d','#b48cff'],SEAT_X=[-.33,.33,0];let riders=[],boarding=null;
 function syncFare(){fare=riders[0]||null;riderMarks();riderList();gpsRoute=null;}
 function freeSlot(){const used=riders.concat(boarding?[boarding]:[]).map(r=>r.slot);for(let i=0;i<SEATS_TUK;i++)if(!used.includes(i))return i;return -1;}
 function freeCol(){const used=riders.map(r=>r.col);for(let i=0;i<RIDER_COLS.length;i++)if(!used.includes(i))return i;return 0;}
-function seatAnchor(slot){let a=paxSeat.getObjectByName('slot'+slot);if(!a){a=new T.Group();a.name='slot'+slot;a.position.x=SEAT_X[slot];paxSeat.add(a);}return a;}
+function seatAnchor(slot){if(isVan&&vanSeats[slot])return vanSeats[slot];let a=paxSeat.getObjectByName('slot'+slot);if(!a){a=new T.Group();a.name='slot'+slot;a.position.x=SEAT_X[slot];paxSeat.add(a);}return a;}
 function startFare(w){const M=w.mission&&missionById(w.mission);if(!w.to)chooseDest(w);const to=w.to,r={len:w.len};
   const f={pax:Object.assign({name:w.name},w.type),from:w.poi,to:to,len:r.len,t:0,budget:M&&M.urgent?Math.round(r.len/9+8):Math.round(r.len/7.5+22),hits:0,fast:0,chat:rand(9,13),fastCd:0,phase:'board',wait:1.2,mission:w.mission||null,vip:!!w.vip,slot:freeSlot()};
   /* the rider walks from the pavement to the side of the vehicle, gets in, and pays straight away (see boardTick) */
@@ -1264,15 +1265,15 @@ function finishFare(){const f=fare;if(!f)return;const lost=f.lost||0;let r=5-f.h
   if(lv1>lv0){const rw=LEVEL_REWARD(lv1);save.wallet+=rw;save.total+=rw;setTimeout(()=>toast('⭐ ترقية! بقيت «'+REP_LEVELS[lv1].n+'» — مكافأة '+rw+' ج.م'+(MISSIONS.some(m=>m.lvl===lv1)||MODS.some(m=>m.lvl===lv1)?' وفتحت حاجات جديدة':''),'good'),2600);}
   setTimeout(()=>{if(FM&&!mFail)quip('win',true);else if(late||mFail||f.hits>=3)quip('late');else quip('drop');},1500);
   if(window.onRideDone)window.onRideDone(f,{rating:r,late,tip,mFail});
-  persist();dlgPush((late?pick(END_LATE):pick(END_SEQ)).map(l=>[l[0],l[1].replace('{t}',f.pax.title)]),f.pax);blip('cash');
+  persist();if(r<=2||f.hits>=2)dlgPush([['p',pick(REACT.angry.t)],['d',pick(['حقك عليّا والله','معلش يا باشا، الطريق وحش','خلاص حقك عليا، متزعلش'])]],f.pax);else dlgPush((late?pick(END_LATE):pick(END_SEQ)).map(l=>[l[0],l[1].replace('{t}',f.pax.title)]),f.pax);blip('cash');
   toast((mFail?'المهمة فشلت، اتأخرت! تقدر تعيدها بعدين  • ':'')+'وصّلت '+f.pax.name+(pay?'  • +'+pay+' ج.م':'')+(mb?'  • مكافأة «'+FM.n+'» '+mb:'')+'  • +'+gx+' سمعة'+(tip?'  • بقشيش '+tip:'')+(sb?'  • سلسلة ×'+arNum(streak)+' +'+sb:'')+(vipb?'  • VIP +'+vipb:'')+(late?'  • متأخر':''),mFail?'bad':'good');
   if(!FM&&!f.vip&&Math.random()<.14)forgotItem(f);
-  const sa=paxSeat.getObjectByName('slot'+f.slot);if(sa)sa.clear();alight(f);riders.shift();syncFare();updateMoney();}
+  const sa=isVan?vanSeats[f.slot]:paxSeat.getObjectByName('slot'+f.slot);if(sa)sa.clear();alight(f,r,late);riders.splice(riders.indexOf(f),1);syncFare();updateMoney();}
 function onImpact(s){blip('thud',s);if(riders.length){riders.forEach(r=>r.hits++);if(!quip('crash')&&Dlg.q.length<2)dlgPush([['p',pick(HIT_L)]],pick(riders).pax);}else if(s>.6)quip('crash');}
 let nearMsgT=0,stopHint=0;
 /* boarding / getting out: the rider walks between the kerb and the vehicle's side door */
 const _sp=new T.Vector3();
-function doorPoint(fromX,fromZ){(boarding&&!isVan?seatAnchor(boarding.slot):paxSeat).getWorldPosition(_sp);const rx=Math.cos(car.h),rz=-Math.sin(car.h);const side=((fromX-_sp.x)*rx+(fromZ-_sp.z)*rz)>=0?1:-1;const o=isVan?1.35:.95;return [_sp.x+rx*side*o,_sp.z+rz*side*o];}
+function doorPoint(fromX,fromZ){(boarding?seatAnchor(boarding.slot):paxSeat).getWorldPosition(_sp);const rx=Math.cos(car.h),rz=-Math.sin(car.h);const side=((fromX-_sp.x)*rx+(fromZ-_sp.z)*rz)>=0?1:-1;const o=isVan?1.35:.95;return [_sp.x+rx*side*o,_sp.z+rz*side*o];}
 function stepWalk(m,tx,tz,sp,dt,t){const dx=tx-m.position.x,dz=tz-m.position.z,d=Math.hypot(dx,dz);if(d>.05){const s=Math.min(d,sp*dt);m.position.x+=dx/d*s;m.position.z+=dz/d*s;m.rotation.y=Math.atan2(dx,dz);PEOPLE.play(m,'Walk',.2);}
   else PEOPLE.play(m,'Idle',.3);return d;}
 function boardTick(dt){const f=boarding,W=f.walker;W.t+=dt;const [tx,tz]=doorPoint(W.m.position.x,W.m.position.z);const moving=Math.abs(car.v)>2.5;
@@ -1282,17 +1283,51 @@ function boardTick(dt){const f=boarding,W=f.walker;W.t+=dt;const [tx,tz]=doorPoi
     /* pays as soon as they sit down */
     setTimeout(()=>{if(boarding===f)startPay(f,lost=>paidAtBoard(f,lost));},350);f.phase='seated';}}
 const leavers=[];
-function alight(f){if(f&&f.walker){scene.remove(f.walker.m);f.walker=null;}if(!f||isVan)return;const lk=f.pax.look;if(!lk)return;seatAnchor(f.slot).getWorldPosition(_sp);const p=POI[f.to];const [dx,dz]=doorPoint(p.x+p.sx,p.z+p.sz);
-  const m=person(lk,dx,dz,0);leavers.push({m:m,t:0,tx:p.x+p.sx*1.15,tz:p.z+p.sz*1.15});}
-function leaversTick(dt){for(let i=leavers.length-1;i>=0;i--){const L=leavers[i];L.t+=dt;const d=stepWalk(L.m,L.tx,L.tz,1.5,dt,L.t);
-  if(d<.15){L.m.position.y=0;L.m.rotation.z=0;}if(L.t>9){scene.remove(L.m);leavers.splice(i,1);}}}
-function updateFares(dt){interactions(dt);if(!isVan)eventsTick(dt);spotMat.opacity=spotMatM.opacity=.7+.3*Math.sin(clock*3.2);if(isVan){updateLine(dt);return;}spawnMission(dt);for(let i=0;i<3&&waiting.length<MAXW;i++)spawnWaiting();
+/* getting out, with a reaction: pleased, fed up, or so angry they kick the vehicle, with a bubble and an emoji over their head */
+const REACT={
+  happy:{e:['😄','🥰','👌','😎'],t:['تسلم إيدك يا اسطى!','أحلى مشوار والله','إنت سواق ولا طيار؟ 👏','ربنا يكرمك يا معلم','هركب معاك كل يوم!']},
+  meh:{e:['😒','🙄','😮‍💨'],t:['كان زماني وصلت ماشي…','اتأخرت عليا يا اسطى','ماشي… المرة الجاية بدري','الحمد لله إننا وصلنا أصلاً']},
+  angry:{e:['😡','🤬','💢'],t:['إيه السواقة دي يا جدع!','ضهري اتكسر يا اسطى!','أنا مش راكب معاك تاني!','إنت جايب الرخصة منين؟!','يا ساتر… حسبي الله!']},
+  kick:{e:['🦶💥','😤','🤬'],t:['خد دي عشان المطبات!','العربية دي عايزة تتربى!','آخر مرة أركب معاك!']},
+  funny:{e:['🤣','😂','🤪'],t:['الفكة خليها عليك… لا استنى هاتها','أنا نزلت؟ ولا لسه بحلم؟','الراديو بتاعك عايز يتغيّر يا اسطى','هو إحنا وصلنا ولا لفّينا؟']}};
+function bubbleTex(emoji,text,col){const c=document.createElement('canvas');c.width=512;c.height=176;const g=c.getContext('2d');
+  g.fillStyle='rgba(255,255,255,.96)';g.strokeStyle=col||'#1a2433';g.lineWidth=7;const r=36,w=500,h=128,x=6,y=6;
+  g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.lineTo(x+w/2+22,y+h);g.lineTo(x+w/2,y+h+34);g.lineTo(x+w/2-10,y+h);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();g.fill();g.stroke();
+  g.direction='rtl';g.textAlign='center';g.textBaseline='middle';g.fillStyle='#1a2433';
+  g.font='64px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';g.fillText(emoji,w-50,y+h/2+4);
+  let fs=40;g.font='bold '+fs+'px system-ui,"Segoe UI",Tahoma,sans-serif';while(g.measureText(text).width>w-130&&fs>22){fs-=2;g.font='bold '+fs+'px system-ui,"Segoe UI",Tahoma,sans-serif';}
+  g.fillText(text,x+(w-100)/2+4,y+h/2+2);const t=new T.CanvasTexture(c);t.anisotropy=4;return t;}
+function bubble(m,emoji,text,col){const sp=new T.Sprite(new T.SpriteMaterial({map:bubbleTex(emoji,text,col),transparent:true,depthTest:false,depthWrite:false}));sp.renderOrder=20;
+  sp.scale.set(2.5,.86,1);sp.position.set(0,2.45,0);m.add(sp);return sp;}
+function moodOf(r,late,f){if(f.hits>=3&&Math.random()<.6)return 'kick';if(r<=2||f.hits>=2)return 'angry';if(late||r<3.5)return 'meh';return Math.random()<.18?'funny':'happy';}
+function alight(f,r,late){if(f&&f.walker){scene.remove(f.walker.m);f.walker=null;}if(!f)return;const lk=f.pax.look;if(!lk)return;seatAnchor(f.slot).getWorldPosition(_sp);const p=POI[f.to];const [dx,dz]=doorPoint(p.x+p.sx,p.z+p.sz);
+  const m=person(lk,dx,dz,0);const mood=moodOf(r===undefined?4:r,late,f),R=REACT[mood];const L={m:m,t:0,tx:p.x+p.sx*1.15,tz:p.z+p.sz*1.15,mood:mood,col:RIDER_COLS[f.col],cx:car.x,cz:car.z};
+  L.sp=bubble(m,pick(R.e),pick(R.t),L.col);L.sp.material.opacity=0;leavers.push(L);}
+let kickShake=0;
+function leaversTick(dt){for(let i=leavers.length-1;i>=0;i--){const L=leavers[i];L.t+=dt;const m=L.m;
+    /* the bubble pops up, bobs, then fades */
+    if(L.sp){const a=L.t<.25?L.t/.25:(L.t>4.4?Math.max(0,1-(L.t-4.4)/.6):1);L.sp.material.opacity=a;const k=L.t<.3?.6+L.t/.3*.4+Math.sin(L.t*20)*.08*(1-L.t/.3):1;
+      L.sp.scale.set(2.5*k,.86*k,1);L.sp.position.y=2.45+Math.sin(L.t*3)*.04+(L.mood==='angry'||L.mood==='kick'?Math.sin(L.t*40)*.015:0);}
+    if(L.t<1.6&&(L.mood==='kick'||L.mood==='angry')){   /* turns to the vehicle first */
+      m.rotation.y=Math.atan2(car.x-m.position.x,car.z-m.position.z);
+      if(L.mood==='kick'){const u=(L.t-.5)/.5;if(u>0&&u<1){m.rotation.x=-Math.sin(u*Math.PI)*.35;if(!L.hit&&u>.45){L.hit=true;blip('thud',.7);kickShake=.45;}}else m.rotation.x=0;PEOPLE.play(m,'Idle',.2);}
+      else{PEOPLE.play(m,'Pay',.15);}continue;}
+    if(L.t<1.2&&(L.mood==='happy'||L.mood==='funny')){m.rotation.y=Math.atan2(car.x-m.position.x,car.z-m.position.z);PEOPLE.play(m,'Wave',.2);continue;}
+    m.rotation.x=0;const d=stepWalk(m,L.tx,L.tz,1.5,dt,L.t);
+    if(d<.15){m.position.y=0;m.rotation.z=0;}if(L.t>9){scene.remove(m);if(L.sp&&L.sp.material.map)L.sp.material.map.dispose();leavers.splice(i,1);}}
+  if(kickShake>0&&tuk){kickShake=Math.max(0,kickShake-dt);tuk.rotation.z+=Math.sin(kickShake*60)*kickShake*.09;}}
+function updateFares(dt){interactions(dt);eventsTick(dt);spotMat.opacity=spotMatM.opacity=.7+.3*Math.sin(clock*3.2);spawnMission(dt);for(let i=0;i<3&&waiting.length<MAXW;i++)spawnWaiting();
   for(const w of waiting){w.m.rotation.y=Math.atan2(-(car.x-w.m.position.x),-(car.z-w.m.position.z))+Math.PI;if(w.waveT>0){w.waveT-=dt;if(w.waveT<=0)PEOPLE.play(w.m,'Idle',.4);}
     if(w.tag){const d=Math.hypot(camera.position.x-w.m.position.x,camera.position.z-w.m.position.z);w.tag.visible=d<110;const k=clamp(d/14,1.35,3.2);w.tag.scale.set(3.9*k,1.28*k,1);w.tag.position.y=2.1+(Math.sin(clock*2+w.m.position.x)*.04);}}
   leaversTick(dt);
   if(boarding){boarding.t+=dt;if(boarding.phase==='board')boardTick(dt);}
   for(const r of riders)r.t+=dt;
-  if(fare&&!boarding){const p=POI[fare.to],d=Math.min(Math.hypot(p.x-car.x,p.z-car.z),Math.hypot(p.x+p.sx-car.x,p.z+p.sz-car.z));
+  if(isVan&&riders.length&&!boarding){
+    for(const r of riders){const q=POI[r.to],dq=Math.min(Math.hypot(q.x-car.x,q.z-car.z),Math.hypot(q.x+q.sx-car.x,q.z+q.sz-car.z));
+      if(!r.ann&&dq<70){r.ann=true;toast('🛑 '+r.pax.name+' نازل عند '+q.n);if(!Dlg.cur&&Dlg.q.length<2)dlgPush([['p',pick(L_DOWN)]],r.pax);}
+      if(dq<PICK_R){if(Math.abs(car.v)<2.2){fare=r;finishFare();return;}else if(stopHint<=0){toast('هدّي، '+r.pax.name+' نازل هنا');stopHint=3;}}}}
+  else   if(fare&&!boarding){const p=POI[fare.to],d=Math.min(Math.hypot(p.x-car.x,p.z-car.z),Math.hypot(p.x+p.sx-car.x,p.z+p.sz-car.z));
+    if(!fare.ann&&d<70){fare.ann=true;if(!Dlg.cur&&Dlg.q.length<2)dlgPush([['p',pick(L_DOWN)]],fare.pax);}
     if(d<PICK_R){if(Math.abs(car.v)<2.2){finishFare();return;}else if(stopHint<=0){toast('هدّي ووقّف عند العمود');stopHint=3;}}
     else if(stopHint<=0&&Math.abs(car.v)<1.2){const o=riders.slice(1).find(r=>{const q=POI[r.to];return Math.hypot(q.x-car.x,q.z-car.z)<PICK_R;});
       if(o){toast('لازم توصّل '+fare.pax.name+' الأول، ركب قبل '+o.pax.name);stopHint=4;if(!Dlg.cur&&!Dlg.q.length)dlgPush([['p',pick(ORDER_P)]],fare.pax);}}}
@@ -1414,7 +1449,7 @@ let state='loading';
 function menuWallet(){$('menuWallet').textContent=Math.round(save.wallet)+' ج.م · '+save.trips+' مشوار · ⭐ '+repProgress((save.rep&&save.rep.xp)||0).name;const st=$('btnStartLbl');if(st)st.textContent=save.trips>0?'كمّل الوردية':'ابدأ الوردية';}
 function startGame(){closeGarageView();$('garage').hidden=true;initAudio();if(A.ctx){if(A.ctx.state==='suspended')A.ctx.resume();try{const b=A.ctx.createBuffer(1,1,22050),src=A.ctx.createBufferSource();src.buffer=b;src.connect(A.ctx.destination);src.start(0);}catch(e){}}
   if(Speech.ok){try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}}pickVoices();$('menu').hidden=true;$('hud').hidden=false;state='play';snapCam=true;gpsSize();updateMoney();
-  if(!startGame.done){startGame.done=true;radioPower(true);toast(isVan?'روح المحطة اللي عليها العمود المنوّر، الركاب مستنيينك':'دوّر على الزباين… العمود المنوّر',"good");}else radioUI();canvas.focus({preventScroll:true});}
+  if(!startGame.done){startGame.done=true;radioPower(true);toast(isVan?'السوزوكي فيها ٦ كراسي: لم الزباين، وكل واحد له لون ومكان نزول':'دوّر على الزباين… العمود المنوّر',"good");}else radioUI();canvas.focus({preventScroll:true});}
 function pauseGame(){if(state!=='play')return;state='pause';if(liveEl)liveEl.pause();if(dmEl){dmStop();radio.dmPaused=true;}releaseAll();$('pause').hidden=false;if(A.ctx)A.ctx.suspend();if(Speech.ok)try{speechSynthesis.pause();}catch(e){}persist();}
 function resumeGame(){$('pause').hidden=true;state='play';if(liveEl&&radio.live)liveEl.play().catch(()=>{});if(radio.dmPaused){radio.dmPaused=false;if(radio.on&&RST[radio.idx].dm)dmPlay(RST[radio.idx]);}if(A.ctx)A.ctx.resume();if(Speech.ok)try{speechSynthesis.resume();}catch(e){}canvas.focus({preventScroll:true});}
 $('pResume').addEventListener('click',resumeGame);$('pReset').addEventListener('click',()=>{resetToRoad();resumeGame();toast('رجعناك للطريق');});
@@ -1830,7 +1865,7 @@ async function boot(){try{ldStep('بنفتح بوابة الميناء…');awai
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);
   destRing=new T.Mesh(new T.TorusGeometry(3,.15,8,40),new T.MeshBasicMaterial({color:'#4cff5e'}));destRing.rotation.x=Math.PI/2;destRing.visible=false;scene.add(destRing);
   buildRadioUI();radioUI();syncTuk();menuWallet();updateMoney();
-  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get training(){return TRAINING;},voices:VO,get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,cineSeek:t=>{if(CINE.on){if(CINE.film&&FILM.v)FILM.v.currentTime=t;else CINE.t=t;}},get film(){return {on:!!CINE.film,ready:FILM.ready,bad:FILM.bad,src:FILM.src&&FILM.src.url,t:FILM.v&&FILM.v.currentTime};},get cineShots(){return CINE.shots&&CINE.shots.map(x=>[x.id,x.t0,x.t1]);},get fare(){return fare;},get riders(){return riders;},get boarding(){return boarding;},get people(){return PEOPLE;},get line(){return line;},get perf(){return perf;},quip:(k,f)=>quip(k,f),get quips(){return {on:Quip.on,loaded:Object.keys(Quip.buf).length,playing:Quip.playing,last:Quip.lastId};},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
+  window.portSim={audio:A,mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get training(){return TRAINING;},voices:VO,get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,cineSeek:t=>{if(CINE.on){if(CINE.film&&FILM.v)FILM.v.currentTime=t;else CINE.t=t;}},get film(){return {on:!!CINE.film,ready:FILM.ready,bad:FILM.bad,src:FILM.src&&FILM.src.url,t:FILM.v&&FILM.v.currentTime};},get cineShots(){return CINE.shots&&CINE.shots.map(x=>[x.id,x.t0,x.t1]);},get fare(){return fare;},get riders(){return riders;},get boarding(){return boarding;},get people(){return PEOPLE;},get line(){return line;},get perf(){return perf;},quip:(k,f)=>quip(k,f),get leavers(){return leavers;},get quips(){return {on:Quip.on,loaded:Object.keys(Quip.buf).length,playing:Quip.playing,last:Quip.lastId};},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
   state='menu';ldStep('كله تمام، الوردية مستنياك!');requestAnimationFrame(frame);introReady();}
   catch(err){console.error(err);loadingText.textContent='حصلت مشكلة: '+err.message;}}
 const fr0=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();

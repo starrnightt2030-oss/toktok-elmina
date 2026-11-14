@@ -704,7 +704,7 @@ function setPaint(id){const p=PAINTS.find(q=>q.id===id);if(p&&paintMat)paintMat.
 const input={up:0,down:0,steerKey:0,joy:0,drift:0,turbo:0,horn:0};
 let fuel=100,turbo=1,shake=0,dead=0,skidT=0;
 let veh=null,car=null;
-const ctl={mode:'touch',sens:1,tilt:0,auto:false};try{const c=JSON.parse(ls.get('aps_ctl')||'null');if(c)Object.assign(ctl,c);}catch(e){}
+const ctl={mode:'stick',sens:1,tilt:0,auto:false};try{const c=JSON.parse(ls.get('aps_ctl')||'null');if(c)Object.assign(ctl,c);}catch(e){}if(ctl.mode==='slide')ctl.mode='stick';
 function saveCtl(){try{ls.set('aps_ctl',JSON.stringify({mode:ctl.mode,sens:ctl.sens,auto:ctl.auto}));}catch(e){}}
 addEventListener('deviceorientation',e=>{if(e.gamma==null)return;const land=Math.abs((screen.orientation&&screen.orientation.angle)||window.orientation||0)===90;const a=land?(e.beta||0)*((screen.orientation&&screen.orientation.angle)===270||window.orientation===-90?-1:1):(e.gamma||0);ctl.tilt=clamp(-a/22,-1,1);});
 let padUsed=false;
@@ -810,6 +810,7 @@ function updateTraffic(dt){for(const c of traffic){pathAt(c.P,c.s,tp);const fx=t
     const ta=turnAhead(c.P,c.s);if(ta.d<40){const vc=lerp(c.sp,c.truck?4:5.5,clamp(ta.sharp,0,1));target=Math.min(target,vc+Math.max(0,ta.d-4)*.45);}
     /* keep a gap: speed follows the free distance ahead (about one second of headway), so cars ease off instead of stopping dead */
     const gapTo=(gap,ov)=>{const free=gap-2.5;target=Math.min(target,free<=0?0:Math.max(ov*.9,0)+free*.9,free/1.05);};
+    lightGap(c,tp,fx,fz,gapTo);
     const rx=(car?car.x:1e9)-tp.x,rz=(car?car.z:1e9)-tp.z,al=rx*fx+rz*fz,la=Math.abs(rx*fz-rz*fx);if(al>-1&&al<c.len/2+30&&la<2.4){gapTo(al-c.len/2-1.4,car?Math.max(0,car.vx*fx+car.vz*fz):0);c.blockT=(c.blockT||0)+(c.v<1?dt:0);}else c.blockT=0;
     for(const o of traffic){if(o===c)continue;const ox=o.x-tp.x,oz=o.z-tp.z;if(ox*ox+oz*oz>1600)continue;const a2=ox*fx+oz*fz,l2=Math.abs(ox*fz-oz*fx);if(a2>.5&&a2<40&&l2<2.2&&(o.hx*fx+o.hz*fz)>.3)gapTo(a2-(c.len+o.len)/2,o.v);}
     if(c.blockT>2.2&&state==='play'){c.blockT=-rand(2,4);try{carHonk(Math.max(0,al));}catch(e){}}
@@ -852,8 +853,8 @@ let debugCam=null;
 function updateCam(dt){updateCockpit();if(debugCam){camera.position.set(debugCam[0],debugCam[1],debugCam[2]);camera.lookAt(debugCam[3],debugCam[4],debugCam[5]);return;}const vh=Math.atan2(-car.vx,-car.vz);const spd=Math.hypot(car.vx,car.vz);const hh=(spd>3&&car.v>0?lerpAng(car.h,vh,.35):car.h)+camYaw;const fx=-Math.sin(hh),fz=-Math.cos(hh);
   if(camMode===2){const cf=-Math.sin(car.h),cz=-Math.cos(car.h);tv.set(car.x+cf*.45,car.y+(isVan?1.74:1.6),car.z+cz*.45);tl.set(car.x+fx*12,car.y+(isVan?1.3:.55),car.z+fz*12);camPos.copy(tv);camLook.lerp(tl,snapCam?1:1-Math.exp(-dt*14));}
   else{/* framing follows the screen shape: a tall phone sees more road ahead and the vehicle sits lower, a bigger vehicle gets more room */
-    const port=camera.aspect<1,big=isVan?1.1:0;const dist=(camMode===1?10.5:(port?7.1:6.3))+big+(car.boost?1.2:0)+Math.min(1.4,spd*.045),hgt=(camMode===1?4.8:(port?3.25:2.75))+big*.35;let t=1;for(let i=0;i<8;i++){tv.set(car.x-fx*dist*t,hgt*(.75+.25*t),car.z-fz*dist*t);if(!insideTall(tv.x,tv.y,tv.z))break;t-=.12;}
-    const ahead=port?7:4;tl.set(car.x+fx*ahead,port?1.0:1.2,car.z+fz*ahead);if(snapCam){camPos.copy(tv);camLook.copy(tl);}else{camPos.lerp(tv,1-Math.exp(-dt*5));camLook.lerp(tl,1-Math.exp(-dt*10));}}
+    const port=camera.aspect<1,big=isVan?1.1:0;const dist=(camMode===1?10.5:(port?7.1:6.3))+big+(car.boost?1.2:0)+Math.min(1.4,spd*.045),hgt=(camMode===1?4.8:(port?3.25:2.75))+big*.35;let t=1;const cy=Math.max(0,car.y||0);for(let i=0;i<8;i++){tv.set(car.x-fx*dist*t,hgt*(.75+.25*t)+cy*.75,car.z-fz*dist*t);if(!insideTall(tv.x,tv.y,tv.z))break;t-=.12;}
+    const ahead=port?7:4;tl.set(car.x+fx*ahead,(port?1.0:1.2)+cy*.9,car.z+fz*ahead);if(snapCam){camPos.copy(tv);camLook.copy(tl);}else{camPos.lerp(tv,1-Math.exp(-dt*5));camLook.lerp(tl,1-Math.exp(-dt*10));}}
   snapCam=false;if(!dragging)camYaw*=Math.exp(-dt*1.8);camera.position.copy(camPos);
   if(shake>0){camera.position.x+=(Math.random()-.5)*shake*.25;camera.position.y+=(Math.random()-.5)*shake*.2;shake=Math.max(0,shake-dt*2.5);}
   camera.lookAt(camLook);const tf=baseFov+(car.boost?9:0)+Math.min(9,spd*.3);camera.fov+=(tf-camera.fov)*Math.min(1,dt*4);camera.updateProjectionMatrix();}
@@ -1240,6 +1241,128 @@ function spawnWaiting(){const keys=Object.keys(POI).filter(k=>!waiting.some(w=>w
   const w={poi:k,type:ty,name:pick(ty.names),m:m,b:b};chooseDest(w);addTag(w);waiting.push(w);return w;}
 /* ============ riders (Phase 8): up to 3 in the tuk, each pays when they get in, dropped in the order they got in ============ */
 
+
+/* ============ jumps and speed bumps ============
+   Ramps (crazy mode only): a wedge up and a wedge down on the centre line of a street, between the traffic lanes.
+   Crossing the top fast launches the vehicle; the physics carries it through the air. Speed bumps are always there,
+   across the street, and throw the vehicle up a little when taken fast. */
+const RAMPS=[[-250,60,'z'],[-150,60,'z'],[-50,92,'z'],[50,60,'z'],[150,40,'z'],[286,60,'z'],[370,60,'z'],[-250,178,'z'],[-50,170,'z'],[50,178,'z'],[150,170,'z'],[370,178,'z'],
+  [-200,120,'x'],[-100,120,'x'],[100,120,'x'],[218,120,'x'],[-100,235,'x'],[100,235,'x'],[328,235,'x'],[0,235,'x']]
+  .map(([x,z,ax])=>({x,z,dx:ax==='x'?1:0,dz:ax==='z'?1:0,len:5,w:2.4,h:.9}));
+const BUMPS=[[-50,28,'z'],[50,100,'z'],[-150,150,'z'],[150,205,'z'],[-250,95,'z'],[286,150,'z'],[-30,120,'x'],[200,235,'x'],[-175,235,'x'],[330,120,'x']]
+  .map(([x,z,ax])=>({x,z,dx:ax==='x'?1:0,dz:ax==='z'?1:0,w:9.4}));
+const JMP={on:false,meshes:[],bumpMeshes:[],air:0,airMax:0,peak:0,ts:1,last:null,bumpCd:0};
+const texRamp=ctex(128,256,(g,w,h)=>{g.fillStyle='#f2c218';g.fillRect(0,0,w,h);g.fillStyle='#161616';for(let y=-w;y<h+w;y+=56){g.beginPath();g.moveTo(0,y);g.lineTo(w/2,y+34);g.lineTo(w,y);g.lineTo(w,y+22);g.lineTo(w/2,y+56);g.lineTo(0,y+22);g.closePath();g.fill();}});
+const texBump=ctex(256,32,(g,w,h)=>{for(let x=0;x<w;x+=32){g.fillStyle=(x/32)%2?'#161616':'#f2c218';g.fillRect(x,0,32,h);}});
+function buildJumps(){
+  const rm=new T.MeshStandardMaterial({map:texRamp,roughness:.7}),side=new T.MeshStandardMaterial({color:'#5b6068',roughness:.8});
+  for(const r of RAMPS){const L=r.len,H=r.h,W=r.w;const sh=new T.Shape();sh.moveTo(-L,0);sh.lineTo(0,H);sh.lineTo(L,0);sh.lineTo(-L,0);
+    const g=new T.ExtrudeGeometry(sh,{depth:W,bevelEnabled:false});g.translate(0,0,-W/2);
+    /* UVs along the slope so the chevrons run up the ramp */
+    const pos=g.attributes.position,uv=g.attributes.uv;for(let i=0;i<pos.count;i++){uv.setXY(i,(pos.getZ(i)+W/2)/W,(pos.getX(i)+L)/(2*L)*2.2);}
+    const m=new T.Mesh(g,[side,rm]);m.position.set(r.x,.01,r.z);m.rotation.y=r.dx?0:-Math.PI/2;m.castShadow=m.receiveShadow=true;m.visible=false;scene.add(m);JMP.meshes.push(m);}
+  const bm=new T.MeshStandardMaterial({map:texBump,roughness:.75});
+  for(const b of BUMPS){const g=new T.CylinderGeometry(.5,.5,b.w,16,1);const m=new T.Mesh(g,bm);m.position.set(b.x,-.36,b.z);
+    /* the cylinder lies across the road */
+    if(b.dz)m.rotation.z=Math.PI/2;else m.rotation.x=Math.PI/2;m.receiveShadow=true;scene.add(m);JMP.bumpMeshes.push(m);veh.addBump(b);}}
+function jumpsOn(on){if(JMP.on===on)return;JMP.on=on;JMP.meshes.forEach(m=>m.visible=on);
+  if(on)RAMPS.forEach(r=>{veh.addRamp({x:r.x-r.dx*r.len,z:r.z-r.dz*r.len,dx:r.dx,dz:r.dz,len:r.len,w:r.w,h:r.h});veh.addRamp({x:r.x+r.dx*r.len,z:r.z+r.dz*r.len,dx:-r.dx,dz:-r.dz,len:r.len,w:r.w,h:r.h});});
+  else veh.clearRamps();}
+function jumpTick(dt){if(!car)return;const sp=Math.hypot(car.vx,car.vz);
+  /* ramp lips: launched when crossing the top of a ramp fast */
+  if(JMP.on){for(const r of RAMPS){const ax=car.x-r.x,az=car.z-r.z;const al=ax*r.dx+az*r.dz,la=Math.abs(ax*r.dz-az*r.dx);
+      if(la<1.9&&Math.abs(al)<1.6){const side=Math.sign(al)||1;if(r._side&&r._side!==side&&sp>7&&car.y>.45&&(r._cd||0)<clock){r._cd=clock+1.5;const vy=clamp(sp*.32,3.5,9.5);veh.launch(vy);JMP.peak=car.y;JMP.airMax=0;shake=Math.max(shake,.25);try{sfxWhoosh(.5,.18);}catch(e){}}r._side=side;}else r._side=0;}}
+  /* speed bumps: a jolt and a small hop when taken fast */
+  JMP.bumpCd-=dt;
+  for(const b of BUMPS){const ax=car.x-b.x,az=car.z-b.z;const al=ax*b.dx+az*b.dz,la=Math.abs(ax*b.dz-az*b.dx);
+    if(la<b.w/2&&Math.abs(al)<.7&&JMP.bumpCd<=0&&sp>5.5){JMP.bumpCd=.8;const kmh=sp*3.6;veh.launch(.4+sp*.075,.4);shake=Math.max(shake,Math.min(1.1,kmh/60));blip('thud',Math.min(3,kmh/25));
+      if(riders.length&&kmh>38){riders.forEach(r=>r.hits+=kmh>60?1:0);if(!Dlg.cur&&Dlg.q.length<2)dlgPush([['p',pick(['يا اسطى المطب! هدّي شوية','آآه ضهري! إنت مش شايف المطب؟','يا عم ده مطب مش رامب!','بالراحة يا اسطى، الراكب مش كرتونة'])]],pick(riders).pax);}
+      else if(!riders.length&&kmh>45&&Math.random()<.4)toast('🛺 مطب!');}}
+  /* time in the air, the landing, slow motion on a big jump */
+  if(car.air){JMP.air+=dt;JMP.peak=Math.max(JMP.peak,car.y);}
+  else if(JMP.air>0){const t=JMP.air,h=JMP.peak;JMP.air=0;JMP.peak=0;if(t>.35){shake=Math.max(shake,Math.min(1.4,.4+t));blip('thud',Math.min(4,1+t*2));landDust();
+      if(typeof crazyAir==='function')crazyAir(t,h);}}
+  const want=car.air&&JMP.air>.18&&car.y>1.4?.55:1;JMP.ts+=(want-JMP.ts)*Math.min(1,dt*(want<1?6:3));}
+/* a puff of dust where the vehicle lands, and smoke behind it while drifting */
+const FX={pool:[],i:0};
+function fxInit(){const mat=new T.SpriteMaterial({map:texGlow,color:'#d8d0c0',transparent:true,opacity:0,depthWrite:false});for(let i=0;i<36;i++){const sp=new T.Sprite(mat.clone());sp.visible=false;sp.userData={t:0,life:1,vx:0,vy:0,vz:0,s0:1,s1:3};scene.add(sp);FX.pool.push(sp);}}
+function fxPuff(x,y,z,vx,vy,vz,life,s0,s1,col,op){if(!FX.pool.length)return;const sp=FX.pool[FX.i++%FX.pool.length];const u=sp.userData;u.t=0;u.life=life;u.vx=vx;u.vy=vy;u.vz=vz;u.s0=s0;u.s1=s1;u.op=op||.55;sp.material.color.set(col||'#d8d0c0');sp.position.set(x,y,z);sp.visible=true;}
+function fxTick(dt){for(const sp of FX.pool){if(!sp.visible)continue;const u=sp.userData;u.t+=dt;const k=u.t/u.life;if(k>=1){sp.visible=false;continue;}
+    sp.position.x+=u.vx*dt;sp.position.y+=u.vy*dt;sp.position.z+=u.vz*dt;const sc=u.s0+(u.s1-u.s0)*k;sp.scale.set(sc,sc,1);sp.material.opacity=u.op*(1-k)*(k<.15?k/.15:1);}
+  if(!car)return;FX.acc=(FX.acc||0)+dt;
+  const skid=car.sliding||(car.braking&&Math.abs(car.v)>9)||(car.boost&&Math.abs(car.v)<8);
+  if(skid&&!car.air&&FX.acc>.05){FX.acc=0;const bx=car.x+Math.sin(car.h)*.9,bz=car.z+Math.cos(car.h)*.9;for(const s of [-1,1]){fxPuff(bx+Math.cos(car.h)*.6*s,.25,bz-Math.sin(car.h)*.6*s,rand(-.5,.5),rand(.4,1),rand(-.5,.5),1.1,.6,2.6,'#e6e2da',.45);}}}
+function landDust(){for(let i=0;i<10;i++){const a=i/10*Math.PI*2;fxPuff(car.x+Math.cos(a)*.8,.2,car.z+Math.sin(a)*.8,Math.cos(a)*3,rand(.5,1.5),Math.sin(a)*3,.9,.8,3.4,'#cbbd9f',.6);}}
+function sparks(){for(let i=0;i<8;i++)fxPuff(car.x+rand(-.6,.6),rand(.4,1),car.z+rand(-.6,.6),rand(-5,5),rand(1,4),rand(-5,5),.35,.35,.1,'#ffb347',1);}
+
+/* ============ traffic law: lights at the street crossings, speed radars, fines, and a motorbike officer who chases you ============ */
+const LIGHTS=[[-150,120],[-50,120],[50,120],[150,120],[286,120],[50,235]].map(([x,z],i)=>({x,z,off:i*7.3,st:{},inBox:false}));
+const LCYC=24;   /* along x: green 9 s, yellow 2, all red 1; then the same along z */
+function lightState(L,ax){const t=((clock+L.off)%LCYC+LCYC)%LCYC;const tt=ax==='x'?t:(t+12)%LCYC;return tt<9?'g':tt<11?'y':'r';}
+const RADARS=[{x:-150,z:40,lim:60,px:-6.6,pz:0},{x:50,z:200,lim:60,px:6.6,pz:0},{x:-50,z:160,lim:50,px:-6.6,pz:0},{x:-100,z:0,lim:70,px:0,pz:12.6},{x:225,z:0,lim:70,px:0,pz:-12.6},{x:-200,z:235,lim:50,px:0,pz:6.6}];
+const LAW={heat:0,count:0,flashT:0,radarCd:{}};
+const OFFICER={name:'عسكري المرور',pitch:.8,rate:1};
+function limitSign(n){return ctex(128,128,g=>{g.fillStyle='#fff';g.beginPath();g.arc(64,64,62,0,7);g.fill();g.strokeStyle='#d0261c';g.lineWidth=14;g.beginPath();g.arc(64,64,54,0,7);g.stroke();
+  g.fillStyle='#111';g.font='700 50px '+AR;g.textAlign='center';g.textBaseline='middle';g.fillText(arNum(n),64,68);});}
+function buildLaw(){const pole=new T.MeshStandardMaterial({color:'#4a4f57',roughness:.6,metalness:.4}),body=new T.MeshStandardMaterial({color:'#1b1d22',roughness:.6});
+  const lampGeo=new T.SphereGeometry(.12,10,8),headGeo=new T.BoxGeometry(.4,1.05,.3),poleGeo=new T.CylinderGeometry(.09,.11,4.6,8);poleGeo.translate(0,2.3,0);
+  const lampMat=c=>new T.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:.05,roughness:.4});
+  for(const L of LIGHTS){L.mats={x:[lampMat('#ff2a1a'),lampMat('#ffb300'),lampMat('#22e05a')],z:[lampMat('#ff2a1a'),lampMat('#ffb300'),lampMat('#22e05a')]};
+    /* two poles on opposite corners; each carries a head for each direction, turned toward the drivers coming at it */
+    for(const sg of [1,-1]){const px=L.x+6.4*sg,pz=L.z+6.4*sg;const pm=new T.Mesh(poleGeo,pole);pm.position.set(px,0,pz);scene.add(pm);col(px-.15,px+.15,pz-.15,pz+.15,4);
+      for(const ax of ['x','z']){const hd=new T.Group();const hb=new T.Mesh(headGeo,body);hd.add(hb);L.mats[ax].forEach((m,i)=>{const l=new T.Mesh(lampGeo,m);l.position.set(0,.32-i*.32,.16);hd.add(l);});
+        hd.position.set(px,3.9,pz);hd.rotation.y=ax==='x'?(sg>0?Math.PI/2:-Math.PI/2):(sg>0?0:Math.PI);hd.position.x+=ax==='z'?-.0:0;hd.position.y+=ax==='x'?0:-1.2;scene.add(hd);}}}
+  for(const R of RADARS){const x=R.x+R.px,z=R.z+R.pz;const pm=new T.Mesh(poleGeo,pole);pm.position.set(x,0,z);scene.add(pm);col(x-.15,x+.15,z-.15,z+.15,4);
+    const cam=new T.Mesh(new T.BoxGeometry(.55,.4,.7),new T.MeshStandardMaterial({color:'#e8e5dc',roughness:.5}));cam.position.set(x,4.3,z);scene.add(cam);
+    const lens=new T.Mesh(new T.CircleGeometry(.12,12),new T.MeshBasicMaterial({color:'#101820'}));const sign=new T.Mesh(new T.CircleGeometry(.45,24),new T.MeshBasicMaterial({map:limitSign(R.lim),side:T.DoubleSide}));
+    sign.position.set(x,3.2,z);sign.rotation.y=R.pz?Math.PI/2:0;scene.add(sign);lens.position.set(x,4.3,z);lens.rotation.y=sign.rotation.y;scene.add(lens);R.cam=cam;}}
+function lawLights(){for(const L of LIGHTS)for(const ax of ['x','z']){const s2=lightState(L,ax);if(L.st[ax]===s2)continue;L.st[ax]=s2;const [r,y,g]=L.mats[ax];r.emissiveIntensity=s2==='r'?2.6:.05;y.emissiveIntensity=s2==='y'?2.6:.05;g.emissiveIntensity=s2==='g'?2.6:.05;}}
+/* traffic stops at red (and at yellow when it still can) */
+function lightGap(c,tp,fx,fz,gapTo){for(const L of LIGHTS){const lx=L.x-tp.x,lz=L.z-tp.z;if(lx*lx+lz*lz>1600)continue;const al=lx*fx+lz*fz;if(al<0)continue;if(Math.abs(lx*fz-lz*fx)>7)continue;
+    const st=lightState(L,Math.abs(fx)>Math.abs(fz)?'x':'z');if(st==='g')continue;const stop=al-7-c.len/2;if(stop<-.5)continue;if(st==='y'&&stop<9)continue;gapTo(stop+2.5,0);}}
+function camFlash(){const el=$('camFlash');if(!el)return;el.classList.remove('go');void el.offsetWidth;el.classList.add('go');try{sfxShutter();}catch(e){}}
+function sfxShutter(){if(!A.ctx)return;const ctx=A.ctx,t=ctx.currentTime;const n=ctx.createBufferSource();n.buffer=noiseBuf(.08);const f=ctx.createBiquadFilter();f.type='highpass';f.frequency.value=2500;const g=ctx.createGain();g.gain.setValueAtTime(.25,t);g.gain.exponentialRampToValueAtTime(.001,t+.08);n.connect(f);f.connect(g);g.connect(A.sfx);n.start(t);}
+function violation(name,fine,heat){fine=Math.max(5,Math.round(fine/5)*5);LAW.heat+=heat;LAW.count++;/* never take the last 15 ج.م: enough left for some fuel */const paid=Math.max(0,Math.min(save.wallet-15,fine));save.wallet-=paid;if(CRAZY.on)CRAZY.cash=Math.max(0,CRAZY.cash-fine);
+  updateMoney();persist();toast('📸 مخالفة '+name+': '+arNum(fine)+' ج.م','bad');if(riders.length&&!Dlg.cur&&Dlg.q.length<2)dlgPush([['p',pick(['يا نهار أبيض! الرادار صوّرك','كده هتدفع المخالفة من جيبك يا اسطى','أنا قلتلك هدّي!'])]],pick(riders).pax);
+  if(LAW.heat>=2&&!POL.on)policeStart();}
+function lawTick(dt){lawLights();LAW.heat=Math.max(0,LAW.heat-dt/40);const sp=Math.hypot(car.vx,car.vz),kmh=sp*3.6;
+  for(const L of LIGHTS){const inB=Math.abs(car.x-L.x)<5.5&&Math.abs(car.z-L.z)<5.5;if(inB&&!L.inBox&&sp>2.5){const ax=Math.abs(car.vx)>Math.abs(car.vz)?'x':'z';if(lightState(L,ax)==='r')violation('كسر إشارة',50,1.4);}L.inBox=inB;}
+  for(const R of RADARS){const d=Math.hypot(car.x-R.x,car.z-R.z);if(d<9&&(LAW.radarCd[R.x+','+R.z]||0)<clock&&kmh>R.lim+4){LAW.radarCd[R.x+','+R.z]=clock+8;camFlash();violation('سرعة '+arNum(Math.round(kmh))+' في '+arNum(R.lim),15+(kmh-R.lim)*.8,kmh>R.lim+25?2:1);}}
+  policeTick(dt);}
+/* the motorbike officer: rides along the streets to you, siren on; stop next to him and you pay, outrun him and you are free */
+const POL={on:false,m:null,x:0,z:0,h:0,v:0,t:0,near:0,far:0,rt:0,pts:null,pi:0,lights:[],siren:null,lean:0};
+function policeBuild(){const g=new T.Group();const wm=new T.MeshStandardMaterial({color:'#151515',roughness:.8}),bm=new T.MeshStandardMaterial({color:'#f2f2f2',roughness:.4,metalness:.2}),dm=new T.MeshStandardMaterial({color:'#1f3a6b',roughness:.5});
+  const wg=new T.CylinderGeometry(.33,.33,.14,16);wg.rotateZ(Math.PI/2);[-.72,.72].forEach(z=>{const w=new T.Mesh(wg,wm);w.position.set(0,.33,z);g.add(w);});
+  const b1=new T.Mesh(new T.BoxGeometry(.36,.42,1.25),bm);b1.position.set(0,.68,0);g.add(b1);const b2=new T.Mesh(new T.BoxGeometry(.5,.32,.55),dm);b2.position.set(0,.78,.5);g.add(b2);
+  const fr=new T.Mesh(new T.BoxGeometry(.52,.5,.2),bm);fr.position.set(0,1.0,-.62);g.add(fr);
+  const off=human({variant:'Worker',shirt:'#f4f4f4',pants:'#1b2533',helmet:'#f6f6f6',skin:'#9a6b4a'},'Drive');off.position.set(0,.05,.12);off.rotation.y=Math.PI;g.add(off);
+  [['#ff2020',-.18],['#2050ff',.18]].forEach(([c,x])=>{const sp=new T.Sprite(new T.SpriteMaterial({map:texGlow,color:c,transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false}));sp.position.set(x,1.45,.75);sp.scale.set(.8,.8,1);g.add(sp);POL.lights.push(sp);});
+  g.visible=false;scene.add(g);POL.m=g;}
+function sirenOn(on){if(!A.ctx)return;if(on&&!POL.siren){const ctx=A.ctx;const o=ctx.createOscillator();o.type='sawtooth';const lfo=ctx.createOscillator();lfo.frequency.value=.55;const lg=ctx.createGain();lg.gain.value=230;lfo.connect(lg);lg.connect(o.frequency);o.frequency.value=820;
+    const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=2400;const g=ctx.createGain();g.gain.value=0;o.connect(lp);lp.connect(g);g.connect(A.sfx);o.start();lfo.start();POL.siren={o,lfo,g};}
+  else if(!on&&POL.siren){const S=POL.siren;POL.siren=null;try{S.g.gain.setTargetAtTime(0,A.ctx.currentTime,.1);setTimeout(()=>{try{S.o.stop();S.lfo.stop();}catch(e){}},500);}catch(e){}}}
+function policeStart(){if(POL.on||!car)return;if(!POL.m)policeBuild();
+  /* come from a crossing 60–110 m behind, else any one that far */
+  const bx=-Math.sin(car.h),bz=-Math.cos(car.h);let best=null,bs=-1e9;for(const n of NL){const dx=n.x-car.x,dz=n.z-car.z,d=Math.hypot(dx,dz);if(d<55||d>120)continue;const sc=-(dx*bx+dz*bz)/d-Math.abs(d-80)/80;if(sc>bs){bs=sc;best=n;}}
+  if(!best)return;POL.on=true;POL.x=best.x;POL.z=best.z;POL.v=8;POL.t=0;POL.near=0;POL.far=0;POL.rt=0;POL.pts=null;POL.m.visible=true;sirenOn(true);
+  $('wanted').hidden=false;toast('🚨 عسكري المرور وراك! اقف أو اهرب منه','bad');if(!Dlg.cur)dlgPush([['p','قف عندك يا بتاع التوكتوك! اركن على جنب!']],OFFICER);}
+function policeEnd(){POL.on=false;if(POL.m)POL.m.visible=false;sirenOn(false);$('wanted').hidden=true;LAW.heat=0;}
+function policeTick(dt){if(!POL.on)return;POL.t+=dt;const dx0=car.x-POL.x,dz0=car.z-POL.z,dist=Math.hypot(dx0,dz0);
+  let tx,tz;if(dist<22){const rx=Math.cos(car.h),rz=-Math.sin(car.h);tx=car.x+rx*2.2;tz=car.z+rz*2.2;}
+  else{POL.rt-=dt;if(!POL.pts||POL.rt<=0){POL.pts=route(POL.x,POL.z,car.x,car.z).pts;POL.pi=0;POL.rt=.8;}
+    while(POL.pi<POL.pts.length-1&&Math.hypot(POL.pts[POL.pi][0]-POL.x,POL.pts[POL.pi][1]-POL.z)<4)POL.pi++;[tx,tz]=POL.pts[POL.pi];}
+  const psp=Math.hypot(car.vx,car.vz);const want=dist<6?Math.max(psp,2):clamp(psp+dist*.35,10,31);POL.v+=(want-POL.v)*Math.min(1,dt*1.6);
+  const hx=tx-POL.x,hz=tz-POL.z,hl=Math.hypot(hx,hz)||1;const th=Math.atan2(-hx,-hz);let dh=th-POL.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
+  const turn=clamp(dh,-dt*3.2,dt*3.2);POL.h+=turn;const step=Math.min(hl,POL.v*dt);POL.x-=Math.sin(POL.h)*step;POL.z-=Math.cos(POL.h)*step;POL.lean+=(clamp(-turn/dt*.12,-.4,.4)-POL.lean)*Math.min(1,dt*5);
+  POL.m.position.set(POL.x,0,POL.z);POL.m.rotation.set(0,POL.h,0);POL.m.rotateZ(POL.lean);const fl=Math.sin(clock*14)>0;POL.lights[0].material.opacity=fl?1:.15;POL.lights[1].material.opacity=fl?.15:1;
+  if(POL.siren)POL.siren.g.gain.setTargetAtTime(.05*clamp(1-dist/140,.08,1),A.ctx.currentTime,.1);
+  $('wantedTxt').textContent='🚨 العسكري وراك · '+arNum(Math.round(dist))+' م';
+  if(dist<4.5){POL.near+=dt*(psp<3.5?1:.35);if(POL.near>1.4)return policeCaught();}else POL.near=Math.max(0,POL.near-dt);
+  if(dist>140){POL.far+=dt;if(POL.far>5)return policeEscape();}else POL.far=0;
+  if(POL.t>70)policeEscape();}
+function policeCaught(){const fine=60+LAW.count*10;const paid=Math.max(0,Math.min(save.wallet-15,fine));save.wallet-=paid;if(CRAZY.on){CRAZY.cash=Math.max(0,CRAZY.cash-fine);CRAZY.t=Math.max(1,CRAZY.t-15);crazyPop('العسكري مسكك! −١٥ ثانية','bad');}
+  updateMoney();persist();toast('👮 العسكري مسكك! غرامة '+arNum(fine)+' ج.م','bad');dlgPush([['p',pick(['إنت فاكر نفسك في سباق؟! هات الرخص يا اسطى','مخالفة يا معلّم، والمرة الجاية هسحب التوكتوك','رخصك وكارنيه التوكتوك… يلا بسرعة'])],['d',pick(['حقك عليا يا باشا، مش هتتكرر','والله كنت مستعجل عشان الزبون يا باشا'])]],OFFICER);try{quip('angry');}catch(e){}policeEnd();}
+function policeEscape(){toast('😎 هربت من العسكري!','good');if(CRAZY.on){CRAZY.t+=10;crazyPop('هربت! +١٠ ثواني','time');if(riders.length)crazyStunt('هروب',10);}try{quip('fast');}catch(e){}policeEnd();}
 /* ============ «وضع المجنون»: a countdown run like Crazy Taxi — fares one after another, seconds added at every drop-off,
    tips for near misses and drifts while carrying riders, a combo that breaks on any crash, a rank and a best score at the end ============ */
 const CRAZY={on:false,t:0,fares:0,cash:0,combo:0,comboT:0,slideT:0,slidePaid:false,lastHit:-9,pend:null,warn:0,
@@ -1253,15 +1376,16 @@ function crazyHud(){const el=$('crazyTime');if(!el)return;el.textContent='⏱ '+
 function crazyClearRiders(){if(boarding){if(boarding.walker)scene.remove(boarding.walker.m);const a=seatAnchor(boarding.slot);if(a)a.clear();boarding=null;}
   $('pay').hidden=true;payS.f=null;
   for(const f of riders.slice()){const sa=isVan?vanSeats[f.slot]:paxSeat.getObjectByName('slot'+f.slot);if(sa)sa.clear();riders.splice(riders.indexOf(f),1);}syncFare();}
-function crazyBegin(){CRAZY.on=true;CRAZY.t=90;CRAZY.fares=0;CRAZY.cash=0;CRAZY.combo=0;CRAZY.pend=null;CRAZY.warn=0;fuel=100;turbo=1;
-  document.body.classList.add('crazy');$('crazyHud').hidden=false;$('crazyEnd').hidden=true;crazyHud();}
-function crazyStart(){crazyBegin();startGame();setTimeout(()=>toast('🔥 وضع المجنون! وصّل أكتر زباين قبل ما الوقت يخلص','good'),300);}
-function crazyStop(){CRAZY.on=false;document.body.classList.remove('crazy');$('crazyHud').hidden=true;$('crazyEnd').hidden=true;}
+function crazyBegin(){CRAZY.on=true;CRAZY.t=300;CRAZY.fares=0;CRAZY.cash=0;CRAZY.combo=0;CRAZY.pend=null;CRAZY.warn=0;fuel=100;turbo=1;
+  document.body.classList.add('crazy');jumpsOn(true);$('crazyHud').hidden=false;$('crazyEnd').hidden=true;crazyHud();}
+function crazyStart(){crazyBegin();startGame();setTimeout(()=>toast('🔥 وضع المجنون! ٥ دقايق، الرمبات الصفرا بتطيّرك','good'),300);}
+function crazyStop(){CRAZY.on=false;if(POL.on)policeEnd();jumpsOn(false);document.body.classList.remove('crazy');$('crazyHud').hidden=true;$('crazyEnd').hidden=true;}
 function crazyStunt(name,amt){if(!riders.length)return;const now=clock;CRAZY.combo=now-CRAZY.comboT<3.5?CRAZY.combo+1:1;CRAZY.comboT=now;
   const m=Math.min(5,CRAZY.combo),got=amt*m;save.wallet+=got;save.total+=got;CRAZY.cash+=got;updateMoney();blip('ok');
   crazyPop(name+' +'+arNum(got)+' ج'+(m>1?'  ×'+arNum(m):''),'tip');crazyHud();}
 function crazyDrop(f,late){if(!CRAZY.on)return;const sec=late?3:clamp(Math.round((f.budget-f.t)/4)+6,6,16);CRAZY.t+=sec;CRAZY.fares++;
   crazyPop('+'+arNum(sec)+' ثانية','time');crazyHud();}
+function crazyAir(t,h){if(!CRAZY.on)return;const amt=Math.round(t*5+h*1.5);crazyPop('طيران! '+arNum(t.toFixed(1))+' ث','tip');if(riders.length)setTimeout(()=>crazyStunt('نطّة',amt),250);}
 function crazyImpact(){if(!CRAZY.on)return;CRAZY.lastHit=clock;if(CRAZY.combo>1)crazyPop('الكومبو ضاع!','bad');CRAZY.combo=0;crazyHud();}
 function crazyTick(dt){if(!CRAZY.on)return;CRAZY.t-=dt;fuel=100;
   /* near miss: passing right beside a car at speed without touching it */
@@ -1273,13 +1397,13 @@ function crazyTick(dt){if(!CRAZY.on)return;CRAZY.t-=dt;fuel=100;
   if(CRAZY.t<=10&&CRAZY.warn<1){CRAZY.warn=1;toast('⏱ فاضل ١٠ ثواني!','bad');}
   crazyHud.k=(crazyHud.k||0)+dt;if(crazyHud.k>.2){crazyHud.k=0;crazyHud();}
   if(CRAZY.t<=0)crazyEnd();}
-function crazyEnd(){CRAZY.t=0;crazyHud();state='crazyEnd';releaseAll();crazyClearRiders();
+function crazyEnd(){if(POL.on)policeEnd();CRAZY.t=0;crazyHud();state='crazyEnd';releaseAll();crazyClearRiders();
   const b=CRAZY.best,isBest=CRAZY.fares>b.fares||(CRAZY.fares===b.fares&&CRAZY.cash>b.cash&&CRAZY.fares>0);
   if(isBest){CRAZY.best={fares:CRAZY.fares,cash:Math.round(CRAZY.cash)};try{ls.set('aps_crazy_best',JSON.stringify(CRAZY.best));}catch(e){}}
   $('ceRank').textContent=crazyRank(CRAZY.fares);$('ceFares').textContent=arNum(CRAZY.fares);$('ceCash').textContent=arNum(Math.round(CRAZY.cash))+' ج.م';
   $('ceBest').textContent=isBest?'🏆 رقم قياسي جديد!':'أحسن رقم: '+arNum(CRAZY.best.fares)+' مشوار · '+arNum(CRAZY.best.cash)+' ج.م';
   $('crazyEnd').hidden=false;persist();try{quip(isBest?'win':'late',true);}catch(e){}}
-function crazyAgain(){crazyBegin();state='play';snapCam=true;resetToRoad();toast('🔥 تاني! ٩٠ ثانية','good');}
+function crazyAgain(){crazyBegin();state='play';snapCam=true;resetToRoad();toast('🔥 تاني! ٥ دقايق','good');}
 function crazyQuit(){crazyStop();$('hud').hidden=true;$('menu').hidden=false;state='menu';if(liveEl)liveEl.pause();dmStop();dlgClear();menuWallet();}
 /* ============ daily goals, events, streaks (Phase 8): something new to chase every session ============ */
 const DAILY_POOL=[
@@ -1385,7 +1509,7 @@ function finishFare(){const f=fare;if(!f)return;const lost=f.lost||0;let r=5-f.h
 /* what the vehicle just ran into: another car, a person walking, or something standing (wall, pole, kerb, container) */
 function hitKind(){for(const w of walkers){if(Math.hypot(w.m.position.x-car.x,w.m.position.z-car.z)<3)return 'hitPed';}
   for(const c of traffic){if(Math.hypot(c.x-car.x,c.z-car.z)<(c.r||1.1)+(c.len||3)*.5+2.2)return 'hitCar';}return 'hitWall';}
-function onImpact(s){blip('thud',s);crazyImpact();const k=hitKind();Quip.lastHit=k;if(riders.length){riders.forEach(r=>r.hits++);if(!quip(k)&&Dlg.q.length<2)dlgPush([['p',pick(HIT_L)]],pick(riders).pax);}else if(s>.45)quip(k);}
+function onImpact(s){blip('thud',s);crazyImpact();if(s>3)sparks();const k=hitKind();Quip.lastHit=k;if(riders.length){riders.forEach(r=>r.hits++);if(!quip(k)&&Dlg.q.length<2)dlgPush([['p',pick(HIT_L)]],pick(riders).pax);}else if(s>.45)quip(k);}
 let nearMsgT=0,stopHint=0;
 /* boarding / getting out: the rider walks between the kerb and the vehicle's side door */
 const _sp=new T.Vector3();
@@ -1550,13 +1674,17 @@ function joyMove(e){const p=ptrInfo(e);if(p.d<.22){lastA=p.a;return;}let d=p.a-l
 joy.addEventListener('pointerdown',e=>{e.preventDefault();if(joyId!==null)return;joyId=e.pointerId;joy.classList.add('held');try{joy.setPointerCapture(e.pointerId);}catch(_){}lastA=ptrInfo(e).a;});
 joy.addEventListener('pointermove',e=>{if(e.pointerId!==joyId)return;e.preventDefault();const ev=e.getCoalescedEvents?e.getCoalescedEvents():[];if(ev.length)ev.forEach(joyMove);else joyMove(e);});
 ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>joy.addEventListener(ev,e=>{if(e.pointerId!==joyId)return;joyId=null;joy.classList.remove('held');}));
-/* slide steering: put a thumb anywhere on the strip and slide left/right, the further the more it turns; let go and it centres */
-const slideEl=$('slide'),slThumb=$('slThumb');let slId=null,slX0=0;
-function slideSet(dx){const R=slideEl.clientWidth*.34||80;let v=clamp(dx/R,-1,1);if(Math.abs(v)<.06)v=0;input.joy=-v;input.wheel=1;slThumb.style.transform='translateX('+(v*R).toFixed(1)+'px)';}
-function slideOff(){slId=null;slideEl.classList.remove('held');input.joy=0;input.wheel=0;slThumb.style.transform='';}
-if(slideEl){slideEl.addEventListener('pointerdown',e=>{e.preventDefault();if(slId!==null)return;slId=e.pointerId;slX0=e.clientX;slideEl.classList.add('held');try{slideEl.setPointerCapture(e.pointerId);}catch(_){}slideSet(0);});
-  slideEl.addEventListener('pointermove',e=>{if(e.pointerId!==slId)return;e.preventDefault();slideSet(e.clientX-slX0);});
-  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>slideEl.addEventListener(ev,e=>{if(e.pointerId===slId)slideOff();}));slideEl.addEventListener('contextmenu',e=>e.preventDefault());}
+/* analog stick (like a gamepad thumbstick): touch anywhere in the left zone, the stick base appears under the thumb,
+   sideways travel steers with a sensitive curve (small moves = fine corrections), let go and it centres */
+const stickEl=$('stick'),stBase=$('stBase'),stKnob=$('stKnob');let slId=null,slX0=0,slY0=0;
+const STK={R:52};
+function stickSet(dx,dy){const R=STK.R;const d=Math.hypot(dx,dy),k=d>R?R/d:1;dx*=k;dy*=k;let v=dx/R;v=Math.abs(v)<.05?0:Math.sign(v)*Math.pow((Math.abs(v)-.05)/.95,.8);
+  input.joy=-clamp(v*1.15,-1,1);input.wheel=1;stKnob.style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px)';}
+function slideOff(){slId=null;stickEl.classList.remove('held');input.joy=0;input.wheel=0;stKnob.style.transform='';stBase.style.left=stBase.style.top='';}
+if(stickEl){stickEl.addEventListener('pointerdown',e=>{e.preventDefault();if(slId!==null)return;slId=e.pointerId;const r=stickEl.getBoundingClientRect();slX0=e.clientX;slY0=e.clientY;
+    stBase.style.left=(e.clientX-r.left)+'px';stBase.style.top=(e.clientY-r.top)+'px';stickEl.classList.add('held');try{stickEl.setPointerCapture(e.pointerId);}catch(_){}stickSet(0,0);});
+  stickEl.addEventListener('pointermove',e=>{if(e.pointerId!==slId)return;e.preventDefault();const ev=e.getCoalescedEvents?e.getCoalescedEvents():[];const l=ev.length?ev[ev.length-1]:e;stickSet(l.clientX-slX0,l.clientY-slY0);});
+  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>stickEl.addEventListener(ev,e=>{if(e.pointerId===slId)slideOff();}));stickEl.addEventListener('contextmenu',e=>e.preventDefault());}
 function wheelReturn(dt){if(joyId===null&&wheelAng!==0){const k=Math.min(1,dt*7);const a=Math.abs(wheelAng)<1.5?0:wheelAng*(1-k);setWheel(a);if(!a)input.wheel=0;}}
 const hb=$('bHorn');hb.addEventListener('pointerdown',e=>{e.preventDefault();input.horn=1;try{hb.setPointerCapture(e.pointerId);}catch(_){}});['pointerup','pointercancel','lostpointercapture'].forEach(ev=>hb.addEventListener(ev,()=>{input.horn=0;}));
 $('bCam').addEventListener('click',cycleCam);$('bRadio').addEventListener('click',toggleRadio);$('bPause').addEventListener('click',pauseGame);$('bMute').addEventListener('click',()=>{initAudio();setMute(!A.muted);});
@@ -1576,12 +1704,12 @@ function startGame(){closeGarageView();$('garage').hidden=true;initAudio();if(A.
 function pauseGame(){if(state!=='play')return;state='pause';if(liveEl)liveEl.pause();if(dmEl){dmStop();radio.dmPaused=true;}releaseAll();$('pause').hidden=false;if(A.ctx)A.ctx.suspend();if(Speech.ok)try{speechSynthesis.pause();}catch(e){}persist();}
 function resumeGame(){$('pause').hidden=true;state='play';if(liveEl&&radio.live)liveEl.play().catch(()=>{});if(radio.dmPaused){radio.dmPaused=false;if(radio.on&&RST[radio.idx].dm)dmPlay(RST[radio.idx]);}if(A.ctx)A.ctx.resume();if(Speech.ok)try{speechSynthesis.resume();}catch(e){}canvas.focus({preventScroll:true});}
 $('pResume').addEventListener('click',resumeGame);$('pReset').addEventListener('click',()=>{resetToRoad();resumeGame();toast('رجعناك للطريق');});
-$('pMenu').addEventListener('click',()=>{if(CRAZY.on)crazyStop();if(liveEl)liveEl.pause();dmStop();radio.dmPaused=false;$('pause').hidden=true;$('hud').hidden=true;$('menu').hidden=false;state='menu';dlgClear();menuWallet();$('btnStart').textContent='كمّل الوردية';});
+$('pMenu').addEventListener('click',()=>{if(POL.on)policeEnd();if(CRAZY.on)crazyStop();if(liveEl)liveEl.pause();dmStop();radio.dmPaused=false;$('pause').hidden=true;$('hud').hidden=true;$('menu').hidden=false;state='menu';dlgClear();menuWallet();$('btnStart').textContent='كمّل الوردية';});
 $('btnStart').addEventListener('click',()=>{if(CRAZY.on)crazyStop();startGame();});
 $('btnCrazy').addEventListener('click',crazyStart);$('ceAgain').addEventListener('click',crazyAgain);$('ceMenu').addEventListener('click',crazyQuit);
-function ctlUI(){document.body.classList.toggle('ctl-arrows',ctl.mode==='arrows');document.body.classList.toggle('ctl-slide',ctl.mode==='slide');document.body.classList.toggle('ctl-auto',!!ctl.auto);$('btnCtl').textContent='التحكم: '+({tilt:'إمالة الموبايل',arrows:'الأسهم',slide:'السحب'}[ctl.mode]||'الدركسيون');$('btnSens').textContent='الدركسيون: '+({0.7:'تقيل',1:'عادي',1.35:'خفيف'}[ctl.sens]||'عادي');}
+function ctlUI(){document.body.classList.toggle('ctl-arrows',ctl.mode==='arrows');document.body.classList.toggle('ctl-stick',ctl.mode==='stick');document.body.classList.toggle('ctl-auto',!!ctl.auto);$('btnCtl').textContent='التحكم: '+({tilt:'إمالة الموبايل',arrows:'الأسهم',stick:'الأنالوج'}[ctl.mode]||'الدركسيون');$('btnSens').textContent='الدركسيون: '+({0.7:'تقيل',1:'عادي',1.35:'خفيف'}[ctl.sens]||'عادي');}
 async function setCtl(m){if(m==='tilt'){try{if(window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission){const r=await DeviceOrientationEvent.requestPermission();if(r!=='granted'){toast('الموبايل رفض الإمالة');return;}}}catch(e){}}ctl.mode=m;saveCtl();ctlUI();}
-$('btnCtl').addEventListener('click',()=>setCtl({touch:'slide',slide:'arrows',arrows:'tilt'}[ctl.mode]||'touch'));
+$('btnCtl').addEventListener('click',()=>setCtl({touch:'stick',stick:'arrows',arrows:'tilt'}[ctl.mode]||'touch'));
 $('btnSens').addEventListener('click',()=>{ctl.sens=ctl.sens===1?1.35:(ctl.sens===1.35?0.7:1);saveCtl();ctlUI();});
 ctlUI();
 $('btnVoiceTest').addEventListener('click',()=>{const n=$('voiceNote');n.hidden=false;if(Speech.mode!=='browser'){initAudio();if(A.ctx&&A.ctx.state!=='running')A.ctx.resume();const ln=pick(INTRO_P).replace('{d}','مركز التدريب');VO.speak(ln,{pitch:1});n.textContent=VO.find(ln)&&VO.mine.has(VO.find(ln).key)?'ده صوتك المتسجّل 🎙️':'دي أصوات اللعبة المرحة. سجّل أصوات مصرية حقيقية من «استوديو الأصوات».';return;}pickVoices();
@@ -1631,9 +1759,9 @@ addEventListener('resize',()=>{if(state==='play')gpsSize();});
 
 /* ============ loop ============ */
 let last=performance.now(),mA=0;
-function frame(now){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000||0);last=now;
+function frame(now){requestAnimationFrame(frame);const dt0=Math.min(.05,(now-last)/1000||0);last=now;const dt=state==='play'?dt0*JMP.ts:dt0;
   PEOPLE.update(dt,camera.position,peopleFrame++);
-  if(state==='play'){animWorld(dt);updateTraffic(dt);updateCar(dt);updateWalkers(dt);syncTuk();updateFares(dt);crazyTick(dt);dlgUpdate(dt);radioUpdate(dt);quipTick();updateHUD(dt);updateCam(dt);audioTick();}
+  if(state==='play'){animWorld(dt);updateTraffic(dt);updateCar(dt);updateWalkers(dt);syncTuk();updateFares(dt);jumpTick(dt);fxTick(dt);lawTick(dt);crazyTick(dt0);dlgUpdate(dt);radioUpdate(dt);quipTick();updateHUD(dt);updateCam(dt);audioTick();}
   else if(state==='intro'){if(CINE.film){cineTick(dt);}else{animWorld(dt);updateTraffic(dt);updateWalkers(dt);cineTick(dt);}}
   else if(state==='menu'||state==='loading'){animWorld(dt);updateTraffic(dt);updateWalkers(dt);syncTuk();mA+=dt*.04;
     if(car&&state==='menu'&&GAR.open){if(!dragging)GAR.yaw+=dt*.18;const port=innerWidth<innerHeight,r=port?6.4:4.8,k=port?0:-1.25,sy=Math.sin(GAR.yaw),cy=Math.cos(GAR.yaw);camera.position.set(car.x+sy*r,port?2.6:1.85,car.z+cy*r);camera.lookAt(car.x+cy*k,port?-.55:.9,car.z-sy*k);}
@@ -1739,7 +1867,7 @@ $('volMaster').addEventListener('input',e=>{VOL.master=e.target.value/100;saveVo
 /* ============ settings panel ============ */
 function seg(id,opts,get,set){const el=$(id);const draw=()=>{el.innerHTML='';opts.forEach(([v,lab])=>{const b=document.createElement('button');b.textContent=lab;b.setAttribute('aria-pressed',String(get()===v));b.addEventListener('click',async()=>{if(get()!==v){await set(v);}draw();});el.appendChild(b);});};draw();return draw;}
 const segDraw=[];
-segDraw.push(seg('segCtl',[['touch','الدركسيون'],['slide','السحب'],['arrows','الأسهم'],['tilt','الإمالة']],()=>ctl.mode,v=>setCtl(v)));
+segDraw.push(seg('segCtl',[['stick','الأنالوج'],['touch','الدركسيون'],['arrows','الأسهم'],['tilt','الإمالة']],()=>ctl.mode,v=>setCtl(v)));
 segDraw.push(seg('segGas',[[false,'بإيدي'],[true,'أوتوماتيك']],()=>!!ctl.auto,v=>{ctl.auto=v;saveCtl();ctlUI();}));
 segDraw.push(seg('segSens',[[0.7,'تقيل'],[1,'عادي'],[1.35,'خفيف']],()=>ctl.sens,v=>{ctl.sens=v;saveCtl();ctlUI();}));
 segDraw.push(seg('segVoice',[['game','شغالة'],['off','مقفولة']],()=>Speech.mode,v=>{while(Speech.mode!==v)$('btnVoice').click();}));
@@ -1989,12 +2117,13 @@ async function boot(){try{ldStep('بنفتح بوابة الميناء…');awai
     step(RAPIER.init().then(()=>RAPIER).catch(e=>{console.warn('physics unavailable, arcade mode',e);return null;}),'ظبطنا الفرامل والعجل…'),
     step(new GLTFLoader().loadAsync('./models/people.glb').then(g=>{PEOPLE.load(g);return g;}).catch(e=>{console.warn('people',e);return null;}),'الناس نزلت الشارع…')]);
   TUK_TRAFFIC=vanG?gltf.scene:null;loadTuk(vanG||gltf);if(!TUK_TRAFFIC)TUK_TRAFFIC=tuk;CARS=carsG&&carsG.scene;PARKED.forEach(([g,k])=>g.add(makeTraffic(k)));initTraffic();initWalkers();trainingWalkers();buildWardianLate({T,scene,col,makeTraffic,walkers,personGeo,VC,human},WARDIAN);ldStep('الزباين واقفين على الرصيف…');await nextPaint();
-  veh=await createVehicle({RAPIER:R,colliders,traffic,spawn:{x:-160,z:7,h:-Math.PI/2},kind:isVan?'van':'tuk'});car=veh.car;
+  buildLaw();
+  veh=await createVehicle({RAPIER:R,colliders,traffic,spawn:{x:-160,z:7,h:-Math.PI/2},kind:isVan?'van':'tuk'});car=veh.car;buildJumps();fxInit();
   veh.onImpact(s=>{shake=Math.min(1,s/9);onImpact(s);});
   destBeam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:'#4cff5e',transparent:true,opacity:.28,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide}));destBeam.visible=false;scene.add(destBeam);
   destRing=new T.Mesh(new T.TorusGeometry(3,.15,8,40),new T.MeshBasicMaterial({color:'#4cff5e'}));destRing.rotation.x=Math.PI/2;destRing.visible=false;scene.add(destRing);
   buildRadioUI();radioUI();syncTuk();menuWallet();updateMoney();
-  window.portSim={audio:A,get crazy(){return CRAZY;},crazyStart,crazyEnd,crazyDrop,ctl,trafficStep:(dt,n)=>{for(let i=0;i<n;i++)updateTraffic(dt);},mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get training(){return TRAINING;},voices:VO,get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,cineSeek:t=>{if(CINE.on){if(CINE.film&&FILM.v)FILM.v.currentTime=t;else CINE.t=t;}},get film(){return {on:!!CINE.film,ready:FILM.ready,bad:FILM.bad,src:FILM.src&&FILM.src.url,t:FILM.v&&FILM.v.currentTime};},get cineShots(){return CINE.shots&&CINE.shots.map(x=>[x.id,x.t0,x.t1]);},get fare(){return fare;},get riders(){return riders;},get boarding(){return boarding;},get people(){return PEOPLE;},get line(){return line;},get perf(){return perf;},quip:(k,f)=>quip(k,f),quipTick:()=>quipTick(),hitKind:()=>hitKind(),get traffic(){return traffic;},get walkers(){return walkers;},quipReset:()=>{Quip.last=-1e9;},quipStop:()=>quipStop(),get leavers(){return leavers;},get quips(){return {on:Quip.on,loaded:Object.keys(Quip.buf).length,playing:Quip.playing,last:Quip.lastId,startAt:Quip.startAt,clock:clock,busy:quipBusy()};},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
+  window.portSim={audio:A,LIGHTS,RADARS,LAW,POL,policeStart,lightState,get crazy(){return CRAZY;},RAMPS,BUMPS,JMP,get veh(){return veh;},POI,crazyStart,crazyEnd,crazyDrop,ctl,trafficStep:(dt,n)=>{for(let i=0;i<n;i++){clock+=dt;updateTraffic(dt);}},mus:Mus,radio:radio,get scene(){return scene;},get wardian(){return WARDIAN;},get training(){return TRAINING;},voices:VO,get save(){return save;},colliders:colliders,route:(a,b,c,d)=>route(a,b,c,d),sync:()=>syncTuk(),cam:camera,get car(){return car;},teleport:(x,z,h)=>veh.teleport(x,z,h===undefined?car.h:h),POI:POI,waiting:waiting,cineSeek:t=>{if(CINE.on){if(CINE.film&&FILM.v)FILM.v.currentTime=t;else CINE.t=t;}},get film(){return {on:!!CINE.film,ready:FILM.ready,bad:FILM.bad,src:FILM.src&&FILM.src.url,t:FILM.v&&FILM.v.currentTime};},get cineShots(){return CINE.shots&&CINE.shots.map(x=>[x.id,x.t0,x.t1]);},get fare(){return fare;},get riders(){return riders;},get boarding(){return boarding;},get people(){return PEOPLE;},get line(){return line;},get perf(){return perf;},quip:(k,f)=>quip(k,f),quipTick:()=>quipTick(),hitKind:()=>hitKind(),get traffic(){return traffic;},get walkers(){return walkers;},quipReset:()=>{Quip.last=-1e9;},quipStop:()=>quipStop(),get leavers(){return leavers;},get quips(){return {on:Quip.on,loaded:Object.keys(Quip.buf).length,playing:Quip.playing,last:Quip.lastId,startAt:Quip.startAt,clock:clock,busy:quipBusy()};},shot:v=>{debugCam=v;},payConfirm:()=>payConfirm(),startPay:()=>startPay(),get fuel(){return fuel;},input:input};
   state='menu';ldStep('كله تمام، الوردية مستنياك!');requestAnimationFrame(frame);introReady();}
   catch(err){console.error(err);loadingText.textContent='حصلت مشكلة: '+err.message;}}
 const fr0=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('40px Lalezar'),document.fonts.load('700 40px "IBM Plex Sans Arabic"'),document.fonts.load('900 40px "Big Shoulders Display"')]).catch(()=>{}):Promise.resolve();

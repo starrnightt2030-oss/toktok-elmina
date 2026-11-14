@@ -36,10 +36,10 @@ const BASE = process.argv[2];
   // ---- settings: slide steering + automatic gas exist and save
   await p.evaluate(() => document.getElementById('btnSettings').click()); await p.waitForTimeout(300);
   const segs = await p.evaluate(() => ({ ctl: [...document.querySelectorAll('#segCtl button')].map(b => b.textContent), gas: [...document.querySelectorAll('#segGas button')].map(b => b.textContent) }));
-  ok(segs.ctl.includes('السحب') && segs.gas.includes('أوتوماتيك'), 'settings: «السحب» steering and automatic gas offered (' + segs.ctl.join('/') + ' · ' + segs.gas.join('/') + ')');
-  await p.evaluate(() => { [...document.querySelectorAll('#segCtl button')].find(b => b.textContent === 'السحب').click(); [...document.querySelectorAll('#segGas button')].find(b => b.textContent === 'أوتوماتيك').click(); });
+  ok(segs.ctl.includes('الأنالوج') && segs.gas.includes('أوتوماتيك'), 'settings: «الأنالوج» stick and automatic gas offered (' + segs.ctl.join('/') + ' · ' + segs.gas.join('/') + ')');
+  await p.evaluate(() => { [...document.querySelectorAll('#segCtl button')].find(b => b.textContent === 'الأنالوج').click(); [...document.querySelectorAll('#segGas button')].find(b => b.textContent === 'أوتوماتيك').click(); });
   const sv = await p.evaluate(() => JSON.parse(localStorage.getItem('aps_ctl')));
-  ok(sv && sv.mode === 'slide' && sv.auto === true, 'settings: choice saved (' + JSON.stringify(sv) + ')');
+  ok(sv && sv.mode === 'stick' && sv.auto === true, 'settings: choice saved (' + JSON.stringify(sv) + ')');
   await p.evaluate(() => { const s = document.getElementById('settings'); if (s) s.hidden = true; document.querySelectorAll('[id$=Close],[id^=sClose]').forEach(()=>{}); });
 
   // ---- crazy mode
@@ -47,16 +47,16 @@ const BASE = process.argv[2];
   await p.evaluate(() => document.getElementById('btnCrazy').click()); await p.waitForTimeout(1500);
   let cs = await p.evaluate(() => ({ on: window.portSim.crazy.on, t: window.portSim.crazy.t, hud: !document.getElementById('crazyHud').hidden, time: document.getElementById('crazyTime').textContent }));
   ok(cs.on && cs.t > 80 && cs.hud, 'crazy: starts with the clock running and its HUD showing (' + cs.time + ')');
-  const vis = await p.evaluate(() => { const s = document.getElementById('slide'); const r = s.getBoundingClientRect(); return { shown: getComputedStyle(s).display !== 'none', wheel: getComputedStyle(document.getElementById('joy')).display, r: [r.left, r.top, r.width, r.height] }; });
-  ok(vis.shown && vis.wheel === 'none', 'slide steering: strip shown instead of the wheel');
+  const vis = await p.evaluate(() => { const s = document.getElementById('stick'); const r = s.getBoundingClientRect(); return { shown: getComputedStyle(s).display !== 'none', wheel: getComputedStyle(document.getElementById('joy')).display, r: [r.left, r.top, r.width, r.height] }; });
+  ok(vis.shown && vis.wheel === 'none', 'analog stick: zone shown instead of the wheel');
   // slide: put a thumb down and drag right → steering right (joy negative)
-  const r = vis.r; const cx = r[0] + r[2] / 2, cy = r[1] + r[3] / 2;
-  await p.evaluate(([x, y]) => { const s = document.getElementById('slide'); const ev = (t, X) => s.dispatchEvent(new PointerEvent(t, { pointerId: 7, clientX: X, clientY: y, bubbles: true, pointerType: 'touch' })); ev('pointerdown', x); ev('pointermove', x + 60); }, [cx, cy]);
+  const r = vis.r; const cx = r[0] + r[2] * 0.4, cy = r[1] + r[3] * 0.6;
+  await p.evaluate(([x, y]) => { const s = document.getElementById('stick'); const ev = (t, X) => s.dispatchEvent(new PointerEvent(t, { pointerId: 7, clientX: X, clientY: y, bubbles: true, pointerType: 'touch' })); ev('pointerdown', x); ev('pointermove', x + 40); }, [cx, cy]);
   const j1 = await p.evaluate(() => ({ joy: window.portSim.input.joy, wheel: window.portSim.input.wheel }));
-  await p.evaluate(([x, y]) => { const s = document.getElementById('slide'); s.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, clientX: x, clientY: y, bubbles: true, pointerType: 'touch' })); }, [cx, cy]);
+  await p.evaluate(([x, y]) => { const s = document.getElementById('stick'); s.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, clientX: x, clientY: y, bubbles: true, pointerType: 'touch' })); }, [cx, cy]);
   const j2 = await p.evaluate(() => window.portSim.input.joy);
-  ok(j1.joy < -0.4 && j1.wheel === 1, 'slide steering: dragging right steers right (joy ' + j1.joy.toFixed(2) + ')');
-  ok(j2 === 0, 'slide steering: letting go centres it');
+  ok(j1.joy < -0.4 && j1.wheel === 1, 'analog stick: pushing right steers right (joy ' + j1.joy.toFixed(2) + ')');
+  ok(j2 === 0, 'analog stick: letting go centres it');
   // auto gas: no pedal held, the vehicle still moves off
   await p.evaluate(() => window.portSim.teleport(-160, 7, -Math.PI / 2));
   await p.waitForFunction(() => window.portSim.car.v > 3, null, { timeout: 120000 }).catch(() => {});

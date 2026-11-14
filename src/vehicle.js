@@ -40,7 +40,7 @@ export const SPECS = {
   },
 };
 
-export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 'tuk' }) {
+export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 'tuk', ramps = [], bumps = [] }) {
   const S = SPECS[kind] || SPECS.tuk, TN = Object.assign({}, TUNING, S.tuning), NW = S.wheels.length;
   const car = {
     x: spawn.x, z: spawn.z, h: spawn.h, y: 0,
@@ -98,6 +98,25 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
       world.createCollider(RAPIER.ColliderDesc.cuboid((b.x1 - b.x0) / 2, tall / 2, (b.z1 - b.z0) / 2)
         .setTranslation((b.x0 + b.x1) / 2, tall / 2, (b.z0 + b.z1) / 2).setFriction(0.3).setRestitution(0.15));
     }
+    // jump ramps: a wedge rising from the road to h over len along (dx, dz); w wide
+    const rampCols = [];
+    api.addRamp = (r) => {
+      const fx = r.dx, fz = r.dz, rx = -fz, rz = fx, hw = r.w / 2, L = r.len;
+      const P = [];
+      for (const s of [-1, 1]) { P.push(rx * hw * s, 0, rz * hw * s); P.push(rx * hw * s + fx * L, 0, rz * hw * s + fz * L); P.push(rx * hw * s + fx * L, r.h, rz * hw * s + fz * L); }
+      const d = RAPIER.ColliderDesc.convexHull(new Float32Array(P));
+      if (!d) return null;
+      const c = world.createCollider(d.setTranslation(r.x, 0, r.z).setFriction(0.9));
+      rampCols.push(c); return c;
+    };
+    api.clearRamps = () => { for (const c of rampCols) world.removeCollider(c, false); rampCols.length = 0; };
+    // speed bumps: a low rounded hump across the road (a capsule lying sideways, mostly under the road)
+    api.addBump = (b) => {
+      const ang = Math.atan2(b.dx, b.dz);   // road direction; the capsule lies across it
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ang, Math.PI / 2));
+      return world.createCollider(RAPIER.ColliderDesc.capsule(b.w / 2, 0.5).setTranslation(b.x, -0.36, b.z)
+        .setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }).setFriction(0.9));
+    };
     const rot = { x: 0, y: Math.sin(spawn.h / 2), z: 0, w: Math.cos(spawn.h / 2) };
     const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(spawn.x, 0.15, spawn.z)
       .setRotation(rot).setLinearDamping(0.04).setAngularDamping(0.9).setCcdEnabled(true).setCanSleep(false)
@@ -106,6 +125,7 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
     world.createCollider(RAPIER.ColliderDesc.cuboid(S.box[0], S.box[1], S.box[2]).setTranslation(0, S.box[3], 0)
       .setMassProperties(TN.mass, S.com, S.inertia, { w: 1, x: 0, y: 0, z: 0 })
       .setFriction(0.25).setRestitution(0.2), body);
+    ramps.forEach(r => api.addRamp(r)); bumps.forEach(b => api.addBump(b));
     const veh = world.createVehicleController(body);
     veh.indexUpAxis = 1; veh.setIndexForwardAxis = 2;
     S.wheels.forEach((w, i) => {
@@ -128,6 +148,10 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
     }
 
     const STEP = 1 / 60;
+    let wheelsDown = NW; const p0air = () => wheelsDown === 0;
+    // launch off a ramp lip: an upward kick, flight allowed for a while (the speed caps would otherwise hold it down)
+    api.launch = (vy, t = 2.5) => { const v = body.linvel(); api.airT = Math.max(api.airT, t); body.setLinvel({ x: v.x, y: Math.max(v.y, vy), z: v.z }, true); };
+    api.airT = 0;
     let acc = 0, prevV = new THREE.Vector3(), flipT = 0, safeT = 0;
     const safe = { x: spawn.x, z: spawn.z, h: spawn.h };
 
@@ -174,6 +198,7 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
         for (let i = 0; i < NW; i++) veh.setWheelBrake(i, brake * (S.wheels[i].front ? 0.6 : 1) + (hand && !S.wheels[i].front ? 2.2 : 0));
         S.drive.forEach(i => veh.setWheelFrictionSlip(i, hand ? 0.75 : 2.3));
         veh.updateVehicle(STEP);
+        wheelsDown = 0; for (let i = 0; i < NW; i++) if (veh.wheelIsInContact(i)) wheelsDown++;
         // keep the three-wheeler from tipping over: gentle righting torque past ~20 degrees
         up.set(0, 1, 0).applyQuaternion(q);
         right.set(1, 0, 0).applyQuaternion(q);
@@ -183,17 +208,22 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
         // never let a shove from traffic launch the tuk-tuk
         {
           const v = body.linvel(); const hs = Math.hypot(v.x, v.z), cap = TN.vmaxTurbo * 1.12;
-          const k = hs > cap ? cap / hs : 1;
-          if (k < 1 || v.y > 2.5 || v.y < -15) body.setLinvel({ x: v.x * k, y: clamp(v.y, -15, 2.5), z: v.z * k }, true);
+          const k = hs > cap ? cap / hs : 1, upMax = api.airT > 0 ? 14 : 2.5;
+          if (k < 1 || v.y > upMax || v.y < -20) body.setLinvel({ x: v.x * k, y: clamp(v.y, -20, upMax), z: v.z * k }, true);
+          // a little extra gravity in the air so jumps feel snappy instead of floaty
+          if (api.airT > 0 && p0air()) body.applyImpulse({ x: 0, y: -TN.mass * 6 * STEP, z: 0 }, true);
           const w = body.angvel(); if (Math.abs(w.y) > 3.5) body.setAngvel({ x: 0, y: clamp(w.y, -3.5, 3.5), z: 0 }, true);
           const p = body.translation();
-          if (!(Math.abs(p.y) < 2.2) || !isFinite(p.x) || !isFinite(p.z)) { api.teleport(safe.x, safe.z, safe.h); }
+          if (!(Math.abs(p.y) < (api.airT > 0 ? 18 : 2.2)) || !isFinite(p.x) || !isFinite(p.z)) { api.teleport(safe.x, safe.z, safe.h); }
           else if (p.y < 0.4) { safeT += STEP; if (safeT > 1) { safe.x = p.x; safe.z = p.z; safe.h = car.h; safeT = 0; } }
         }
         // collisions felt as a sudden loss of speed
         const nv = body.linvel();
         const dv = Math.hypot(nv.x - lv.x, nv.z - lv.z);
-        if (dv > 2.4 && !car.braking) impactCb(dv * 1.6);
+        // landing from a jump is not a crash: only sideways loss of speed counts while flying or just after
+        const dvh = api.airT > 0 ? Math.hypot(nv.x - lv.x, nv.z - lv.z) : dv;
+        if (dvh > 2.4 && !car.braking) impactCb(dvh * 1.6);
+        if (api.airT > 0) api.airT -= STEP;
       }
       // read back for the rest of the game
       const t = body.translation(), r = body.rotation(), lv = body.linvel();
@@ -205,6 +235,8 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
       car.v = lv.x * fwd.x + lv.z * fwd.z;
       car.lat = lv.x * right.x + lv.z * right.z;
       for (let i = 0; i < NW; i++) { car.wheelRot[i] -= car.v * dt / S.radius; car.susp[i] = veh.wheelSuspensionLength(i) ?? S.rest; }
+      let grounded = 0; for (let i = 0; i < NW; i++) if (veh.wheelIsInContact(i)) grounded++;
+      car.air = grounded === 0 && t.y > 0.25; car.vy = lv.y;
       common(dt, input, st, fuelOk, Math.abs(car.v));
       // flipped for 2 s -> stand it back up
       if (up.y < 0.35) { flipT += dt; if (flipT > 2) { api.teleport(car.x, car.z, car.h); flipT = 0; } } else flipT = 0;
@@ -270,6 +302,7 @@ export async function createVehicle({ RAPIER, colliders, traffic, spawn, kind = 
   }
 
   api.turbo = 1;
+  if (!api.launch) { api.launch = () => {}; api.addRamp = () => null; api.addBump = () => null; api.clearRamps = () => {}; api.airT = 0; }
   return api;
 }
 
@@ -281,7 +314,8 @@ export function syncModel(tuk, nodes, car) {
   tuk.quaternion.copy(car.quat);
   // body lean in corners and squat under throttle/brake (the physics keeps the chassis upright)
   const lean = clamp(car.steerAng * Math.abs(car.v) * (car.kind === 'van' ? 0.007 : 0.011), -0.07, 0.07);
-  car._pitch = (car._pitch || 0) + (((car.braking ? -0.025 : 0) + (car.thr ? 0.015 : 0)) - (car._pitch || 0)) * 0.08;
+  const vyP = Math.abs(car.vy || 0) > 0.4 ? clamp((car.vy || 0) * 0.035, -0.3, 0.26) : 0;
+  car._pitch = (car._pitch || 0) + (((car.braking ? -0.025 : 0) + (car.thr ? 0.015 : 0) + vyP) - (car._pitch || 0)) * (vyP ? 0.18 : 0.08);
   _e.set(car._pitch, 0, lean); _lq.setFromEuler(_e); tuk.quaternion.multiply(_lq);
   if (car.kind === 'van') {
     const hub = i => S.conn - car.susp[i];

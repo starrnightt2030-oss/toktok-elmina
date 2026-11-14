@@ -1,4 +1,4 @@
-// Phase 7 checks: the training centre is in the game, you can drive in and through it, the map is wider (east blocks + القباري),
+// Phase 7 checks: the training centre is in the game (one big yard: theory building + workshops section at its far end), you can drive in and round it, the map is wider (east blocks + القباري),
 // riders show where they are going and walk to the vehicle to board.
 // Usage: node tools/e2e_training.cjs <base url>     SLOW=2 for a slow software renderer
 const { chromium } = require('playwright');
@@ -18,14 +18,15 @@ const BASE = process.argv[2], SLOW = +(process.env.SLOW || 1);
     const along = (a, b, m) => { const out = []; const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 1.5); for (let i = 0; i <= n; i++) { const x = a[0] + (b[0] - a[0]) * i / n, z = a[1] + (b[1] - a[1]) * i / n; if (!free(x, z, m)) out.push([+x.toFixed(1), +z.toFixed(1)]); } return out; };
     // every inner road of the training centre (graph edges inside its wall) is clear for a tuk (0.75 m each side)
     const tc = []; const N = {}; s.route(0, 0, 0, 0);
-    return { b: t.buildings.length, rooms: t.rooms.map(r => r.n), gates: t.gates, corr: t.corridor,
-      roads: t.roads ? null : null, POI: Object.keys(s.POI).filter(k => /^tc|^qstop|^micro/.test(k)).map(k => k + ':' + s.POI[k].x + ',' + s.POI[k].z),
+    return { b: t.buildings.length, names: t.buildings.map(q => q.kind), gates: t.gates,
+      POI: Object.keys(s.POI).filter(k => /^tc|^qstop|^micro/.test(k)).map(k => k + ':' + s.POI[k].x + ',' + s.POI[k].z),
       blockedPOI: Object.keys(s.POI).filter(k => !free(s.POI[k].x, s.POI[k].z, .8)),
-      rIn: Math.round(s.route(0, 5, 196, 57.9).len), rBack: Math.round(s.route(0, 5, 237, 104.6).len), rQ: Math.round(s.route(-375, 199, -200, 232.5).len), rE: Math.round(s.route(0, 5, 360, 180).len),
+      ring: [[245.6, 30], [245.6, 70], [176, 74], [176, 30]].every(([x, z]) => free(x, z, 1.2)),
+      rIn: Math.round(s.route(0, 5, 236, 74).len), rBack: Math.round(s.route(0, 5, 192, 74).len), rQ: Math.round(s.route(-375, 199, -200, 232.5).len), rE: Math.round(s.route(0, 5, 360, 180).len),
       edgeX: Math.max(...C.filter(q => q.h <= .05 && q.x0 > 300).map(q => q.x0)) }; });
-  ok(L.b >= 30 && L.rooms.length === 2, 'training centre: ' + L.b + ' buildings/rooms from the plan, open workshops: ' + L.rooms.join('، '));
+  ok(L.b >= 5 && L.ring, 'training centre: a big open yard with ' + L.b + ' buildings at its edges, the ring road round the garden island is clear');
   ok(!L.blockedPOI.length, 'stops: every pick-up point is on open ground' + (L.blockedPOI.length ? ' — blocked: ' + L.blockedPOI.join(',') : ''));
-  ok(L.rIn > 0 && L.rIn < 450 && L.rBack > 0 && L.rBack < 500, 'GPS: reaches the students\' corridor (' + L.rIn + ' m) and the back yard (' + L.rBack + ' m) inside the centre');
+  ok(L.rIn > 0 && L.rIn < 450 && L.rBack > 0 && L.rBack < 500, 'GPS: reaches the theory building (' + L.rIn + ' m) and the workshops section (' + L.rBack + ' m) inside the centre');
   ok(L.rQ > 0 && L.rQ < 600, 'GPS: Wardian square → موقف القباري (' + L.rQ + ' m)');
   ok(L.rE > 0 && L.edgeX > 410, 'map: the city runs east to x ' + L.edgeX + ' with new streets (route to x 360: ' + L.rE + ' m)');
 
@@ -48,21 +49,16 @@ const BASE = process.argv[2], SLOW = +(process.env.SLOW || 1);
       s.input.joy = Math.max(-1, Math.min(1, e * 2)); s.input.up = Math.abs(s.car.v) < (Math.abs(e) > .5 ? 2.5 : 5) ? 1 : 0; await new Promise(r => setTimeout(r, 80)); }
     s.input.up = 0; s.input.joy = 0; return { reached: i, of: pts.length, x: +s.car.x.toFixed(1), z: +s.car.z.toFixed(1), maxY: +maxY.toFixed(2) }; }, [pts, maxS, R]);
   const g = L.gates;
-  // in segments (the software renderer is slow): gate → plaza, lane → corridor mouth, through the corridor, exit road → avenue
+  // in segments (the software renderer is slow): gate → round the yard → past the buildings → out of the exit gate
   const seg = async (x, z, h, pts, name) => { await p.evaluate(([x, z, h]) => window.portSim.teleport(x, z, h), [x, z, h]); await p.waitForTimeout(600); const d = await drive(pts, SLOW * 300);
     ok(d.reached === d.of && d.maxY < .7, 'drive: ' + name + ' (' + d.reached + '/' + d.of + ', at ' + d.x + ',' + d.z + ')'); };
-  await seg(g.main, 4, Math.PI, [[g.main, 21.6], [236, 21.6]], 'in through the main gate to the entrance plaza');
-  await seg(228.9, 24, Math.PI, [[228.9, 50], [225, 57.8]], 'up the lane between the admin building and the workshop block to the corridor');
-  await seg(223, 57.8, Math.PI / 2, [[205, 57.8], [181, 57.8]], 'through the students\' corridor inside the workshop block, out onto the exit road');
-  await seg(178.2, 45, 0, [[178.2, 21], [171, 15], [170, 2]], 'down the exit road and out of the exit gate onto the avenue');
-  // drive into the open carpentry workshop
-  await p.evaluate(() => window.portSim.teleport(198, 58.6, 0)); await p.waitForTimeout(600);
-  const rm = await p.evaluate(() => window.portSim.training.rooms[0]);
-  const d3 = await drive([[198, rm.z1 - 1.2]], SLOW * 80, .8);
-  ok(d3.z < rm.z1 - .3 && d3.z > rm.z0, 'drive: into the carpentry workshop through its door (car at z ' + d3.z + ', room z ' + rm.z0.toFixed(1) + '–' + rm.z1.toFixed(1) + ')');
-  // walls hold
-  const ram = await p.evaluate(async () => { const s = window.portSim; s.teleport(230, 40, Math.PI / 2); s.input.up = 1; await new Promise(r => setTimeout(r, 12000)); s.input.up = 0; return s.car.x; });
-  ok(ram > 226.0, 'collision: the workshop block wall stops the tuk (x ' + ram.toFixed(1) + ', wall at 226.1)');
+  await seg(g.main, 4, Math.PI, [[g.main, 22], [g.main, 40]], 'in through the main gate into the yard');
+  await seg(g.main, 40, Math.PI, [[g.main, 68], [236, 74], [205, 74]], 'up the yard to the theory building');
+  await seg(205, 74, Math.PI / 2, [[180, 73], [176, 60], [176, 34]], 'past the workshops section and down the west side of the yard');
+  await seg(176, 34, 0, [[174, 22], [170, 12], [170, 2]], 'out of the exit gate onto the avenue');
+  // walls hold: the theory building
+  const ram = await p.evaluate(async () => { const s = window.portSim; s.teleport(240, 74, Math.PI); s.input.up = 1; await new Promise(r => setTimeout(r, 12000)); s.input.up = 0; return s.car.z; });
+  ok(ram < 84.2, 'collision: the theory building stops the tuk (z ' + ram.toFixed(1) + ', front at 84)');
 
   console.log('page errors:', errs.length ? errs : 'none'); await b.close();
   process.exit(res.every(Boolean) && !errs.length ? 0 : 1);

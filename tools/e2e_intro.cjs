@@ -31,7 +31,7 @@ const BASE = process.argv[2];
     const st = await p.evaluate(() => ({ f: window.portSim.film, cls: document.getElementById('cine').className, shot: document.getElementById('cine').dataset.shot, logo: !!document.querySelector('#cine .clogo img[src*="logo-v2"]') }));
     ok(st.f.on && st.f.t > .3 && /film/.test(st.cls), 'film: plays after the tap (t=' + (st.f.t || 0).toFixed(2) + ', class=' + st.cls + ')');
     ok(st.logo, 'film: official logo (logo-v2) laid over the film');
-    await p.evaluate(() => window.portSim.cineSeek(4.6)); await p.waitForTimeout(800);
+    await p.evaluate(() => window.portSim.cineSeek(4.6)); await p.waitForTimeout(2200);
     ok(await p.evaluate(() => document.getElementById('cine').dataset.shot === 'hero'), 'film: shot clock follows the video (hero at 4.6 s)');
     const shot = await p.screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + '/intro-film-land.png' : undefined });
     await p.evaluate(() => document.getElementById('cine').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));

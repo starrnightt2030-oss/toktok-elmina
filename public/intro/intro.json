@@ -1,0 +1,33 @@
+{
+  "enabled": true,
+  "note": "Intro film. Muted on purpose: the game plays the sound effects in sync. Add a 1080/2160 entry when a higher-resolution master exists (see README.md).",
+  "duration": 10.29,
+  "maxHeight": 2160,
+  "poster": "./intro/intro-poster.jpg",
+  "shots": [
+    {
+      "id": "harbor",
+      "dur": 3.71
+    },
+    {
+      "id": "hero",
+      "dur": 4.12
+    },
+    {
+      "id": "flash",
+      "dur": 2.46
+    }
+  ],
+  "sources": [
+    {
+      "height": 480,
+      "url": "./intro/intro-480.mp4",
+      "type": "video/mp4"
+    },
+    {
+      "height": 720,
+      "url": "./intro/intro-720.mp4",
+      "type": "video/mp4"
+    }
+  ]
+}

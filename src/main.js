@@ -991,7 +991,8 @@ function quipLoad(id){if(Quip.buf[id]||Quip.loading[id]||!A.ctx)return Quip.load
   Quip.loading[id]=fetch('./audio/quips/'+id+'.mp3').then(r=>r.ok?r.arrayBuffer():Promise.reject()).then(b=>new Promise((res,rej)=>A.ctx.decodeAudioData(b,res,rej)))
     .then(d=>{Quip.buf[id]=d;return d;}).catch(()=>null);return Quip.loading[id];}
 /* fetch the clips one after another in the background once the player is driving (never during the first load) */
-function quipPreload(){if(Quip.pre||!A.ctx)return;Quip.pre=true;const ids=[].concat(...Object.values(QUIP_SETS));let i=0;const next=()=>{if(i>=ids.length)return;const id=ids[i++];Promise.resolve(quipLoad(id)).then(()=>setTimeout(next,150));};next();}
+/* gently: one clip every ~1.2 s, starting a few seconds into the drive, so slower phones never stutter */
+function quipPreload(){if(Quip.pre||!A.ctx)return;Quip.pre=true;const ids=[].concat(...Object.values(QUIP_SETS));let i=0;const next=()=>{if(i>=ids.length)return;const id=ids[i++];Promise.resolve(quipLoad(id)).then(()=>setTimeout(next,1200));};setTimeout(next,6000);}
 function quipBusy(){return Quip.playing||!!Dlg.cur||Dlg.q.length>0;}
 function quip(kind,force){if(!Quip.on||A.muted||!A.ctx||state!=='play')return false;const R=QUIP_RULE[kind],set=QUIP_SETS[kind];if(!R||!set)return false;
   if(Quip.playing||(!force&&(Dlg.cur||Dlg.q.length)))return false;if(clock-Quip.last<R[1])return false;if(Math.random()>R[0])return false;
